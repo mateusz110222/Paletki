@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX pallet_index ON pallets (pallet_id);
