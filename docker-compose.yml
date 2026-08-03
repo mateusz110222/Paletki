@@ -1,0 +1,52 @@
+services:
+  postgres-db:
+    image: postgres:18.4-alpine
+    environment:
+      POSTGRES_USER: encoredb_user
+      POSTGRES_PASSWORD: encoredb_password
+      POSTGRES_DB: pallets
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U encoredb_user -d pallets"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  db-migrations:
+    image: migrate/migrate
+    volumes:
+      - ./backend/pallet/migrations:/migrations:ro
+    command:
+      - -path=/migrations
+      - -database=postgres://encoredb_user:encoredb_password@postgres-db:5432/pallets?sslmode=disable
+      - up
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+
+  backend:
+    image: paletki-dev:latest
+    ports:
+      - "4000:4000"
+    depends_on:
+      db-migrations:
+        condition: service_completed_successfully
+    environment:
+      PALLETS_DB_PASSWORD: encoredb_password
+      ENCORE_ENV: production
+
+  frontend:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./frontend/dist:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

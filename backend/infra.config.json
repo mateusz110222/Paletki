@@ -1,0 +1,23 @@
+{
+  "$schema": "https://encore.dev/schemas/infra.schema.json",
+  "metadata": {
+    "app_id": "paletki",
+    "env_type": "production"
+  },
+  "sql_servers": [
+    {
+      "host": "postgres-db:5432",
+      "tls_config": {
+        "disabled": true
+      },
+      "databases": {
+        "pallets": {
+          "username": "encoredb_user",
+          "password": {
+            "$env": "PALLETS_DB_PASSWORD"
+          }
+        }
+      }
+    }
+  ]
+}

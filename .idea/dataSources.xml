@@ -1,11 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="DataSourceManagerImpl" format="xml" multifile-model="true">
+<<<<<<< HEAD
     <data-source source="LOCAL" name="pallets@127.0.0.1" uuid="f134569f-96c7-46c2-8280-e1cc45761acd">
       <driver-ref>postgresql</driver-ref>
       <synchronize>true</synchronize>
       <jdbc-driver>org.postgresql.Driver</jdbc-driver>
       <jdbc-url>jdbc:postgresql://127.0.0.1:9500/pallets?sslmode=disable</jdbc-url>
+=======
+    <data-source source="LOCAL" name="postgres@127.0.0.1" uuid="a47acd55-0abd-4d36-b94d-9474e61609aa">
+      <driver-ref>postgresql</driver-ref>
+      <synchronize>true</synchronize>
+      <jdbc-driver>org.postgresql.Driver</jdbc-driver>
+      <jdbc-url>jdbc:postgresql://127.0.0.1:5432/postgres</jdbc-url>
+>>>>>>> 66a0c52 (feat: Implement initial application structure and core features)
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
   </component>

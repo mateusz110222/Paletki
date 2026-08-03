@@ -1,0 +1,36 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-brand-bg: #090d16;
+  --color-brand-surface: #111827;
+  --color-brand-surface-high: #1f2937;
+  --color-brand-accent: #6366f1;
+  --color-brand-text: #f9fafb;
+  --color-brand-text-muted: #9ca3af;
+  --color-brand-border: #374151;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-brand-bg);
+    color: var(--color-brand-text);
+    font-family: var(--font-sans);
+    letter-spacing: -0.01em;
+  }
+}
+
+/* Custom premium glow effects and animations */
+.glow-accent {
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.15);
+}
+.glow-accent:focus-within {
+  box-shadow: 0 0 25px rgba(99, 102, 241, 0.3);
+}
+.glow-error {
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.15);
+}
+
