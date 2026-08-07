@@ -1,162 +1,78 @@
-# REST API Starter
+# Paletki Project
 
-This is a RESTful API Starter with a single Hello World API endpoint.
+"Paletki" is a comprehensive web application designed to streamline the management and tracking of physical pallets within a production or logistics environment. The system allows users to register new pallets, monitor their lifecycle, track usage cycles, and manage maintenance schedules. By providing a centralized database and an intuitive user interface, the project aims to reduce manual errors, improve operational efficiency, and provide clear visibility into the status and history of each pallet.
 
-[![Deploy to Encore](https://github.com/encoredev/examples/raw/main/assets/deploytoenc.svg)](https://app.encore.cloud/create-app/clone/ts-hello-world)
+## Architecture Overview
 
-## Prerequisites 
+The application is built on a modern, decoupled architecture that separates the frontend user interface from the backend business logic. This design enhances scalability, maintainability, and allows for independent development and deployment of each component.
 
-**Install Encore:**
-- **macOS:** `brew install encoredev/tap/encore`
-- **Linux:** `curl -L https://encore.dev/install.sh | bash`
-- **Windows:** `iwr https://encore.dev/install.ps1 | iex`
+### Frontend
+The frontend is a single-page application (SPA) responsible for rendering the user interface and interacting with the backend via a REST API. It provides a user-friendly experience for viewing pallet data, registering new pallets, and managing their status.
 
-## Create app
+### Backend
+The backend is developed using the **Encore** framework, which simplifies the creation of scalable, cloud-native services. It is structured as a set of microservices, each responsible for a distinct domain of the application:
 
-Create a local app from this template:
+- **`pallet` Service**: The core service that handles all CRUD (Create, Read, Update, Delete) operations for pallets. It manages pallet data, including unique IDs, project associations, model types, cycle counts, and status (e.g., Active, Blocked). It also maintains a detailed audit log for each pallet's history.
+- **`dashboard` Service**: Provides aggregated data and analytics for visualization on the frontend dashboard. This service might calculate statistics like the number of active pallets, maintenance needs, or overall usage trends.
+- **`maintenance` Service**: Manages the maintenance lifecycle of pallets. It can be used to schedule maintenance tasks, record completed work, and update a pallet's status based on its condition.
+
+This microservices architecture ensures that the system is resilient and that individual components can be updated or scaled without impacting the entire application.
+
+---
+
+This document provides instructions on how to set up, build, and run the "paletki" project for local development and deployment.
+
+## Prerequisites
+
+Before you begin, ensure you have the following tools installed on your system:
+- [Docker](https://www.docker.com/get-started) & Docker Compose
+- [Node.js](https://nodejs.org/) (which includes npm)
+- [Encore CLI](https://encore.dev/docs/install)
+
+## Getting Started
+
+### 1. Clone the Repository
+First, clone the project repository to your local machine.
+```bash
+# Replace with your actual repository URL
+git clone https://github.com/your-username/paletki.git
+cd paletki
+```
+
+### 2. Install Frontend Dependencies
+Navigate to the frontend directory (if applicable) and install the required npm packages.
+```bash
+# If your frontend code is in a sub-directory, e.g., 'frontend/'
+# cd frontend/
+npm install
+```
+
+## Building the Application
+
+To prepare the application for deployment, you need to build both the backend and frontend components.
+
+### 1. Build Backend Service
+The backend is built using Encore, which packages it into a Docker image. Run the following command from the project root:
+```bash
+encore build docker --config infra.config.json paletki-dev:latest
+```
+This command creates a Docker image named `paletki-dev` with the tag `latest`.
+
+### 2. Build Frontend Assets
+Build the static assets for the frontend application:
+```bash
+npm run build
+```
+This command will typically create a `build` or `dist` directory with the compiled frontend code.
+
+## Running the Application
+
+With the backend and frontend built, you can run the entire application stack using Docker Compose.
 
 ```bash
-encore app create my-app-name --example=ts/hello-world
+docker-compose up
 ```
 
-## Run app locally
+This command starts all the services defined in your `docker-compose.yml` file (e.g., your backend service, a web server for the frontend, databases, etc.).
 
-Run this command from your application's root folder:
-
-```bash
-encore run
-```
-### Using the API
-
-To see that your app is running, you can ping the API.
-
-```bash
-curl http://localhost:4000/hello/World
-```
-
-### Local Development Dashboard
-
-While `encore run` is running, open [http://localhost:9400/](http://localhost:9400/) to access Encore's [local developer dashboard](https://encore.dev/docs/observability/dev-dash).
-
-Here you can see traces for all requests that you made, see your architecture diagram (just a single service for this simple example), and view API documentation in the Service Catalog.
-
-## Development
-
-### Add a new service
-
-To create a new microservice, add a file named encore.service.ts in a new directory.
-The file should export a service definition by calling `new Service`, imported from `encore.dev/service`.
-
-```ts
-import { Service } from "encore.dev/service";
-
-export default new Service("my-service");
-```
-
-Encore will now consider this directory and all its subdirectories as part of the service.
-
-Learn more in the docs: https://encore.dev/docs/ts/primitives/services
-
-### Add a new endpoint
-
-Create a new `.ts` file in your new service directory and write a regular async function within it. Then to turn it into an API endpoint, use the `api` function from the `encore.dev/api` module. This function designates it as an API endpoint.
-
-Learn more in the docs: https://encore.dev/docs/ts/primitives/defining-apis
-
-### Service-to-service API calls
-
-Calling API endpoints between services looks like regular function calls with Encore.ts.
-The only thing you need to do is import the service you want to call from `~encore/clients` and then call its API endpoints like functions.
-
-In the example below, we import the service `hello` and call the `ping` endpoint using a function call to `hello.ping`:
-
-```ts
-import { hello } from "~encore/clients"; // import 'hello' service
-
-export const myOtherAPI = api({}, async (): Promise<void> => {
-  const resp = await hello.ping({ name: "World" });
-  console.log(resp.message); // "Hello World!"
-});
-```
-
-Learn more in the docs: https://encore.dev/docs/ts/primitives/api-calls
-
-### Add a database
-
-To create a database, import `encore.dev/storage/sqldb` and call `new SQLDatabase`, assigning the result to a top-level variable. For example:
-
-```ts
-import { SQLDatabase } from "encore.dev/storage/sqldb";
-
-// Create the todo database and assign it to the "db" variable
-const db = new SQLDatabase("todo", {
-  migrations: "./migrations",
-});
-```
-
-Then create a directory `migrations` inside the service directory and add a migration file `0001_create_table.up.sql` to define the database schema. For example:
-
-```sql
-CREATE TABLE todo_item (
-  id BIGSERIAL PRIMARY KEY,
-  title TEXT NOT NULL,
-  done BOOLEAN NOT NULL DEFAULT false
-  -- etc...
-);
-```
-
-Once you've added a migration, restart your app with `encore run` to start up the database and apply the migration. Keep in mind that you need to have [Docker](https://docker.com) installed and running to start the database.
-
-Learn more in the docs: https://encore.dev/docs/ts/primitives/databases
-
-### Learn more
-
-There are many more features to explore in Encore.ts, for example:
-
-- [Request Validation](https://encore.dev/docs/ts/primitives/validation)
-- [Streaming APIs](https://encore.dev/docs/ts/primitives/streaming-apis)
-- [Cron jobs](https://encore.dev/docs/ts/primitives/cron-jobs)
-- [Pub/Sub](https://encore.dev/docs/ts/primitives/pubsub)
-- [Object Storage](https://encore.dev/docs/ts/primitives/object-storage)
-- [Secrets](https://encore.dev/docs/ts/primitives/secrets)
-- [Authentication handlers](https://encore.dev/docs/ts/develop/auth)
-- [Middleware](https://encore.dev/docs/ts/develop/middleware)
-
-## Deployment
-
-### Self-hosting
-
-See the [self-hosting instructions](https://encore.dev/docs/self-host/docker-build) for how to use `encore build docker` to create a Docker image and configure it.
-
-### Encore Cloud Platform
-
-Deploy your application to a free staging environment in Encore's development cloud using `git push encore`:
-
-```bash
-git add -A .
-git commit -m 'Commit message'
-git push encore
-```
-
-You can also open your app in the [Cloud Dashboard](https://app.encore.dev) to integrate with GitHub, or connect your AWS/GCP account, enabling Encore to automatically handle cloud deployments for you.
-
-## Link to GitHub
-
-Follow these steps to link your app to GitHub:
-
-1. Create a GitHub repo, commit and push the app.
-2. Open your app in the [Cloud Dashboard](https://app.encore.dev).
-3. Go to **Settings ➔ GitHub** and click on **Link app to GitHub** to link your app to GitHub and select the repo you just created.
-4. To configure Encore to automatically trigger deploys when you push to a specific branch name, go to the **Overview** page for your intended environment. Click on **Settings** and then in the section **Branch Push** configure the **Branch name** and hit **Save**.
-5. Commit and push a change to GitHub to trigger a deploy.
-
-[Learn more in the docs](https://encore.dev/docs/how-to/github)
-
-
-## Testing
-
-To run tests, configure the `test` command in your `package.json` to the test runner of your choice, and then use the command `encore test` from the CLI. The `encore test` command sets up all the necessary infrastructure in test mode before handing over to the test runner. [Learn more](https://encore.dev/docs/ts/develop/testing)
-
-```bash
-encore test
-```
+You should now be able to access the application in your browser at the configured address (e.g., `http://localhost:8080`).

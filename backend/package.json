@@ -6,11 +6,16 @@
   "license": "MPL-2.0",
   "type": "module",
   "scripts": {
-    "test": "vitest --passWithNoTests"
+    "test": "vitest --passWithNoTests",
+    "lint": "eslint ."
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^20.5.7",
+    "eslint": "^10.8.0",
+    "globals": "^17.9.0",
     "typescript": "^5.2.2",
+    "typescript-eslint": "^8.66.0",
     "vitest": "^1.5.0"
   },
   "dependencies": {

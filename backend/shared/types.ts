@@ -5,6 +5,13 @@ export type PalletStatus =
     | 'Damaged'
     | 'Blocked';
 
+export const PALLET_STATUSES: PalletStatus[] = [
+    'Active',
+    'Washing_Required',
+    'Damaged',
+    'Blocked',
+];
+
 export interface AuditLog {
     id: number;
     pallet_id: string;

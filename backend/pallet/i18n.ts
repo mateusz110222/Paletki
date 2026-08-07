@@ -18,6 +18,7 @@ export const translations = {
     description_required: "Pole 'description' nie może być puste.",
 
     pallet_not_found: "Nie znaleziono palety o podanym identyfikatorze w bazie.",
+    added_new_pallet: "Dodano nową paletę do bazy danych.",
 
     // Audit logs
     audit_registered: "Paleta została zarejestrowana w systemie.",
@@ -53,6 +54,7 @@ export const translations = {
     description_required: "The 'description' field cannot be empty.",
 
     pallet_not_found: "Pallet with the specified ID was not found in the database.",
+    added_new_pallet: "Added new pallet to the database.",
 
     // Audit logs
     audit_registered: "Pallet has been registered in the system.",

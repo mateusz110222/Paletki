@@ -1,6 +1,0 @@
-{
-  "name": "Dash Solder",
-  "description": "System Monitorowania i Zarządzania Paletami Lutowniczymi na Linii Produkcyjnej",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}

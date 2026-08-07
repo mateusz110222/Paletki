@@ -7,9 +7,9 @@ import {API_BASE_URL} from "@backend/shared/API_BASE_URL.ts";
 
 interface UseAdminPanelProps {
     pallets: Pallet[];
-    projects: Project[] | string[];
+    projects: Project[];
     setPallets: React.Dispatch<React.SetStateAction<Pallet[]>>;
-    setProjects: React.Dispatch<React.SetStateAction<any>>;
+    setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
 }
 
 export const useAdminPanel = ({
@@ -19,7 +19,9 @@ export const useAdminPanel = ({
                                   setProjects,
                               }: UseAdminPanelProps) => {
     const {t, language} = useTranslation();
-    const {user: {FullName: Operator}} = useAuth();
+    const {user} = useAuth();
+
+    const Operator = user?.FullName ?? "";
     const {errorModalState, showGlobalError, hideGlobalError} = useGlobalErrorModal();
 
     const [searchTerm, setSearchTerm] = useState('');
@@ -27,14 +29,16 @@ export const useAdminPanel = ({
     const [selectedModel, setSelectedModel] = useState('ALL');
     const [selectedStatus, setSelectedStatus] = useState('ALL');
 
-// Modals state
+    // Modals state
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [isAddProjectOpen, setIsAddProjectOpen] = useState(false);
     const [isBlockOpen, setIsBlockOpen] = useState(false);
+    const [isEditOpen, setIsEditOpen] = useState(false);
     const [selectedPalletForBlock, setSelectedPalletForBlock] = useState<Pallet | null>(null);
     const [selectedPalletForAudit, setSelectedPalletForAudit] = useState<Pallet | null>(null);
+    const [selectedPalletForEdit, setSelectedPalletForEdit] = useState<Pallet | null>(null);
 
-// Form inputs state
+    // Form inputs state
     const [newProjectName, setNewProjectName] = useState('');
     const [blockReason, setBlockReason] = useState('');
     const [newId, setNewId] = useState('');
@@ -46,11 +50,22 @@ export const useAdminPanel = ({
     const [newStatus, setNewStatus] = useState<PalletStatus>('Active');
     const [newBlockReason, setNewBlockReason] = useState('');
 
-// Error & Status handling
+    // Edit Form inputs state
+    const [editFis, setEditFis] = useState('1');
+    const [editNests, setEditNests] = useState('1');
+    const [editMaxCycles, setEditMaxCycles] = useState('200');
+    const [editStatus, setEditStatus] = useState<PalletStatus>('Active');
+    const [editBlockReason, setEditBlockReason] = useState('');
+
+    // Error & Status handling
     const [validationError, setValidationError] = useState('');
     const [blockError, setBlockError] = useState('');
+    const [editError, setEditError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
+
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(50);
 
     const filteredPallets = (pallets || []).filter((p) => {
         const palletId = p.pallet_id || '';
@@ -67,11 +82,16 @@ export const useAdminPanel = ({
         return matchesSearch && matchesProject && matchesModel && matchesStatus;
     });
 
+    const totalPages = Math.max(1, Math.ceil(filteredPallets.length / pageSize));
+    const paginatedPallets = filteredPallets.slice(
+        (currentPage - 1) * pageSize,
+        currentPage * pageSize
+    );
+
     const totalPallets = pallets.length;
     const availableStock = pallets.filter((p) => p.status === 'Active').length;
-    const blockedOrMaint = pallets.filter((p) => ['Blocked', 'Washing_Required', 'Damaged'].includes(p.status)).length;
-    const avaliblePalletes_Percenetege = Math.min(100,Math.round((availableStock / totalPallets) * 100))
-
+    const blockedOrMaint = pallets.filter((p) => ['Blocked', 'Washing_Required', 'Damaged'].includes(p.status as PalletStatus)).length;
+    const avaliblePalletes_Percenetege = Math.min(100, Math.round((availableStock / totalPallets) * 100)) || 0;
 
     const fetchPallets = async () => {
         try {
@@ -83,9 +103,10 @@ export const useAdminPanel = ({
                 const errData = await res.json();
                 showGlobalError(t('error_fetching_pallets_title'), errData.message || t('error_connecting_to_encore'));
             }
-        } catch (error: any) {
+        } catch (error) {
             console.error("Failed to fetch pallets:", error);
-            showGlobalError(t('error_fetching_pallets_title'), error.message || t('error_connecting_to_encore'));
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            showGlobalError(t('error_fetching_pallets_title'), errorMessage || t('error_connecting_to_encore'));
         }
     };
 
@@ -101,7 +122,7 @@ export const useAdminPanel = ({
         setValidationError('');
     };
 
-    const handleAddPallet = async (e: React.FormEvent) => {
+    const handleAddPallet = async (e: React.SyntheticEvent<HTMLFormElement>) => {
         e.preventDefault();
         setValidationError('');
 
@@ -135,7 +156,7 @@ export const useAdminPanel = ({
                 nests: parseInt(newNests) || 1,
                 fis: parseInt(newFis) || 1,
                 created_by: Operator,
-                status: "NEW",
+                status: "Active",
             };
 
             const response = await fetch(`${API_BASE_URL}/pallets`, {
@@ -152,15 +173,16 @@ export const useAdminPanel = ({
             await fetchPallets();
             resetAddPalletForm();
             setIsAddOpen(false);
-        } catch (error: any) {
+        } catch (error) {
             console.error('Error adding pallet:', error);
-            setValidationError(error.message || t('error_connecting_to_encore'));
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            setValidationError(errorMessage || t('error_connecting_to_encore'));
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    const handleAddProject = async (e: React.FormEvent) => {
+    const handleAddProject = async (e: React.SyntheticEvent<HTMLFormElement>) => {
         e.preventDefault();
         setValidationError('');
 
@@ -198,9 +220,10 @@ export const useAdminPanel = ({
 
             setNewProjectName('');
             setIsAddProjectOpen(false);
-        } catch (error: any) {
+        } catch (error) {
             console.error('Error adding project:', error);
-            setValidationError(error.message || t('error_connecting_to_encore'));
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            setValidationError(errorMessage || t('error_connecting_to_encore'));
         } finally {
             setIsSubmitting(false);
         }
@@ -213,7 +236,7 @@ export const useAdminPanel = ({
         setIsBlockOpen(true);
     };
 
-    const handleConfirmBlock = async (e: React.FormEvent) => {
+    const handleConfirmBlock = async (e: React.SyntheticEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (!selectedPalletForBlock) return;
 
@@ -245,9 +268,10 @@ export const useAdminPanel = ({
             setIsBlockOpen(false);
             setSelectedPalletForBlock(null);
             setBlockReason("");
-        } catch (err: any) {
+        } catch (err) {
             console.error('Error blocking pallet:', err);
-            setBlockError(err.message || t('error_connecting_to_encore'));
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            setBlockError(errorMessage || t('error_connecting_to_encore'));
         } finally {
             setIsSubmitting(false);
         }
@@ -277,9 +301,10 @@ export const useAdminPanel = ({
             }
 
             await fetchPallets();
-        } catch (err: any) {
+        } catch (err) {
             console.error('Error unblocking pallet:', err);
-            showGlobalError(t('error_unblocking_pallet_title'), err.message || t('error_connecting_to_encore'));
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            showGlobalError(t('error_unblocking_pallet_title'), errorMessage || t('error_connecting_to_encore'));
         }
     };
 
@@ -289,7 +314,7 @@ export const useAdminPanel = ({
         try {
             const response = await fetch(`${API_BASE_URL}/pallets/${palletId}`, {
                 method: "DELETE",
-                headers: { "Accept-Language": language },
+                headers: {"Accept-Language": language},
             });
 
             const resData = await response.json().catch(() => ({}));
@@ -299,10 +324,11 @@ export const useAdminPanel = ({
                 return;
             }
 
-            fetchPallets();
-        } catch (err: any) {
+            await fetchPallets();
+        } catch (err) {
             console.error('Error deleting pallet:', err);
-            showGlobalError(t('error_deleting_pallet_title'), err.message || t('error_connecting_to_encore'));
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            showGlobalError(t('error_deleting_pallet_title'), errorMessage || t('error_connecting_to_encore'));
         }
     };
 
@@ -330,9 +356,10 @@ export const useAdminPanel = ({
                 history: data.history || []
             } : null);
 
-        } catch (err: any) {
+        } catch (err) {
             console.error("Błąd pobierania historii audytowej:", err);
-            showGlobalError(t('error_fetching_audit_history_title'), err.message || t('failed_to_fetch_history'));
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            showGlobalError(t('error_fetching_audit_history_title'), errorMessage || t('failed_to_fetch_history'));
         }
     };
 
@@ -340,6 +367,82 @@ export const useAdminPanel = ({
         setIsRefreshing(true);
         await fetchPallets();
         setTimeout(() => setIsRefreshing(false), 400);
+    };
+
+    const handleOpenEditModal = (pallet: Pallet) => {
+        setSelectedPalletForEdit(pallet);
+        setEditFis(String(pallet.fis ?? 1));
+        setEditNests(String(pallet.nests ?? 1));
+        setEditMaxCycles(String(pallet.max_cycles ?? 200));
+        setEditStatus(pallet.status || 'Active');
+        setEditBlockReason(pallet.block_reason || '');
+        setEditError('');
+        setIsEditOpen(true);
+    };
+
+    const handleUpdatePallet = async (e: React.SyntheticEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        if (!selectedPalletForEdit) return;
+
+        const fisVal = parseInt(editFis);
+        const nestsVal = parseInt(editNests);
+        const maxCyclesVal = parseInt(editMaxCycles);
+
+        if (isNaN(fisVal) || fisVal <= 0) {
+            setEditError(t('fis_invalid'));
+            return;
+        }
+        if (isNaN(nestsVal) || nestsVal <= 0) {
+            setEditError(t('validation_required_fields'));
+            return;
+        }
+        if (isNaN(maxCyclesVal) || maxCyclesVal <= 0) {
+            setEditError(t('validation_required_fields'));
+            return;
+        }
+        if (editStatus === 'Blocked' && !editBlockReason.trim()) {
+            setEditError(t('block_reason_required'));
+            return;
+        }
+
+        try {
+            setIsSubmitting(true);
+            setEditError('');
+
+            const payload = {
+                pallet_id: selectedPalletForEdit.pallet_id,
+                fis: fisVal,
+                nests: nestsVal,
+                max_cycles: maxCyclesVal,
+                status: editStatus,
+                block_reason: editStatus === 'Blocked' ? editBlockReason.trim() : null,
+                operator_id: Operator
+            };
+
+            const response = await fetch(`${API_BASE_URL}/pallets/${selectedPalletForEdit.pallet_id}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Accept-Language": language
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                throw new Error(errData.message || t('database_error'));
+            }
+
+            await fetchPallets();
+            setIsEditOpen(false);
+            setSelectedPalletForEdit(null);
+        } catch (err) {
+            console.error('Error updating pallet:', err);
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            setEditError(errorMessage || t('database_error'));
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const handleExportAuditTrail = () => {
@@ -365,9 +468,17 @@ export const useAdminPanel = ({
             isAddProjectOpen,
             newProjectName,
             isBlockOpen,
+            isEditOpen,
             selectedPalletForBlock,
             blockReason,
             selectedPalletForAudit,
+            selectedPalletForEdit,
+            editFis,
+            editNests,
+            editMaxCycles,
+            editStatus,
+            editBlockReason,
+            editError,
             Operator,
             newId,
             newModel,
@@ -384,7 +495,11 @@ export const useAdminPanel = ({
             availableStock,
             blockedOrMaint,
             errorModalState,
-            avaliblePalletes_Percenetege
+            avaliblePalletes_Percenetege,
+            paginatedPallets,
+            currentPage,
+            pageSize,
+            totalPages,
         },
         status: {
             isSubmitting,
@@ -403,6 +518,10 @@ export const useAdminPanel = ({
                 setValidationError('');
                 setIsAddProjectOpen(open);
             },
+            setIsEditOpen: (open: boolean) => {
+                setEditError('');
+                setIsEditOpen(open);
+            },
             setNewProjectName,
             setIsBlockOpen: (open: boolean) => {
                 setBlockError('');
@@ -411,6 +530,13 @@ export const useAdminPanel = ({
             setSelectedPalletForBlock,
             setBlockReason,
             setSelectedPalletForAudit,
+            setSelectedPalletForEdit,
+            setEditFis,
+            setEditNests,
+            setEditMaxCycles,
+            setEditStatus,
+            setEditBlockReason,
+            setEditError,
             setNewId,
             setNewModel,
             setNewProject,
@@ -427,10 +553,17 @@ export const useAdminPanel = ({
             handleUnblock,
             handleDeletePallet,
             handleOpenAuditModal,
+            handleOpenEditModal,
+            handleUpdatePallet,
             handleExportAuditTrail,
             handleRefreshPallets,
-            showGlobalError, // Expose showGlobalError
-            hideGlobalError, // Expose hideGlobalError
+            showGlobalError,
+            hideGlobalError,
+            setCurrentPage,
+            setPageSize: (size: number) => {
+                setPageSize(size);
+                setCurrentPage(1);
+            },
         },
-    }
-}
+    };
+};

@@ -1,7 +1,7 @@
 import { api, APIError, Header } from "encore.dev/api";
 import { Client } from "ldapts";
 import { LoginResponse } from "../shared/types";
-import { t } from "./i18n";
+import { t } from "../pallet/i18n";
 
 interface LoginRequest {
     login: string;

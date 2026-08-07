@@ -3,28 +3,27 @@
 -- =========================================================================
 
 CREATE OR REPLACE FUNCTION check_pallet_cycles_and_status()
-    RETURNS TRIGGER AS $$
+    RETURNS TRIGGER AS
+$$
 BEGIN
-    -- Jeśli cykle osiągnęły limit i paleta jest Active -> blokujemy ją do mycia
     IF NEW.current_cycles >= NEW.max_cycles THEN
         IF NEW.status = 'Active' THEN
             NEW.status := 'Washing_Required';
-            NEW.block_reason := 'Automatyczna blokada: Osiągnięto maksymalną liczbę cykli przed myciem (' || NEW.max_cycles || ').';
-            -- Skoro blokuje to system/automat bazy danych, oznaczamy to w updated_by:
+            NEW.last_operation_description := 'Automatyczna blokada: Osiągnięto maksymalną liczbę cykli przed myciem (' || NEW.max_cycles || ').';
             NEW.updated_by := 'System_AutoBlock';
         END IF;
     END IF;
 
     RETURN NEW;
 END;
-$$ LANGUAGE 'plpgsql';
+$$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS trigger_check_pallet_cycles ON pallets;
 CREATE TRIGGER trigger_check_pallet_cycles
-    BEFORE UPDATE OF current_cycles, max_cycles, status ON pallets
+    BEFORE UPDATE OF current_cycles, max_cycles, status
+    ON pallets
     FOR EACH ROW
 EXECUTE FUNCTION check_pallet_cycles_and_status();
-
 
 -- =========================================================================
 -- LOGIKA 2: AUTOMATYCZNY AUDIT LOG (AFTER INSERT OR UPDATE)
@@ -33,41 +32,52 @@ EXECUTE FUNCTION check_pallet_cycles_and_status();
 CREATE OR REPLACE FUNCTION audit_pallet_status_change()
     RETURNS TRIGGER AS $$
 BEGIN
-    IF (TG_OP = 'INSERT') THEN
+    IF TG_OP = 'INSERT' THEN
         INSERT INTO pallet_audit_logs (
-            pallet_id, timestamp, operator_id, previous_status, new_status, description
-        )
-        VALUES (
-                   NEW.pallet_id,
-                   NOW(),
-                   NEW.created_by,
-                   'NEW',
-                   NEW.status,
-                   'Inicjalizacja palety w systemie.'
-               );
+            pallet_id, timestamp, operator_id,
+            previous_status, new_status, description
+        ) VALUES (
+                     NEW.pallet_id,
+                     NOW(),
+                     NEW.created_by,
+                     'NEW',
+                     NEW.status,
+                     COALESCE(NEW.last_operation_description, 'Inicjalizacja palety w systemie.')
+                 );
 
-    ELSIF (TG_OP = 'UPDATE') THEN
-        IF (OLD.status IS DISTINCT FROM NEW.status) THEN
-            INSERT INTO pallet_audit_logs (
-                pallet_id, timestamp, operator_id, previous_status, new_status, description
-            )
-            VALUES (
-                       NEW.pallet_id,
-                       NOW(),
-                       COALESCE(NEW.updated_by, 'System'),
-                       OLD.status,
-                       NEW.status,
-                       COALESCE(NEW.block_reason, 'Manualna lub zewnętrzna zmiana statusu palety.')
-                   );
+    ELSIF TG_OP = 'UPDATE' THEN
+        IF OLD.status = NEW.status
+            AND NEW.status = 'Washing_Required'
+            AND NEW.block_reason LIKE 'Automatyczna blokada:%'
+        THEN
+            RETURN NEW;
         END IF;
+
+        INSERT INTO pallet_audit_logs (
+            pallet_id, timestamp, operator_id,
+            previous_status, new_status, description
+        ) VALUES (
+                     NEW.pallet_id,
+                     NOW(),
+                     COALESCE(NEW.updated_by, 'System'),
+                     OLD.status,
+                     NEW.status,
+                     COALESCE(
+                             NEW.last_operation_description,
+                             NEW.block_reason,
+                             'Edycja palety.'
+                     )
+                 );
     END IF;
 
     RETURN NEW;
 END;
-$$ LANGUAGE 'plpgsql';
+$$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS trigger_audit_pallet_status ON pallets;
+
 CREATE TRIGGER trigger_audit_pallet_status
-    AFTER INSERT OR UPDATE ON pallets
+    AFTER INSERT OR UPDATE
+    ON pallets
     FOR EACH ROW
 EXECUTE FUNCTION audit_pallet_status_change();

@@ -21,8 +21,9 @@ export const LoginView: React.FC = () => {
 
         try {
             await login(username.trim(), password);
-        } catch (err: any) {
-            setErrorMessage(err?.message || t('auth_error'));
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            setErrorMessage(errorMessage || t('auth_error'));
         } finally {
             setLoading(false);
         }

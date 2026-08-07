@@ -1,5 +1,5 @@
 import React from 'react';
-import {AlertTriangle, Cpu, Database, Info, Radio, RefreshCw, TrendingDown, UserCheck} from 'lucide-react';
+import {AlertCircle, AlertTriangle, CheckCircle2, Layers, Package} from 'lucide-react';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
 import {Pallet} from '@backend/shared/types.ts';
 import {useLiveMonitor} from '../hooks/useLiveMonitor.ts';
@@ -12,195 +12,151 @@ export const LiveMonitorView: React.FC<LiveMonitorViewProps> = (props) => {
     const {data, actions} = useLiveMonitor(props);
     const {t} = useTranslation();
 
+    const getStatusTheme = (percentage: number) => {
+        if (percentage >= 80) {
+            return {
+                badgeBg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+                barBg: 'bg-emerald-500',
+                textColor: 'text-emerald-400',
+                icon: <CheckCircle2 size={16} className="text-emerald-400"/>,
+                borderAccent: 'hover:border-emerald-500/40',
+            };
+        }
+        if (percentage >= 40) {
+            return {
+                badgeBg: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+                barBg: 'bg-amber-500',
+                textColor: 'text-amber-400',
+                icon: <AlertTriangle size={16} className="text-amber-400"/>,
+                borderAccent: 'hover:border-amber-500/40',
+            };
+        }
+        return {
+            badgeBg: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+            barBg: 'bg-rose-500',
+            textColor: 'text-rose-400',
+            icon: <AlertCircle size={16} className="text-rose-400"/>,
+            borderAccent: 'hover:border-rose-500/40',
+        };
+    };
+
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500" id="live-monitor-container">
-            {/* Real-time Header Info */}
-            <div
-                className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-brand-surface p-6 rounded-xl border border-brand-border">
-                <div>
-                    <h2 className="text-xl font-black text-brand-text flex items-center gap-2 uppercase tracking-tight">
-                        <Radio className="text-brand-accent animate-pulse" size={24}/>
-                        {t('live_monitor_title')}
-                    </h2>
-                    <p className="text-xs text-brand-text-muted mt-1 font-medium">{t('live_monitor_subtitle')}</p>
-                </div>
-                <div className="flex items-center gap-6">
-                    <div className="text-right">
-                        <p className="text-[10px] font-bold text-brand-text-muted uppercase tracking-widest">{t('current_shift_time')}</p>
-                        <p className="text-2xl font-mono font-bold text-brand-accent">{data.time.toLocaleTimeString()}</p>
-                    </div>
-                </div>
-            </div>
-
-            {/* Bento Grid Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                {/* Total Stock */}
-                <div
-                    className="bg-brand-surface p-6 rounded-xl border border-brand-border relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-                        <Database size={64}/>
-                    </div>
-                    <p className="text-xs font-bold text-brand-text-muted uppercase tracking-wider">{t('stats_total_registered')}</p>
-                    <p className="text-4xl font-black text-brand-text mt-2">{data.totalPallets}</p>
-                    <div className="mt-4 flex items-center gap-2">
-                        <div className="h-1.5 flex-1 bg-brand-bg rounded-full overflow-hidden">
-                            <div className="h-full bg-brand-accent w-full"></div>
+            {/* Header Section */}
+            <div className="bg-brand-surface rounded-xl border border-brand-border p-6 shadow-sm">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div className="flex items-center gap-3">
+                        <div
+                            className="p-2.5 bg-brand-accent/10 rounded-lg text-brand-accent border border-brand-accent/20">
+                            <Layers size={20}/>
                         </div>
-                        <span className="text-[10px] font-bold text-brand-text-muted">100%</span>
-                    </div>
-                </div>
-
-                {/* Available for Production */}
-                <div
-                    className="bg-brand-surface p-6 rounded-xl border border-brand-border relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-                        <UserCheck size={64}/>
-                    </div>
-                    <p className="text-xs font-bold text-brand-text-muted uppercase tracking-wider">{t('stats_ready_for_prod')}</p>
-                    <p className="text-4xl font-black text-green-400 mt-2">{data.availableCount}</p>
-                    <div className="mt-4 flex items-center gap-2">
-                        <div className="h-1.5 flex-1 bg-brand-bg rounded-full overflow-hidden">
-                            <div
-                                className="h-full bg-green-500 transition-all duration-1000"
-                                style={{width: `${(data.availableCount / data.totalPallets) * 100}%`}}
-                            ></div>
+                        <div>
+                            <h3 className="text-base font-bold text-brand-text tracking-wide uppercase">
+                                {t('project_health_monitor')}
+                            </h3>
+                            <p className="text-xs text-brand-text-muted mt-0.5">
+                                {data.projects.length} {t('active_projects')}
+                            </p>
                         </div>
-                        <span className="text-[10px] font-bold text-brand-text-muted">
-              {data.totalPallets > 0 ? Math.round((data.availableCount / data.totalPallets) * 100) : 0}%
-            </span>
                     </div>
-                </div>
 
-                {/* Maintenance / Broken */}
-                <div
-                    className="bg-brand-surface p-6 rounded-xl border border-brand-border relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-                        <Cpu size={64}/>
-                    </div>
-                    <p className="text-xs font-bold text-brand-text-muted uppercase tracking-wider">{t('stats_in_maintenance')}</p>
-                    <p className="text-4xl font-black text-red-400 mt-2">{data.inServiceCount}</p>
-                    <div className="mt-4 flex items-center gap-2">
-                        <div className="h-1.5 flex-1 bg-brand-bg rounded-full overflow-hidden">
-                            <div
-                                className="h-full bg-red-500 transition-all duration-1000"
-                                style={{width: `${(data.inServiceCount / data.totalPallets) * 100}%`}}
-                            ></div>
-                        </div>
-                        <span className="text-[10px] font-bold text-brand-text-muted">
-              {data.totalPallets > 0 ? Math.round((data.inServiceCount / data.totalPallets) * 100) : 0}%
-            </span>
-                    </div>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Project Health Status */}
-                <div className="bg-brand-surface rounded-xl border border-brand-border overflow-hidden">
                     <div
-                        className="px-6 py-4 border-b border-brand-border flex justify-between items-center bg-brand-surface/50">
-                        <h3 className="text-sm font-bold text-brand-text uppercase tracking-wider flex items-center gap-2">
-                            <RefreshCw size={16} className="text-brand-accent"/>
-                            {t('project_health_monitor')}
-                        </h3>
-                        <div className="flex items-center gap-2">
-                            <span
-                                className="text-[10px] font-bold text-brand-text-muted uppercase">{t('next_refresh')}</span>
-                            <div className="w-16 h-1 bg-brand-bg rounded-full overflow-hidden">
-                                <div
-                                    className="h-full bg-brand-accent transition-all duration-300"
-                                    style={{width: `${data.progress}%`}}
-                                ></div>
-                            </div>
+                        className="flex items-center gap-3 bg-brand-bg/50 px-3 py-1.5 rounded-lg border border-brand-border/40">
+                        <span className="text-[10px] font-bold text-brand-text-muted uppercase tracking-wider">
+                            {t('next_refresh')}
+                        </span>
+                        <div
+                            className="w-20 h-1.5 bg-brand-bg rounded-full overflow-hidden border border-brand-border/30">
+                            <div
+                                className="h-full bg-brand-accent transition-all duration-300 rounded-full"
+                                style={{width: `${data.progress}%`}}
+                            ></div>
                         </div>
                     </div>
-                    <div className="p-6 space-y-5">
-                        {['SMT-LINE-A', 'SMT-LINE-B', 'EV-BATTERY-PACK', 'PROTOTYPE-X'].map((proj) => {
-                            const ready = actions.getProjectReadyCount(proj);
-                            const total = actions.getProjectTotalCount(proj);
-                            const percentage = total > 0 ? (ready / total) * 100 : 0;
+                </div>
+            </div>
 
-                            return (
-                                <div key={proj} className="space-y-2">
-                                    <div className="flex justify-between items-end">
-                                        <div>
-                                            <p className="text-xs font-bold text-brand-text">{proj}</p>
-                                            <p className="text-[10px] text-brand-text-muted font-mono">{ready} / {total} {t('pallets_ready')}</p>
+            {/* Dynamic Grid of Project Cards */}
+            {data.projects.length === 0 ? (
+                <div className="bg-brand-surface rounded-xl border border-brand-border p-12 text-center">
+                    <Package size={32} className="mx-auto text-brand-text-muted/40 mb-3"/>
+                    <p className="text-sm font-medium text-brand-text-muted">
+                        {t('no_registered_projects')}
+                    </p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {data.projects.map((proj) => {
+                        const ready = actions.getProjectReadyCount(proj);
+                        const total = actions.getProjectTotalCount(proj);
+                        const unavailable = total - ready;
+                        const percentage = total > 0 ? (ready / total) * 100 : 0;
+                        const roundedPercentage = Math.round(percentage);
+                        const theme = getStatusTheme(roundedPercentage);
+
+                        return (
+                            <div
+                                key={proj}
+                                className={`bg-brand-surface rounded-xl border border-brand-border p-5 flex flex-col justify-between transition-all duration-300 hover:shadow-lg ${theme.borderAccent} group`}
+                            >
+                                <div>
+                                    {/* Card Top: Title & Status Badge */}
+                                    <div className="flex items-start justify-between gap-2 mb-4">
+                                        <div className="space-y-1">
+                                            <span
+                                                className="text-[10px] font-semibold text-brand-text-muted uppercase tracking-wider">
+                                                {t('project')}
+                                            </span>
+                                            <h4 className="text-sm font-bold text-brand-text group-hover:text-brand-accent transition-colors line-clamp-1">
+                                                {proj}
+                                            </h4>
                                         </div>
-                                        <span
-                                            className={`text-xs font-black ${percentage > 80 ? 'text-green-400' : percentage > 40 ? 'text-yellow-400' : 'text-red-400'}`}>
-                      {Math.round(percentage)}%
-                    </span>
-                                    </div>
-                                    <div
-                                        className="h-2 w-full bg-brand-bg rounded-full overflow-hidden border border-brand-border/30 p-[1px]">
                                         <div
-                                            className={`h-full rounded-full transition-all duration-1000 ${percentage > 80 ? 'bg-green-500' : percentage > 40 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-bold ${theme.badgeBg}`}>
+                                            {theme.icon}
+                                            <span>{roundedPercentage}%</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Card Stats */}
+                                    <div
+                                        className="bg-brand-bg/40 rounded-lg p-3 border border-brand-border/30 mb-4 grid grid-cols-2 gap-2 items-center">
+                                        <div>
+                                            <p className="text-[10px] uppercase font-semibold text-brand-text-muted">
+                                                {t('ready_total')}
+                                            </p>
+                                            <p className="text-lg font-mono font-bold mt-0.5">
+                                                <span className={theme.textColor}>{ready}</span>{' '}
+                                                <span
+                                                    className="text-xs text-brand-text-muted font-normal">/ {total}</span>
+                                            </p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-[10px] uppercase font-semibold text-brand-text-muted">
+                                                {t('unavailable_pallets')}
+                                            </p>
+                                            <p className={`text-lg font-mono font-bold mt-0.5 ${unavailable > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                                                {unavailable}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Progress Bar at Bottom */}
+                                <div className="space-y-1.5 pt-1">
+                                    <div
+                                        className="h-2 w-full bg-brand-bg rounded-full overflow-hidden border border-brand-border/30 p-px">
+                                        <div
+                                            className={`h-full rounded-full transition-all duration-1000 ${theme.barBg}`}
                                             style={{width: `${percentage}%`}}
                                         ></div>
                                     </div>
                                 </div>
-                            );
-                        })}
-                    </div>
-                </div>
-
-                {/* Maintenance Warnings */}
-                <div className="bg-brand-surface rounded-xl border border-brand-border overflow-hidden">
-                    <div className="px-6 py-4 border-b border-brand-border bg-red-500/5">
-                        <h3 className="text-sm font-bold text-red-400 uppercase tracking-wider flex items-center gap-2">
-                            <AlertTriangle size={16}/>
-                            {t('critical_maintenance_alerts')}
-                        </h3>
-                    </div>
-                    <div className="p-0 max-h-[340px] overflow-y-auto">
-                        {data.warningPallets.length === 0 ? (
-                            <div className="p-10 text-center flex flex-col items-center gap-3">
-                                <div
-                                    className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center text-green-400">
-                                    <UserCheck size={24}/>
-                                </div>
-                                <p className="text-xs font-medium text-brand-text-muted">{t('no_critical_alerts')}</p>
                             </div>
-                        ) : (
-                            <div className="divide-y divide-brand-border">
-                                {data.warningPallets.map((p: any) => (
-                                    <div key={p.pallet_id}
-                                         className="p-4 hover:bg-brand-surface-high/50 transition-colors flex justify-between items-center group">
-                                        <div className="flex items-center gap-4">
-                                            <div
-                                                className={`w-10 h-10 rounded-lg flex items-center justify-center font-mono font-bold text-xs ${p.margin < 30 ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'}`}>
-                                                {p.margin}
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-black text-brand-text group-hover:text-brand-accent transition-colors">{p.pallet_id}</p>
-                                                <p className="text-[10px] text-brand-text-muted font-bold uppercase">{p.project} • {p.model}</p>
-                                            </div>
-                                        </div>
-                                        <div className="text-right flex flex-col items-end gap-1">
-                      <span
-                          className="px-2 py-0.5 rounded text-[9px] font-black bg-brand-surface-high border border-brand-border text-brand-text-muted uppercase tracking-tighter">
-                        {t('cycles_left')}
-                      </span>
-                                            <div className="flex items-center gap-1 text-red-400">
-                                                <TrendingDown size={12}/>
-                                                <span
-                                                    className="text-[10px] font-mono font-bold">{p.current_cycles} / {p.max_cycles}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                    {data.warningPallets.length > 0 && (
-                        <div
-                            className="p-4 bg-brand-surface-high/50 border-t border-brand-border flex items-center gap-2 text-[10px] text-brand-text-muted italic">
-                            <Info size={12} className="text-brand-accent"/>
-                            {t('maintenance_auto_warning_msg')}
-                        </div>
-                    )}
+                        );
+                    })}
                 </div>
-            </div>
+            )}
         </div>
     );
 };

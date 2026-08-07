@@ -1,7 +1,7 @@
-import React, { useCallback, useState } from 'react';
-import { Pallet, PalletStatus } from '@backend/shared/types';
-import { useTranslation } from '../i18n/LanguageContext.tsx';
-import { useAuth } from '../auth/AuthContext.tsx';
+import React, {useCallback, useState} from 'react';
+import {Pallet, PalletStatus} from '@backend/shared/types';
+import {useTranslation} from '../i18n/LanguageContext.tsx';
+import {useAuth} from '../auth/AuthContext.tsx';
 import {API_BASE_URL} from "@backend/shared/API_BASE_URL.ts";
 
 interface UseMaintenancePanelProps {
@@ -9,9 +9,11 @@ interface UseMaintenancePanelProps {
     setPallets: React.Dispatch<React.SetStateAction<Pallet[]>>;
 }
 
-export function useMaintenancePanel({ pallets, setPallets }: UseMaintenancePanelProps) {
-    const { t, language } = useTranslation();
-    const { user: { FullName: Operator } } = useAuth();
+export function useMaintenancePanel({pallets, setPallets}: UseMaintenancePanelProps) {
+    const {t, language} = useTranslation();
+    const {user} = useAuth();
+
+    const Operator = user?.FullName ?? "";
     const [activeTab, setActiveTab] = useState<'repairs' | 'routine'>('repairs');
     const [selectedPallet, setSelectedPallet] = useState<Pallet | null>(null);
     const [washConfirm, setWashConfirm] = useState(false);
@@ -19,9 +21,7 @@ export function useMaintenancePanel({ pallets, setPallets }: UseMaintenancePanel
     const [repairDescription, setRepairDescription] = useState('');
     const [verificationCode, setVerificationCode] = useState('');
     const [modalError, setModalError] = useState('');
-
-    const repairPallets = pallets.filter(p => p.status === 'Damaged');
-    const routinePallets = pallets.filter(p => p.status === 'Washing_Required');
+    const [searchTerm, setSearchTerm] = useState('');
 
     const fetchPallets = useCallback(async () => {
         try {
@@ -35,6 +35,33 @@ export function useMaintenancePanel({ pallets, setPallets }: UseMaintenancePanel
         }
     }, [setPallets]);
 
+    if (!user) {
+        window.location.href = "/login";
+    }
+
+    const repairPallets = pallets.filter(p => p.status === 'Damaged');
+    const routinePallets = pallets.filter(p => p.status === 'Washing_Required');
+
+    const filteredRepairPallets = (repairPallets || []).filter((p: Pallet) => {
+        const palletId = p.pallet_id || '';
+        const project = p.project || '';
+        const createdBy = p.created_by || '';
+
+        return palletId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            project.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            createdBy.toLowerCase().includes(searchTerm.toLowerCase());
+    });
+
+    const filteredRoutinePallets = (routinePallets || []).filter((p) => {
+        const palletId = p.pallet_id || '';
+        const project = p.project || '';
+        const createdBy = p.created_by || '';
+
+        return palletId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            project.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            createdBy.toLowerCase().includes(searchTerm.toLowerCase());
+    });
+
     const handleOpenServiceLog = (pallet: Pallet) => {
         setSelectedPallet(pallet);
         setWashConfirm(false);
@@ -44,7 +71,7 @@ export function useMaintenancePanel({ pallets, setPallets }: UseMaintenancePanel
         setModalError('');
     };
 
-    const handleReturnToProduction = async (e: React.FormEvent) => {
+    const handleReturnToProduction = async (e: React.SyntheticEvent<HTMLFormElement>) => {
         e.preventDefault();
         setModalError('');
 
@@ -83,11 +110,12 @@ export function useMaintenancePanel({ pallets, setPallets }: UseMaintenancePanel
                 throw new Error(errData.message || t('error_connecting_to_encore'));
             }
 
-            fetchPallets();
+            await fetchPallets();
             setSelectedPallet(null);
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Error returning pallet to production:', error);
-            setModalError(error.message || t('error_connecting_to_encore'));
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            setModalError(errorMessage || t('error_connecting_to_encore'));
         }
     };
 
@@ -103,6 +131,9 @@ export function useMaintenancePanel({ pallets, setPallets }: UseMaintenancePanel
             modalError,
             repairPallets,
             routinePallets,
+            filteredRepairPallets,
+            filteredRoutinePallets,
+            searchTerm
         },
         actions: {
             setActiveTab,
@@ -113,6 +144,7 @@ export function useMaintenancePanel({ pallets, setPallets }: UseMaintenancePanel
             setVerificationCode,
             handleOpenServiceLog,
             handleReturnToProduction,
+            setSearchTerm
         },
     };
 }

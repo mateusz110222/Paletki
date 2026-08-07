@@ -1,13 +1,13 @@
 import React from "react";
 import { PalletStatus } from "@backend/shared/types.ts";
-import { useTranslation } from "../i18n/LanguageContext.tsx";
+import { useTranslation, TranslationKey } from "../i18n/LanguageContext.tsx";
 
 interface PalletStatusSpanProps {
     status: PalletStatus;
-    block_reason?: string;
+    block_reason?: string | null;
 }
 
-const STATUS_CONFIG: Record<string, { className: string; labelKey: string; icon?: string }> = {
+const STATUS_CONFIG: Record<string, { className: string; labelKey: TranslationKey; icon?: string }> = {
     Active: {
         className: "bg-green-500/10 text-green-400 border-green-500/20",
         labelKey: "status_active",
@@ -19,7 +19,7 @@ const STATUS_CONFIG: Record<string, { className: string; labelKey: string; icon?
     },
     Washing_Required: {
         className: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
-        labelKey: "status_Washing_Required",
+        labelKey: "status_washing_required",
     },
     Damaged: {
         className: "bg-red-500/20 text-red-500 border-red-500/40",

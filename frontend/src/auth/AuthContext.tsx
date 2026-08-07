@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useState, useEffect, ReactNode, use } from 'react';
 import { UserData, LoginResponse } from '@backend/shared/types';
-import {API_BASE_URL} from "@backend/shared/API_BASE_URL.ts";
+import { API_BASE_URL } from "@backend/shared/API_BASE_URL.ts";
 
 interface AuthContextType {
     user: UserData | null;
@@ -58,7 +58,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
 
             return resData;
-        } catch (err) {
+        } catch {
             return {
                 status: false,
                 message: 'backend.auth.AUTH_UNKNOWN',
@@ -82,23 +82,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const isGuest = user?.username === 'guest';
 
     return (
-        <AuthContext.Provider
-            value={{
-                user,
-                isAuthenticated: !!user,
-                isGuest,
-                login,
-                loginAsGuest,
-                logout,
-            }}
-        >
+        <AuthContext value={{
+            user,
+            isAuthenticated: !!user,
+            isGuest,
+            login,
+            loginAsGuest,
+            logout,
+        }}>
             {children}
-        </AuthContext.Provider>
+        </AuthContext>
     );
 };
 
 export const useAuth = (): AuthContextType => {
-    const context = useContext(AuthContext);
+    const context = use(AuthContext);
     if (!context) {
         throw new Error('useAuth must be used within an AuthProvider');
     }

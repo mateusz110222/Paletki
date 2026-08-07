@@ -1,27 +1,18 @@
-import React from 'react';
-import {
-    AlertCircle,
-    Download,
-    Filter,
-    History,
-    PlusCircle,
-    RefreshCw,
-    Search,
-    ShieldAlert,
-    Trash2,
-    X
-} from 'lucide-react';
-import {useTranslation} from '../i18n/LanguageContext.tsx';
-import {AuditLog, Pallet, PalletStatus, Project} from '@backend/shared/types';
+import React, {useEffect} from 'react';
+import {AlertCircle, Download, Edit, History, PlusCircle, RefreshCw, ShieldAlert, Trash2, X} from 'lucide-react';
+import {TranslationKey, useTranslation} from '../i18n/LanguageContext.tsx';
+import {AuditLog, Pallet, PALLET_STATUSES, PalletStatus, Project} from '@backend/shared/types';
 import {useAdminPanel} from '../hooks/useAdminPanel.ts';
 import {PalletStatusSpan} from "../components/PalletStatusSpan.tsx";
-import {GlobalErrorModal} from "../components/GlobalErrorModal.tsx"; // Import GlobalErrorModal
+import {GlobalErrorModal} from "../components/GlobalErrorModal.tsx";
+import {useSearchParams} from "react-router-dom";
+import {SearchInput} from "../components/SearchInput.tsx";
 
 interface AdminPanelViewProps {
     pallets: Pallet[];
-    projects: Project[] | string[];
+    projects: Project[];
     setPallets: React.Dispatch<React.SetStateAction<Pallet[]>>;
-    setProjects: React.Dispatch<React.SetStateAction<any>>;
+    setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
 }
 
 const ErrorAlert: React.FC<{ message: string }> = ({message}) => {
@@ -38,6 +29,28 @@ const ErrorAlert: React.FC<{ message: string }> = ({message}) => {
 export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
     const {data, status, actions} = useAdminPanel(props);
     const {t} = useTranslation();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const selectedProjectFromUrl = searchParams.get('project') || 'ALL';
+    const selectedModelFromUrl = searchParams.get('model') || 'ALL';
+    const selectedStatusFromUrl = searchParams.get('status') || 'ALL';
+    const searchTermFromURL = searchParams.get('searchTerm') || '';
+
+    useEffect(() => {
+        actions.setSelectedProject(selectedProjectFromUrl);
+    }, [actions, selectedProjectFromUrl]);
+
+    useEffect(() => {
+        actions.setSelectedModel(selectedModelFromUrl);
+    }, [actions, selectedModelFromUrl]);
+
+    useEffect(() => {
+        actions.setSelectedStatus(selectedStatusFromUrl);
+    }, [actions, selectedStatusFromUrl]);
+
+    useEffect(() => {
+        actions.setSearchTerm(searchTermFromURL);
+    }, [actions, searchTermFromURL]);
+
 
     return (
         <div className="space-y-6" id="admin-panel-container">
@@ -92,22 +105,8 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                         </button>
                     </div>
 
-                    <div
-                        className="flex items-center gap-2 bg-brand-surface border border-brand-border h-12 px-3 rounded">
-                        <Search className="text-brand-text-muted" size={18}/>
-                        <input
-                            type="text"
-                            placeholder={t('btn_search_placeholder')}
-                            value={data.searchTerm}
-                            onChange={(e) => actions.setSearchTerm(e.target.value)}
-                            className="bg-transparent border-none focus:outline-none focus:ring-0 text-sm w-full placeholder:text-brand-text-muted/60"
-                        />
-                        <div className="h-6 w-px bg-brand-border mx-1"></div>
-                        <div className="flex items-center gap-1 text-brand-accent text-xs font-bold">
-                            <Filter size={14}/>
-                            <span>{t('filter_by_status')}</span>
-                        </div>
-                    </div>
+                    <SearchInput searchTermFromURL={searchTermFromURL} searchParams={searchParams} actions={actions}
+                                 setSearchParams={setSearchParams}/>
                 </div>
             </div>
 
@@ -121,16 +120,25 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                             {t('filter_by_project')}
                         </label>
                         <select
-                            value={data.selectedProject}
+                            value={selectedProjectFromUrl}
                             onChange={(e) => {
-                                actions.setSelectedProject(e.target.value);
+                                const selectedValue = e.target.value;
+                                const newParams = new URLSearchParams(searchParams);
+                                if (selectedValue === 'ALL') {
+                                    newParams.delete('project');
+                                } else {
+                                    newParams.set('project', selectedValue);
+                                }
+                                newParams.delete('model');
+                                setSearchParams(newParams);
+                                actions.setSelectedProject(selectedValue);
                                 actions.setSelectedModel('ALL');
                             }}
                             className="bg-brand-bg border border-brand-border text-xs rounded p-2 text-brand-text font-medium focus:ring-1 focus:ring-brand-accent"
                         >
                             <option value="ALL">{t('all_projects')}</option>
-                            {data.projects.map((proj: any) => {
-                                const name = typeof proj === 'string' ? proj : proj.name;
+                            {data.projects.map((proj: Project) => {
+                                const name = proj.name;
                                 return <option key={name} value={name}>{name}</option>;
                             })}
                         </select>
@@ -142,9 +150,19 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                             {t('filter_by_model')}
                         </label>
                         <select
-                            value={data.selectedModel} // Poprawione na model
-                            onChange={(e) => actions.setSelectedModel(e.target.value)}
-                            disabled={data.selectedProject === 'ALL'}
+                            value={selectedModelFromUrl}
+                            onChange={(e) => {
+                                const selectedValue = e.target.value;
+                                const newParams = new URLSearchParams(searchParams);
+                                if (selectedValue === 'ALL') {
+                                    newParams.delete('model');
+                                } else {
+                                    newParams.set('model', selectedValue);
+                                }
+                                setSearchParams(newParams);
+                                actions.setSelectedModel(selectedValue);
+                            }}
+                            disabled={selectedProjectFromUrl === 'ALL'}
                             className="bg-brand-bg border border-brand-border text-xs rounded p-2 text-brand-text font-medium focus:ring-1 focus:ring-brand-accent disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <option value="ALL">{t('all_models')}</option>
@@ -160,12 +178,42 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                             {t('filter_by_status')}
                         </label>
                         <select
-                            value={data.selectedStatus}
-                            onChange={(e) => actions.setSelectedStatus(e.target.value)}
+                            value={selectedStatusFromUrl}
+                            onChange={(e) => {
+                                const selectedValue = e.target.value;
+                                const newParams = new URLSearchParams(searchParams);
+                                if (selectedValue === 'ALL') {
+                                    newParams.delete('status');
+                                } else {
+                                    newParams.set('status', selectedValue);
+                                }
+                                setSearchParams(newParams);
+                                actions.setSelectedStatus(selectedValue);
+                            }}
                             className="bg-brand-bg border border-brand-border text-xs rounded p-2 text-brand-text font-medium focus:ring-1 focus:ring-brand-accent"
                         >
                             <option value="ALL">{t('all_statuses')}</option>
-                            {}
+                            {PALLET_STATUSES.map((status) => (
+                                <option key={status} value={status}>
+                                    {t(`status_${status.toLowerCase()}` as TranslationKey)}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* PAGINACJA: ILOŚĆ NA STRONĘ */}
+                    <div className="flex flex-col gap-1">
+                        <label className="text-[10px] uppercase font-bold text-brand-text-muted">
+                            {t('rows_per_page')}
+                        </label>
+                        <select
+                            value={data.pageSize}
+                            onChange={(e) => actions.setPageSize(Number(e.target.value))}
+                            className="bg-brand-bg border border-brand-border text-xs rounded p-2 text-brand-text font-medium focus:ring-1 focus:ring-brand-accent"
+                        >
+                            {[25, 50, 100, 200].map((n) => (
+                                <option key={n} value={n}>{n}</option>
+                            ))}
                         </select>
                     </div>
                 </div>
@@ -206,14 +254,14 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                         </tr>
                         </thead>
                         <tbody className="divide-y divide-brand-border">
-                        {data.filteredPallets.length === 0 ? (
+                        {data.paginatedPallets.length === 0 ? (
                             <tr>
                                 <td colSpan={7} className="px-6 py-10 text-center text-brand-text-muted">
                                     {t('no_pallets_found')}
                                 </td>
                             </tr>
                         ) : (
-                            data.filteredPallets.map((p: any) => {
+                            data.paginatedPallets.map((p: Pallet) => {
                                 const maxC = p.max_cycles || 200;
                                 const currC = p.current_cycles || 0;
                                 const usagePercent = Math.min(100, Math.round((currC / maxC) * 100));
@@ -235,19 +283,19 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                         <td className="px-6 py-4 text-xs font-medium text-brand-text">{p.model}</td>
                                         <td className="px-6 py-4">
                                             <div className="flex flex-wrap gap-1">
-                                              <span
-                                                  className="bg-brand-surface-high text-[9px] px-2 py-0.5 rounded border border-brand-border font-mono text-brand-text">
-                                                FIS: {p.fis ?? 'N/A'}
-                                              </span>
+                                                    <span
+                                                        className="bg-brand-surface-high text-[9px] px-2 py-0.5 rounded border border-brand-border font-mono text-brand-text">
+                                                        FIS: {p.fis ?? 'N/A'}
+                                                    </span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="w-32 flex flex-col gap-1">
                                                 <div className="flex justify-between text-[10px] font-mono">
-                                            <span
-                                                className={isLimitExceeded ? "text-red-400 font-bold" : "text-brand-text-muted"}>
-                                              {currC}
-                                            </span>
+                                                        <span
+                                                            className={isLimitExceeded ? "text-red-400 font-bold" : "text-brand-text-muted"}>
+                                                            {currC}
+                                                        </span>
                                                     <span className="text-brand-text-muted/60">/ {maxC}</span>
                                                 </div>
                                                 <div
@@ -265,15 +313,16 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <PalletStatusSpan status={p.status} block_reason={p.block_reason}/>
+                                            <PalletStatusSpan status={p.status as PalletStatus}
+                                                              block_reason={p.block_reason}/>
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col">
-                                                <span
-                                                    className="text-xs font-medium text-brand-text">{p.created_by}</span>
+                                                    <span
+                                                        className="text-xs font-medium text-brand-text">{p.created_by}</span>
                                                 <span className="text-[9px] text-brand-text-muted font-mono">
-                                                    {p.created_at ? new Date(p.created_at).toLocaleDateString('pl-PL') : 'N/A'}
-                                                </span>
+                                                        {p.created_at ? new Date(p.created_at).toLocaleDateString('pl-PL') : 'N/A'}
+                                                    </span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
@@ -284,6 +333,14 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                                     className="p-1 text-brand-text-muted hover:text-brand-accent transition-colors"
                                                 >
                                                     <History size={16}/>
+                                                </button>
+
+                                                <button
+                                                    onClick={() => actions.handleOpenEditModal(p)}
+                                                    title={t('btn_edit')}
+                                                    className="p-1 text-brand-text-muted hover:text-brand-accent transition-colors"
+                                                >
+                                                    <Edit size={16}/>
                                                 </button>
 
                                                 {p.status === 'Blocked' ? (
@@ -403,9 +460,10 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                         required
                                     >
                                         <option value="">{t('placeholder_select_project')}</option>
-                                        {data.projects.map((proj: any) => (
-                                            <option key={proj.name} value={proj.name}>{proj.name}</option>
-                                        ))}
+                                        {data.projects.map((proj: Project) => {
+                                            const name = proj.name
+                                            return <option key={name} value={name}>{name}</option>
+                                        })}
                                     </select>
                                 </div>
                             </div>
@@ -554,6 +612,179 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                 </div>
             )}
 
+            {/* MODAL 1C: EDYCJA DANYCH PALETY */}
+            {data.isEditOpen && data.selectedPalletForEdit && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+                    <div
+                        className="fixed inset-0 bg-brand-bg/80 backdrop-blur-sm animate-in fade-in duration-200"
+                        onClick={() => actions.setIsEditOpen(false)}
+                    ></div>
+
+                    <div
+                        className="relative bg-brand-surface border border-brand-border w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl z-10 animate-in fade-in zoom-in-95 duration-300">
+
+                        {/* Nagłówek */}
+                        <div
+                            className="bg-brand-surface-high p-6 border-b border-brand-border flex justify-between items-center">
+                            <h3 className="text-sm font-black text-brand-text uppercase tracking-widest flex items-center gap-2.5">
+                                <div
+                                    className="w-8 h-8 rounded-xl bg-brand-accent/10 border border-brand-accent/20 flex items-center justify-center text-brand-accent shadow-inner">
+                                    <Edit size={16}/>
+                                </div>
+                                {t('modal_edit_pallet_title')} - {data.selectedPalletForEdit.pallet_id}
+                            </h3>
+                            <button
+                                className="w-8 h-8 rounded-xl flex items-center justify-center text-brand-text-muted hover:text-red-400 hover:bg-red-500/10 transition-all"
+                                onClick={() => actions.setIsEditOpen(false)}
+                                type="button"
+                            >
+                                <X size={18}/>
+                            </button>
+                        </div>
+
+                        <ErrorAlert message={data.editError}/>
+
+                        {/* Formularz edycji */}
+                        <form onSubmit={actions.handleUpdatePallet} className="p-6 space-y-6">
+
+                            {/* Informacje o palecie (odczyt) */}
+                            <div
+                                className="grid grid-cols-3 gap-3 bg-brand-bg p-3 rounded-xl border border-brand-border">
+                                <div>
+                                    <span
+                                        className="text-[10px] uppercase font-bold text-brand-text-muted block">{t('col_pallet_id')}</span>
+                                    <span
+                                        className="font-mono text-xs font-bold text-brand-accent">{data.selectedPalletForEdit.pallet_id}</span>
+                                </div>
+                                <div>
+                                    <span
+                                        className="text-[10px] uppercase font-bold text-brand-text-muted block">{t('col_project')}</span>
+                                    <span
+                                        className="text-xs font-semibold text-brand-text">{data.selectedPalletForEdit.project}</span>
+                                </div>
+                                <div>
+                                    <span
+                                        className="text-[10px] uppercase font-bold text-brand-text-muted block">{t('col_model')}</span>
+                                    <span
+                                        className="text-xs font-semibold text-brand-text">{data.selectedPalletForEdit.model}</span>
+                                </div>
+                            </div>
+
+                            {/* Sekcja parametrów technicznych: FIS, Gniazda (nests), Limit Cykli (max_cycles) */}
+                            <div className="grid grid-cols-3 gap-3">
+                                <div className="flex flex-col gap-1.5">
+                                    <label
+                                        className="text-[11px] font-bold text-brand-text-muted uppercase tracking-wider block truncate">
+                                        FIS *
+                                    </label>
+                                    <select
+                                        value={data.editFis}
+                                        onChange={(e) => actions.setEditFis(e.target.value)}
+                                        className="w-full bg-brand-bg border border-brand-border rounded-xl p-3 text-xs text-brand-text focus:ring-2 focus:ring-brand-accent/30 outline-none font-mono transition-all cursor-pointer"
+                                        required
+                                    >
+                                        <option value="1">1</option>
+                                        <option value="2">2</option>
+                                    </select>
+                                </div>
+
+                                <div className="flex flex-col gap-1.5">
+                                    <label
+                                        className="text-[11px] font-bold text-brand-text-muted uppercase tracking-wider block truncate">
+                                        {t('label_nests')} *
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={data.editNests}
+                                        onChange={(e) => actions.setEditNests(e.target.value)}
+                                        className="w-full bg-brand-bg border border-brand-border rounded-xl p-3 text-xs text-brand-text focus:ring-2 focus:ring-brand-accent/30 outline-none font-mono transition-all"
+                                        required
+                                        min="1"
+                                    />
+                                </div>
+
+                                <div className="flex flex-col gap-1.5">
+                                    <label
+                                        className="text-[11px] font-bold text-brand-text-muted uppercase tracking-wider block truncate">
+                                        {t('label_max_cycles')} *
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={data.editMaxCycles}
+                                        onChange={(e) => actions.setEditMaxCycles(e.target.value)}
+                                        className="w-full bg-brand-bg border border-brand-border rounded-xl p-3 text-xs text-brand-text focus:ring-2 focus:ring-brand-accent/30 outline-none font-mono transition-all"
+                                        required
+                                        min="1"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Sekcja statusu */}
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-[11px] font-bold text-brand-text-muted uppercase tracking-wider">
+                                    {t('col_status')} *
+                                </label>
+                                <select
+                                    value={data.editStatus}
+                                    onChange={(e) => actions.setEditStatus(e.target.value as PalletStatus)}
+                                    className="w-full bg-brand-bg border border-brand-border rounded-xl p-3 text-xs text-brand-text focus:ring-2 focus:ring-brand-accent/30 outline-none transition-all cursor-pointer"
+                                    required
+                                >
+                                    {PALLET_STATUSES.map((status) => (
+                                        <option key={status} value={status}>
+                                            {t(`status_${status.toLowerCase()}` as TranslationKey)}
+                                        </option>))}
+                                </select>
+                            </div>
+
+                            {/* Powód Blokady (gdy wybrany status to Blocked) */}
+                            {data.editStatus === 'Blocked' && (
+                                <div className="flex flex-col gap-1.5">
+                                    <label
+                                        className="text-[11px] font-bold text-brand-text-muted uppercase tracking-wider">
+                                        {t('label_block_reason')} *
+                                    </label>
+                                    <textarea
+                                        value={data.editBlockReason}
+                                        onChange={(e) => actions.setEditBlockReason(e.target.value)}
+                                        className="w-full bg-brand-bg border border-brand-border rounded-xl p-3 text-xs text-brand-text focus:ring-2 focus:ring-brand-accent/30 outline-none transition-all"
+                                        rows={3}
+                                        placeholder={t('block_reason_required')}
+                                        required
+                                    />
+                                </div>
+                            )}
+
+                            {/* Stopka z przyciskami akcji */}
+                            <div className="flex gap-4 pt-4 border-t border-brand-border/60">
+                                <button
+                                    type="button"
+                                    onClick={() => actions.setIsEditOpen(false)}
+                                    className="flex-1 py-3.5 bg-brand-bg border border-brand-border hover:bg-brand-surface-high hover:border-brand-accent/40 text-brand-text font-bold text-xs uppercase tracking-wider rounded-xl transition-all active:scale-[0.98]"
+                                >
+                                    {t('btn_cancel')}
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={status.isSubmitting}
+                                    className="flex-1 py-3.5 bg-brand-accent text-brand-bg font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-[0_10px_20px_rgba(59,130,246,0.15)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 active:scale-[0.98]"
+                                >
+                                    {status.isSubmitting ? (
+                                        <>
+                                            <span
+                                                className="w-4 h-4 border-2 border-brand-bg border-t-transparent rounded-full animate-spin"></span>
+                                            <span>{t('btn_saving')}</span>
+                                        </>
+                                    ) : (
+                                        <span>{t('btn_save')}</span>
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
             {/* MODAL: Blokowanie Palety */}
             {data.isBlockOpen && data.selectedPalletForBlock && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
@@ -671,8 +902,8 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                         </p>
                                     </div>
                                 ) : (
-                                    data.selectedPalletForAudit.history.map((entry: AuditLog, index: number) => (
-                                        <div key={entry.id || index} className="relative pl-10">
+                                    data.selectedPalletForAudit.history.map((entry: AuditLog) => (
+                                        <div key={entry.id} className="relative pl-10">
 
                                             <div
                                                 className="absolute left-2.5 top-1.5 w-3.5 h-3.5 bg-brand-surface border-2 border-brand-accent rounded-full z-10 flex items-center justify-center">
@@ -683,16 +914,28 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                                 className="bg-brand-surface-high/50 p-4 rounded border border-brand-border space-y-2">
                                                 <div className="flex justify-between items-center gap-4">
                                                     <span className="text-xs font-bold text-brand-accent uppercase">
-                                                          {t("status_change")}
-                                                        <PalletStatusSpan
-                                                            status={entry.previous_status as PalletStatus}
-                                                            block_reason={entry?.description}
-                                                        />
-                                                        ➔
-                                                        <PalletStatusSpan
-                                                            status={entry.new_status as PalletStatus}
-                                                            block_reason={entry?.description}
-                                                        />
+                                                        {entry.previous_status === entry.new_status ? (
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span>{t("status_on_modification")}</span>
+                                                                <PalletStatusSpan
+                                                                    status={entry.previous_status as PalletStatus}
+                                                                    block_reason={entry?.description}
+                                                                />
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex items-center gap-1.5">
+                                                                {t("status_change")}
+                                                                <PalletStatusSpan
+                                                                    status={entry.previous_status as PalletStatus}
+                                                                    block_reason={entry?.description}
+                                                                />
+                                                                <span>➔</span>
+                                                                <PalletStatusSpan
+                                                                    status={entry.new_status as PalletStatus}
+                                                                    block_reason={entry?.description}
+                                                                />
+                                                            </div>
+                                                        )}
                                                     </span>
                                                     <span
                                                         className="text-[10px] font-mono text-brand-text-muted whitespace-nowrap">{new Date(entry.timestamp).toLocaleString('pl-PL')}</span>
@@ -706,10 +949,10 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
 
                                                 <div
                                                     className="flex justify-between items-center text-[10px] text-brand-text-muted border-t border-brand-border/40 pt-1">
-                                                <span>
-                                                  Operator: <strong
-                                                    className="text-brand-text">{entry.operator_id}</strong>
-                                                </span>
+                                                    <span>
+                                                        Operator: <strong
+                                                        className="text-brand-text">{entry.operator_id}</strong>
+                                                    </span>
                                                     {entry.id && <span>Log ID: {entry.id}</span>}
                                                 </div>
                                             </div>

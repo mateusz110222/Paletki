@@ -2,11 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-<<<<<<< HEAD
-      <module fileurl="file://$PROJECT_DIR$/.idea/Paletki.iml" filepath="$PROJECT_DIR$/.idea/Paletki.iml" />
-=======
       <module fileurl="file://$PROJECT_DIR$/.idea/paletki.iml" filepath="$PROJECT_DIR$/.idea/paletki.iml" />
->>>>>>> 66a0c52 (feat: Implement initial application structure and core features)
     </modules>
   </component>
 </project>

@@ -1,18 +1,19 @@
-import { useEffect, useRef, useState } from 'react';
-import { Pallet, PalletStatus } from '@backend/shared/types';
-import { useTranslation } from '../i18n/LanguageContext.tsx';
-import { useAuth } from "../auth/AuthContext.tsx";
+import React, {useEffect, useRef, useState} from 'react';
+import {Pallet, PalletStatus} from '@backend/shared/types';
+import {useTranslation} from '../i18n/LanguageContext.tsx';
+import {useAuth} from "../auth/AuthContext.tsx";
 import {useGlobalErrorModal} from "../hooks/useGlobalErrorModal.ts";
 import {API_BASE_URL} from "@backend/shared/API_BASE_URL.ts";
+import {useSearchParams} from "react-router-dom";
 
 interface UseOperatorPanelProps {
     pallets: Pallet[];
     setPallets: React.Dispatch<React.SetStateAction<Pallet[]>>;
 }
 
-export const useOperatorPanel = ({ pallets, setPallets }: UseOperatorPanelProps) => {
-    const { t } = useTranslation();
-    const { user } = useAuth();
+export const useOperatorPanel = ({pallets, setPallets}: UseOperatorPanelProps) => {
+    const {t} = useTranslation();
+    const {user} = useAuth();
     const {errorModalState, showGlobalError, hideGlobalError} = useGlobalErrorModal();
 
     const [scannedId, setScannedId] = useState('');
@@ -28,6 +29,9 @@ export const useOperatorPanel = ({ pallets, setPallets }: UseOperatorPanelProps)
 
     const barcodeInputRef = useRef<HTMLInputElement>(null);
     const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+    const [searchParams, setSearchParams] = useSearchParams();
+    const palletIDFromUrl = searchParams.get('palletID') || '';
 
     useEffect(() => {
         if (barcodeInputRef.current) {
@@ -49,6 +53,18 @@ export const useOperatorPanel = ({ pallets, setPallets }: UseOperatorPanelProps)
         };
     }, []);
 
+    const processedUrlIdRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        const upperUrlId = palletIDFromUrl.trim().toUpperCase();
+
+        if (upperUrlId && processedUrlIdRef.current !== upperUrlId) {
+            processedUrlIdRef.current = upperUrlId;
+            setScannedId(upperUrlId);
+            handleScanSubmit(undefined, upperUrlId);
+        }
+    }, [palletIDFromUrl])
+
     const triggerToast = (msg: string) => {
         if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
         setToastMsg(msg);
@@ -58,9 +74,11 @@ export const useOperatorPanel = ({ pallets, setPallets }: UseOperatorPanelProps)
         }, 4000);
     };
 
-    const handleScanSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        const palletUpper = scannedId.trim().toUpperCase();
+    const handleScanSubmit = async (e?: React.SyntheticEvent<HTMLFormElement>, idToScan?: string) => {
+        if (e) e.preventDefault();
+
+        const palletUpper = (idToScan !== undefined ? idToScan : scannedId).trim().toUpperCase();
+
         if (!palletUpper) return;
 
         try {
@@ -77,16 +95,18 @@ export const useOperatorPanel = ({ pallets, setPallets }: UseOperatorPanelProps)
             setScanStatus('SUCCESS');
             triggerToast(`${t('op_scan_success') || 'Zeskanowano pomyślnie'}: ${pallet.pallet_id}`);
 
+            const newParams = new URLSearchParams(searchParams);
+            newParams.set('palletID', pallet.pallet_id);
+            setSearchParams(newParams);
             setTimeout(() => setScanStatus('IDLE'), 1000);
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Błąd skanowania:', error);
+            const errorMessage = error instanceof Error ? error.message : String(error);
             setScanStatus('ERROR');
             setActivePallet(null);
-            triggerToast(error.message || `${t('op_scan_error') || 'Błąd: Brak palety w bazie danych!'}`);
+            triggerToast(errorMessage || `${t('op_scan_error')}`);
 
             setTimeout(() => setScanStatus('IDLE'), 1500);
-        } finally {
-            setScannedId('');
         }
     };
 
@@ -102,7 +122,7 @@ export const useOperatorPanel = ({ pallets, setPallets }: UseOperatorPanelProps)
         try {
             const response = await fetch(`${API_BASE_URL}/pallets/change-status`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({
                     pallet_id: activePallet.pallet_id,
                     new_status: newStatus,
@@ -128,17 +148,20 @@ export const useOperatorPanel = ({ pallets, setPallets }: UseOperatorPanelProps)
                     const errData = await res.json();
                     showGlobalError(t('error_fetching_pallets_title'), errData.message || t('error_connecting_to_encore'));
                 }
-            } catch (error: any) {
+            } catch (error: unknown) {
                 console.error("Failed to fetch pallets:", error);
-                showGlobalError(t('error_fetching_pallets_title'), error.message || t('error_connecting_to_encore'));
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                showGlobalError(t('error_fetching_pallets_title'), errorMessage || t('error_connecting_to_encore'));
             }
 
             setActivePallet(null);
             setIsOtherFaultOpen(false);
             setCustomFaultText('');
-        } catch (error: any) {
+            setScannedId('');
+        } catch (error: unknown) {
             console.error('Błąd zgłaszania usterki:', error);
-            triggerToast(error.message || t('error_connecting_to_encore'));
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            triggerToast(errorMessage || t('error_connecting_to_encore'));
         } finally {
             setIsSubmitting(false);
         }
@@ -163,7 +186,8 @@ export const useOperatorPanel = ({ pallets, setPallets }: UseOperatorPanelProps)
             toastMsg,
             isSubmitting,
             pallets,
-            errorModalState
+            errorModalState,
+            palletIDFromUrl
         },
         actions: {
             setScannedId,

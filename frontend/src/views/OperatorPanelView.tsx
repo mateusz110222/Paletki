@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, ChevronRight, Edit3, Scan, WashingMachine, X, Layers, Box } from 'lucide-react';
+import { AlertTriangle, Box, ChevronRight, Edit3, Layers, Scan, WashingMachine, X } from 'lucide-react';
 import { useTranslation } from '../i18n/LanguageContext.tsx';
 import { Pallet, PalletStatus } from '@backend/shared/types';
 import { useOperatorPanel } from '../hooks/useOperatorPanel.ts';
@@ -25,26 +25,29 @@ export const OperatorPanelView: React.FC<OperatorPanelViewProps> = (props) => {
         return 'bg-brand-accent shadow-[0_0_12px_rgba(59,130,246,0.3)]';
     };
 
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        actions.setScannedId(e.target.value.toUpperCase());
+    };
+
     return (
         <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in duration-300" id="operator-panel-container">
             {/* 1. SEKCJA SKANERA (Gdy brak aktywnej palety) */}
             {!data.activePallet && (
-                <section className="bg-brand-surface border border-brand-border/80 rounded-2xl overflow-hidden shadow-2xl relative">
+                <section
+                    className="bg-brand-surface border border-brand-border/80 rounded-2xl overflow-hidden shadow-2xl relative">
                     <div
-                        className={`h-1.5 transition-colors duration-500 ${
-                            data.scanStatus === 'SUCCESS' ? 'bg-green-500 shadow-[0_0_10px_#22c55e]' : data.scanStatus === 'ERROR' ? 'bg-red-500 shadow-[0_0_10px_#ef4444]' : 'bg-brand-accent/40'
-                        }`}
+                        className={`h-1.5 transition-colors duration-500 ${data.scanStatus === 'SUCCESS' ? 'bg-green-500 shadow-[0_0_10px_#22c55e]' : data.scanStatus === 'ERROR' ? 'bg-red-500 shadow-[0_0_10px_#ef4444]' : 'bg-brand-accent/40'
+                            }`}
                     ></div>
 
                     <div className="p-8 md:p-14 flex flex-col items-center text-center space-y-6">
                         <div
-                            className={`w-24 h-24 rounded-2xl flex items-center justify-center transition-all duration-300 border ${
-                                data.scanStatus === 'SUCCESS'
-                                    ? 'bg-green-500/10 border-green-500/40 text-green-400 scale-105'
-                                    : data.scanStatus === 'ERROR'
-                                        ? 'bg-red-500/10 border-red-500/40 text-red-400 animate-bounce'
-                                        : 'bg-brand-accent/10 border-brand-accent/20 text-brand-accent'
-                            }`}
+                            className={`w-24 h-24 rounded-2xl flex items-center justify-center transition-all duration-300 border ${data.scanStatus === 'SUCCESS'
+                                ? 'bg-green-500/10 border-green-500/40 text-green-400 scale-105'
+                                : data.scanStatus === 'ERROR'
+                                    ? 'bg-red-500/10 border-red-500/40 text-red-400 animate-bounce'
+                                    : 'bg-brand-accent/10 border-brand-accent/20 text-brand-accent'
+                                }`}
                         >
                             <Scan size={48} className="animate-pulse" />
                         </div>
@@ -54,13 +57,14 @@ export const OperatorPanelView: React.FC<OperatorPanelViewProps> = (props) => {
                             <p className="text-brand-text-muted text-sm font-medium">{t('op_scanner_subtitle')}</p>
                         </div>
 
-                        <form onSubmit={actions.handleScanSubmit} className="w-full max-w-md space-y-3">
+                        <form id={"scanner-form"} onSubmit={(e) => actions.handleScanSubmit(e)}
+                            className="w-full max-w-md space-y-3">
                             <div className="relative">
                                 <input
                                     ref={actions.barcodeInputRef}
                                     type="text"
-                                    value={data.scannedId.toUpperCase()}
-                                    onChange={(e) => actions.setScannedId(e.target.value.toUpperCase())}
+                                    value={data.scannedId || ''}
+                                    onChange={handleInputChange}
                                     className="w-full bg-brand-bg/80 border-2 border-brand-border rounded-xl py-4 px-6 text-2xl font-mono font-black text-brand-accent focus:ring-4 focus:ring-brand-accent/10 outline-none transition-all text-center tracking-widest uppercase shadow-inner"
                                     placeholder={t('op_scan_placeholder')}
                                     autoComplete="off"
@@ -68,10 +72,13 @@ export const OperatorPanelView: React.FC<OperatorPanelViewProps> = (props) => {
                             </div>
                             <button type="submit" className="hidden">Scan</button>
 
-                            <div className="flex items-center justify-center gap-2 text-xs font-bold text-brand-text-muted uppercase tracking-wider pt-1">
+                            <div
+                                className="flex items-center justify-center gap-2 text-xs font-bold text-brand-text-muted uppercase tracking-wider pt-1">
                                 <span className="relative flex h-2.5 w-2.5">
-                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-accent opacity-75"></span>
-                                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-brand-accent"></span>
+                                    <span
+                                        className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-accent opacity-75"></span>
+                                    <span
+                                        className="relative inline-flex rounded-full h-2.5 w-2.5 bg-brand-accent"></span>
                                 </span>
                                 {t('op_waiting_for_scanner')}
                             </div>
@@ -85,13 +92,16 @@ export const OperatorPanelView: React.FC<OperatorPanelViewProps> = (props) => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in slide-in-from-bottom-4 duration-300">
 
                     {/* LEWA STRONA: Dane techniczne i Cykle */}
-                    <div className="lg:col-span-2 bg-brand-surface border border-brand-border/80 rounded-2xl p-6 md:p-8 flex flex-col justify-between shadow-xl relative overflow-hidden">
+                    <div
+                        className="lg:col-span-2 bg-brand-surface border border-brand-border/80 rounded-2xl p-6 md:p-8 flex flex-col justify-between shadow-xl relative overflow-hidden">
 
                         {/* Nagłówek Karty */}
                         <div>
-                            <div className="flex justify-between items-start gap-4 pb-6 border-b border-brand-border/60">
+                            <div
+                                className="flex justify-between items-start gap-4 pb-6 border-b border-brand-border/60">
                                 <div>
-                                    <span className="text-[11px] font-black text-brand-accent uppercase tracking-[0.2em] mb-1 block">
+                                    <span
+                                        className="text-[11px] font-black text-brand-accent uppercase tracking-[0.2em] mb-1 block">
                                         {t('op_technical_data')}
                                     </span>
                                     <h3 className="text-4xl md:text-5xl font-black text-brand-text tracking-tight uppercase font-mono">
@@ -99,11 +109,12 @@ export const OperatorPanelView: React.FC<OperatorPanelViewProps> = (props) => {
                                     </h3>
                                 </div>
                                 <div className="flex items-center gap-3 shrink-0">
-                                    <PalletStatusSpan status={data.activePallet.status} block_reason={data.activePallet.block_reason} />
+                                    <PalletStatusSpan status={data.activePallet.status as PalletStatus}
+                                        block_reason={data.activePallet.block_reason} />
                                     <button
                                         onClick={actions.handleClearActivePallet}
                                         className="p-2.5 bg-brand-bg border border-brand-border rounded-xl text-brand-text-muted hover:text-white hover:border-red-500/50 hover:bg-red-500/10 transition-all active:scale-95"
-                                        title={t('btn_cancel') || 'Zamknij'}
+                                        title={t('btn_cancel')}
                                     >
                                         <X size={22} />
                                     </button>
@@ -112,8 +123,10 @@ export const OperatorPanelView: React.FC<OperatorPanelViewProps> = (props) => {
 
                             {/* Informacje o Projekcie i Modelu */}
                             <div className="grid grid-cols-2 gap-4 py-6 border-b border-brand-border/60">
-                                <div className="bg-brand-bg/50 border border-brand-border/40 p-4 rounded-xl flex items-center gap-3">
-                                    <div className="p-2.5 bg-brand-surface border border-brand-border/60 rounded-lg text-brand-accent">
+                                <div
+                                    className="bg-brand-bg/50 border border-brand-border/40 p-4 rounded-xl flex items-center gap-3">
+                                    <div
+                                        className="p-2.5 bg-brand-surface border border-brand-border/60 rounded-lg text-brand-accent">
                                         <Layers size={20} />
                                     </div>
                                     <div className="min-w-0">
@@ -122,8 +135,10 @@ export const OperatorPanelView: React.FC<OperatorPanelViewProps> = (props) => {
                                     </div>
                                 </div>
 
-                                <div className="bg-brand-bg/50 border border-brand-border/40 p-4 rounded-xl flex items-center gap-3">
-                                    <div className="p-2.5 bg-brand-surface border border-brand-border/60 rounded-lg text-brand-accent">
+                                <div
+                                    className="bg-brand-bg/50 border border-brand-border/40 p-4 rounded-xl flex items-center gap-3">
+                                    <div
+                                        className="p-2.5 bg-brand-surface border border-brand-border/60 rounded-lg text-brand-accent">
                                         <Box size={20} />
                                     </div>
                                     <div className="min-w-0">
@@ -141,14 +156,18 @@ export const OperatorPanelView: React.FC<OperatorPanelViewProps> = (props) => {
                                     {t('op_work_cycles')}
                                 </span>
                                 <div className="text-right">
-                                    <span className="text-2xl font-black font-mono text-brand-text">{currentCycles}</span>
-                                    <span className="text-sm font-semibold font-mono text-brand-text-muted"> / {maxCycles}</span>
-                                    <span className="text-xs font-bold text-brand-text-muted ml-2">({cyclePercentage}%)</span>
+                                    <span
+                                        className="text-2xl font-black font-mono text-brand-text">{currentCycles}</span>
+                                    <span
+                                        className="text-sm font-semibold font-mono text-brand-text-muted"> / {maxCycles}</span>
+                                    <span
+                                        className="text-xs font-bold text-brand-text-muted ml-2">({cyclePercentage}%)</span>
                                 </div>
                             </div>
 
                             {/* Pasek Postępu (Wzmocniony wizualnie) */}
-                            <div className="h-3 w-full bg-brand-bg rounded-full p-0.5 overflow-hidden border border-brand-border/80 shadow-inner">
+                            <div
+                                className="h-3 w-full bg-brand-bg rounded-full p-0.5 overflow-hidden border border-brand-border/80 shadow-inner">
                                 <div
                                     className={`h-full rounded-full transition-all duration-700 ease-out ${getProgressColor(cyclePercentage)}`}
                                     style={{ width: `${cyclePercentage}%` }}
@@ -158,7 +177,8 @@ export const OperatorPanelView: React.FC<OperatorPanelViewProps> = (props) => {
                     </div>
 
                     {/* PRAWA STRONA: Szybkie Zgłaszanie Awarii */}
-                    <div className="bg-brand-surface border border-brand-border/80 rounded-2xl p-6 flex flex-col justify-between shadow-xl space-y-4">
+                    <div
+                        className="bg-brand-surface border border-brand-border/80 rounded-2xl p-6 flex flex-col justify-between shadow-xl space-y-4">
                         <div>
                             <h4 className="text-xs font-black text-red-400 uppercase tracking-widest flex items-center gap-2 mb-4">
                                 <AlertTriangle size={18} className="text-red-400 animate-pulse" />
@@ -167,9 +187,24 @@ export const OperatorPanelView: React.FC<OperatorPanelViewProps> = (props) => {
 
                             <div className="space-y-3">
                                 {[
-                                    { id: 'mechanical', label: t('op_mechanical_damage'), status: "Damaged", icon: <Edit3 size={18} /> },
-                                    { id: 'dirty', label: t('op_washing_required'), status: "Washing_Required", icon: <WashingMachine size={18} /> },
-                                    { id: 'pockets', label: t('op_pockets_error'), status: "Damaged", icon: <AlertTriangle size={18} /> },
+                                    {
+                                        id: 'mechanical',
+                                        label: t('op_mechanical_damage'),
+                                        status: "Damaged",
+                                        icon: <Edit3 size={18} />
+                                    },
+                                    {
+                                        id: 'dirty',
+                                        label: t('op_washing_required'),
+                                        status: "Washing_Required",
+                                        icon: <WashingMachine size={18} />
+                                    },
+                                    {
+                                        id: 'pockets',
+                                        label: t('op_pockets_error'),
+                                        status: "Damaged",
+                                        icon: <AlertTriangle size={18} />
+                                    },
                                 ].map((fault) => (
                                     <button
                                         key={fault.id}
@@ -178,12 +213,15 @@ export const OperatorPanelView: React.FC<OperatorPanelViewProps> = (props) => {
                                         className="w-full group flex items-center justify-between p-4 bg-brand-bg/70 hover:bg-red-500/10 border border-brand-border/80 hover:border-red-500/40 rounded-xl transition-all text-left disabled:opacity-50 active:scale-[0.98]"
                                     >
                                         <div className="flex items-center gap-3">
-                                            <span className="p-2 bg-brand-surface border border-brand-border/60 group-hover:border-red-500/30 rounded-lg text-brand-text-muted group-hover:text-red-400 transition-colors">
+                                            <span
+                                                className="p-2 bg-brand-surface border border-brand-border/60 group-hover:border-red-500/30 rounded-lg text-brand-text-muted group-hover:text-red-400 transition-colors">
                                                 {fault.icon}
                                             </span>
-                                            <span className="text-xs font-bold text-brand-text group-hover:text-white transition-colors">{fault.label}</span>
+                                            <span
+                                                className="text-xs font-bold text-brand-text group-hover:text-white transition-colors">{fault.label}</span>
                                         </div>
-                                        <ChevronRight size={16} className="text-brand-text-muted group-hover:text-red-400 group-hover:translate-x-1 transition-all" />
+                                        <ChevronRight size={16}
+                                            className="text-brand-text-muted group-hover:text-red-400 group-hover:translate-x-1 transition-all" />
                                     </button>
                                 ))}
                             </div>
@@ -204,14 +242,18 @@ export const OperatorPanelView: React.FC<OperatorPanelViewProps> = (props) => {
             {/* MODAL: INNA USTERKA */}
             {data.isOtherFaultOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => actions.setIsOtherFaultOpen(false)}></div>
-                    <div className="relative bg-brand-surface border border-brand-border w-full max-w-md rounded-2xl overflow-hidden shadow-2xl z-10 animate-in zoom-in-95 duration-200">
-                        <div className="p-5 border-b border-brand-border/80 flex justify-between items-center bg-brand-bg/40">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+                        onClick={() => actions.setIsOtherFaultOpen(false)}></div>
+                    <div
+                        className="relative bg-brand-surface border border-brand-border w-full max-w-md rounded-2xl overflow-hidden shadow-2xl z-10 animate-in zoom-in-95 duration-200">
+                        <div
+                            className="p-5 border-b border-brand-border/80 flex justify-between items-center bg-brand-bg/40">
                             <h3 className="font-black text-brand-text uppercase tracking-tight text-sm flex items-center gap-2">
                                 <AlertTriangle size={18} className="text-red-400" />
                                 {t('op_describe_fault')}
                             </h3>
-                            <button onClick={() => actions.setIsOtherFaultOpen(false)} className="text-brand-text-muted hover:text-white transition-colors">
+                            <button onClick={() => actions.setIsOtherFaultOpen(false)}
+                                className="text-brand-text-muted hover:text-white transition-colors">
                                 <X size={20} />
                             </button>
                         </div>
@@ -245,11 +287,11 @@ export const OperatorPanelView: React.FC<OperatorPanelViewProps> = (props) => {
             )}
 
             <div
-                className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 transform ${
-                    data.isToastOpen ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0 pointer-events-none'
-                }`}
+                className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 transform ${data.isToastOpen ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0 pointer-events-none'
+                    }`}
             >
-                <div className="bg-brand-text text-brand-bg px-6 py-3.5 rounded-full shadow-2xl flex items-center gap-3 border border-white/10">
+                <div
+                    className="bg-brand-text text-brand-bg px-6 py-3.5 rounded-full shadow-2xl flex items-center gap-3 border border-white/10">
                     <div className="w-2.5 h-2.5 rounded-full bg-brand-accent animate-ping"></div>
                     <span className="text-xs font-black uppercase tracking-wider">{data.toastMsg}</span>
                 </div>

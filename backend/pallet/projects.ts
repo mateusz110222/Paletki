@@ -1,7 +1,7 @@
-import { api, APIError, Header } from "encore.dev/api";
-import { db } from "./db";
-import { Project } from "../shared/types";
-import { t } from "./i18n";
+import {api, APIError, Header} from "encore.dev/api";
+import {db} from "./db";
+import {Project} from "../shared/types";
+import {t} from "./i18n";
 
 export interface GetAllProjectsResponse {
     projects: Project[];
@@ -13,20 +13,21 @@ export interface AddProjectParams {
 }
 
 export const GetAllProjects = api(
-    { method: "GET", path: "/projects", expose: true },
+    {method: "GET", path: "/projects", expose: true},
     async (): Promise<GetAllProjectsResponse> => {
-        const projects = await db.queryAll<Project>`SELECT * FROM projects`;
+        const projects = await db.queryAll<Project>`SELECT *
+                                                    FROM projects`;
 
         if (projects.length === 0) {
-            return { projects: [] };
+            return {projects: []};
         }
 
-        return { projects };
+        return {projects};
     }
 );
 
 export const AddProject = api(
-    { method: "POST", path: "/projects", expose: true },
+    {method: "POST", path: "/projects", expose: true},
     async (params: AddProjectParams): Promise<void> => {
         const lang = params.acceptLanguage;
 
@@ -45,7 +46,7 @@ export const AddProject = api(
             `;
 
             await tx.commit();
-        } catch (err: any) {
+        } catch (err: unknown) {
             const isUniqueViolation =
                 String(err?.message || err).includes('23505') ||
                 String(err?.message || err).includes('duplicate key value');
