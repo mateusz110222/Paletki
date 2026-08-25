@@ -25,10 +25,6 @@ export const useLiveMonitor = ({pallets}: UseLiveMonitorProps) => {
         return uniqueProjects.sort((a, b) => a.localeCompare(b));
     }, [pallets]);
 
-    const inServiceCount = pallets.filter(
-        (p) => p.status === 'Washing_Required' || p.status === 'Damaged'
-    ).length;
-
     const getProjectReadyCount = (projectName: string) => {
         return pallets.filter((p) => p.project === projectName && p.status === 'Active').length;
     };
@@ -40,8 +36,6 @@ export const useLiveMonitor = ({pallets}: UseLiveMonitorProps) => {
     return {
         data: {
             progress,
-            inServiceCount,
-            pallets,
             projects,
         },
         actions: {

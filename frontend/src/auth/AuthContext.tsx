@@ -15,7 +15,7 @@ interface AuthContextType {
     isGuest: boolean;
     hasITDepartmentAccess: boolean;
     login: (username: string, password: string) => Promise<LoginResponse>;
-    loginAsGuest: () => Promise<LoginResponse>;
+    loginAsOperator: (identifier: string) => Promise<LoginResponse>;
     logout: () => Promise<void>;
     authenticatedFetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 }
@@ -106,11 +106,12 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({children}) => {
         }
     };
 
-    const loginAsGuest = async (): Promise<LoginResponse> => {
+    const loginAsOperator = async (identifier: string): Promise<LoginResponse> => {
         try {
-            const response = await fetch(`${API_BASE_URL}/auth/guest`, {
+            const response = await fetch(`${API_BASE_URL}/auth/operator-session`, {
                 method: "POST",
-                headers: {"Accept-Language": language},
+                headers: {"Content-Type": "application/json", "Accept-Language": language},
+                body: JSON.stringify({identifier}),
             });
             const responseData = await response.json() as LoginResponse;
             if (!response.ok) return {status: false, message: responseData.message};
@@ -158,7 +159,7 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({children}) => {
             isGuest: user?.is_guest === true,
             hasITDepartmentAccess: user?.has_it_department_access === true,
             login,
-            loginAsGuest,
+            loginAsOperator,
             logout,
             authenticatedFetch,
         }}>

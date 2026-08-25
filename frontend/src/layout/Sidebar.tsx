@@ -29,9 +29,6 @@ export const Sidebar: React.FC<SidebarProps> = ({hasITDepartmentAccess, onLogout
             className="hidden md:flex flex-col w-64 bg-brand-surface border-r border-brand-border h-screen sticky top-0 shrink-0">
             <div className="p-6 border-b border-brand-border">
                 <span className="text-lg font-black tracking-wider text-brand-accent">{t('app_name')}</span>
-                <p className="text-[10px] uppercase font-bold tracking-widest text-brand-text-muted/60">
-                    {t('app_version')}
-                </p>
             </div>
 
             <nav className="flex-1 p-4 space-y-1">

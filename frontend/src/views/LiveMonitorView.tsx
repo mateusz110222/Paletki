@@ -41,7 +41,7 @@ export const LiveMonitorView: React.FC<LiveMonitorViewProps> = (props) => {
     };
 
     return (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500" id="live-monitor-container">
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300" id="live-monitor-container">
             {/* Header Section */}
             <div className="bg-brand-surface rounded-xl border border-brand-border p-6 shadow-sm">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">

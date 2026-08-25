@@ -1,4 +1,5 @@
 import React from 'react';
+import {createPortal} from 'react-dom';
 import { AlertTriangle, Box, ChevronRight, Edit3, Layers, Scan, WashingMachine, X } from 'lucide-react';
 import { useTranslation } from '../i18n/LanguageContext.tsx';
 import { Pallet, PalletStatus } from '@backend/shared/types';
@@ -7,9 +8,10 @@ import { PalletStatusSpan } from "../components/PalletStatusSpan.tsx";
 import { GlobalErrorModal } from "../components/GlobalErrorModal.tsx";
 import { useEscapeKey } from "../hooks/useEscapeKey.ts";
 import { ModalFormActions } from "../components/ModalFormActions.tsx";
+import {AnimatePresence} from 'motion/react';
+import {ModalTransition} from '../components/ModalTransition.tsx';
 
 interface OperatorPanelViewProps {
-    pallets: Pallet[];
     setPallets: React.Dispatch<React.SetStateAction<Pallet[]>>;
 }
 
@@ -40,7 +42,7 @@ export const OperatorPanelView: React.FC<OperatorPanelViewProps> = (props) => {
     };
 
     return (
-        <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in duration-300" id="operator-panel-container">
+        <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300" id="operator-panel-container">
             {/* 1. SEKCJA SKANERA (Gdy brak aktywnej palety) */}
             {!data.activePallet && (
                 <section
@@ -251,12 +253,14 @@ export const OperatorPanelView: React.FC<OperatorPanelViewProps> = (props) => {
             )}
 
             {/* MODAL: INNA USTERKA */}
+            <AnimatePresence>
             {data.isOtherFaultOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-                        onClick={() => actions.setIsOtherFaultOpen(false)}></div>
+                <ModalTransition
+                    onBackdropClick={() => actions.setIsOtherFaultOpen(false)}
+                    backdropClassName="bg-black/80 backdrop-blur-sm"
+                >
                     <div
-                        className="relative bg-brand-surface border border-brand-border w-full max-w-md rounded-2xl overflow-hidden shadow-2xl z-10 animate-in zoom-in-95 duration-200">
+                        className="relative bg-brand-surface border border-brand-border w-full max-w-md rounded-2xl overflow-hidden shadow-2xl z-10">
                         <div
                             className="p-5 border-b border-brand-border/80 flex justify-between items-center bg-brand-bg/40">
                             <h3 className="font-black text-brand-text uppercase tracking-tight text-sm flex items-center gap-2">
@@ -290,10 +294,11 @@ export const OperatorPanelView: React.FC<OperatorPanelViewProps> = (props) => {
                             />
                         </div>
                     </div>
-                </div>
+                </ModalTransition>
             )}
+            </AnimatePresence>
 
-            <div
+            {createPortal(<div
                 className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 transform ${data.isToastOpen ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0 pointer-events-none'
                     }`}
             >
@@ -302,7 +307,7 @@ export const OperatorPanelView: React.FC<OperatorPanelViewProps> = (props) => {
                     <div className="w-2.5 h-2.5 rounded-full bg-brand-accent animate-ping"></div>
                     <span className="text-xs font-black uppercase tracking-wider">{data.toastMsg}</span>
                 </div>
-            </div>
+            </div>, document.body)}
 
             <GlobalErrorModal
                 isOpen={data.errorModalState.isOpen}

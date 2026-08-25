@@ -16,10 +16,7 @@ export function useMaintenancePanel({pallets, setPallets}: UseMaintenancePanelPr
     const Operator = user?.FullName ?? "";
     const [activeTab, setActiveTab] = useState<'repairs' | 'routine'>('repairs');
     const [selectedPallet, setSelectedPallet] = useState<Pallet | null>(null);
-    const [washConfirm, setWashConfirm] = useState(false);
-    const [fluxConfirm, setFluxConfirm] = useState(false);
     const [repairDescription, setRepairDescription] = useState('');
-    const [verificationCode, setVerificationCode] = useState('');
     const [modalError, setModalError] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -66,36 +63,21 @@ export function useMaintenancePanel({pallets, setPallets}: UseMaintenancePanelPr
 
     const handleOpenServiceLog = (pallet: Pallet) => {
         setSelectedPallet(pallet);
-        setWashConfirm(false);
-        setFluxConfirm(false);
         setRepairDescription('');
-        setVerificationCode('');
         setModalError('');
     };
 
-    const handleReturnToProduction = async (e: React.SyntheticEvent<HTMLFormElement>) => {
-        e.preventDefault();
+    const changeSelectedPalletStatus = async (newStatus: PalletStatus, resetCycles: boolean) => {
         setModalError('');
 
         if (!selectedPallet) return;
 
-        if (!washConfirm && !fluxConfirm) {
-            setModalError(t('maint_modal_error_confirm_tasks'));
-            return;
-        }
         if (!repairDescription.trim()) {
-            setModalError(t('maint_modal_error_description_required'));
+            setModalError(t('maint_modal_error_comment_required'));
             return;
         }
 
         try {
-            const newStatus: PalletStatus = 'Active';
-            const description = t('maint_service_audit_description', {
-                description: repairDescription.trim(),
-                washing: t(washConfirm ? 'answer_yes' : 'answer_no'),
-                inspection: t(fluxConfirm ? 'answer_yes' : 'answer_no'),
-            });
-
             const response = await authenticatedFetch(`${API_BASE_URL}/pallets/change-status`, {
                 method: "POST",
                 headers: {
@@ -105,8 +87,8 @@ export function useMaintenancePanel({pallets, setPallets}: UseMaintenancePanelPr
                 body: JSON.stringify({
                     pallet_id: selectedPallet.pallet_id,
                     new_status: newStatus,
-                    block_reason: description,
-                    reset_cycles: true,
+                    block_reason: repairDescription.trim(),
+                    reset_cycles: resetCycles,
                 })
             });
 
@@ -124,31 +106,34 @@ export function useMaintenancePanel({pallets, setPallets}: UseMaintenancePanelPr
         }
     };
 
+    const handleServiceLogSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        await changeSelectedPalletStatus('Active', true);
+    };
+
+    const handleReportDamage = async () => {
+        await changeSelectedPalletStatus('Damaged', false);
+    };
+
     return {
         data: {
             activeTab,
             selectedPallet,
-            washConfirm,
-            fluxConfirm,
             repairDescription,
             Operator,
-            verificationCode,
             modalError,
             repairPallets,
             routinePallets,
             filteredRepairPallets,
-            filteredRoutinePallets,
-            searchTerm
+            filteredRoutinePallets
         },
         actions: {
             setActiveTab,
             setSelectedPallet,
-            setWashConfirm,
-            setFluxConfirm,
             setRepairDescription,
-            setVerificationCode,
             handleOpenServiceLog,
-            handleReturnToProduction,
+            handleServiceLogSubmit,
+            handleReportDamage,
             setSearchTerm
         },
     };

@@ -1,6 +1,8 @@
 import React from 'react';
 import { X, AlertCircle } from 'lucide-react';
 import { useTranslation } from '../i18n/LanguageContext.tsx';
+import {AnimatePresence} from 'motion/react';
+import {ModalTransition} from './ModalTransition.tsx';
 
 interface GlobalErrorModalProps {
   isOpen: boolean;
@@ -12,11 +14,10 @@ interface GlobalErrorModalProps {
 export const GlobalErrorModal: React.FC<GlobalErrorModalProps> = ({ isOpen, title, message, onClose }) => {
   const { t } = useTranslation();
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-brand-bg/80 backdrop-blur-sm" onClick={onClose}></div>
+    <AnimatePresence>
+      {isOpen && (
+      <ModalTransition onBackdropClick={onClose}>
       <div className="relative bg-brand-surface border border-red-500/30 w-full max-w-md rounded-xl overflow-hidden shadow-2xl">
         <div className="bg-red-950/40 p-5 border-b border-red-500/20 flex justify-between items-center">
           <h3 className="text-base font-bold text-red-400 uppercase tracking-wider flex items-center gap-2">
@@ -40,6 +41,8 @@ export const GlobalErrorModal: React.FC<GlobalErrorModalProps> = ({ isOpen, titl
           </div>
         </div>
       </div>
-    </div>
+      </ModalTransition>
+      )}
+    </AnimatePresence>
   );
 };

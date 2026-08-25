@@ -1,15 +1,26 @@
 import React, {useEffect} from 'react';
-import {AlertCircle, Download, Edit, ExternalLink, History, PlusCircle, RefreshCw, ShieldAlert, Trash2, X} from 'lucide-react';
+import {
+    AlertCircle,
+    Download,
+    Edit,
+    History,
+    PlusCircle,
+    RefreshCw,
+    ShieldAlert,
+    Trash2,
+    X
+} from 'lucide-react';
 import {TranslationKey, useTranslation} from '../i18n/LanguageContext.tsx';
-import {AuditLog, Pallet, PALLET_STATUSES, PalletStatus, Project} from '@backend/shared/types';
+import {Pallet, PALLET_STATUSES, PalletStatus, Project} from '@backend/shared/types';
 import {useAdminPanel} from '../hooks/useAdminPanel.ts';
 import {PalletStatusSpan} from "../components/PalletStatusSpan.tsx";
 import {GlobalErrorModal} from "../components/GlobalErrorModal.tsx";
-import {useSearchParams} from "react-router-dom";
+import {useNavigate, useSearchParams} from "react-router-dom";
 import {SearchInput} from "../components/SearchInput.tsx";
 import {useEscapeKey} from "../hooks/useEscapeKey.ts";
-import {getFisUnitHistoryUrl} from "../config/fis.ts";
 import {ModalFormActions} from "../components/ModalFormActions.tsx";
+import {AnimatePresence} from 'motion/react';
+import {ModalTransition} from '../components/ModalTransition.tsx';
 
 interface AdminPanelViewProps {
     pallets: Pallet[];
@@ -32,16 +43,15 @@ const ErrorAlert: React.FC<{ message: string }> = ({message}) => {
 export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
     const {data, status, actions} = useAdminPanel(props);
     const {t, language} = useTranslation();
+    const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const selectedProjectFromUrl = searchParams.get('project') || 'ALL';
     const selectedModelFromUrl = searchParams.get('model') || 'ALL';
     const selectedStatusFromUrl = searchParams.get('status') || 'ALL';
     const searchTermFromURL = searchParams.get('searchTerm') || '';
-    const auditPalletId = String(
-        data.selectedPalletForAudit?.pallet_id || data.selectedPalletForAudit?.id || '',
-    );
-    const auditPalletFis = Number(data.selectedPalletForAudit?.fis);
-    const auditPalletHistoryUrl = getFisUnitHistoryUrl(auditPalletFis, auditPalletId);
+    const openPalletHistory = (pallet: Pallet) => {
+        navigate(`/admin/pallets/${encodeURIComponent(pallet.pallet_id)}/history`);
+    };
 
     useEffect(() => {
         actions.setSelectedProject(selectedProjectFromUrl);
@@ -59,14 +69,14 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
         actions.setSearchTerm(searchTermFromURL);
     }, [actions, searchTermFromURL]);
 
-    const hasOpenModal = data.errorModalState.isOpen || data.selectedPalletForAudit !== null ||
+    const hasOpenModal = data.errorModalState.isOpen || data.selectedPalletForDelete !== null ||
         data.isBlockOpen || data.isEditOpen || data.isAddProjectOpen || data.isAddOpen;
 
     useEscapeKey(hasOpenModal, () => {
         if (data.errorModalState.isOpen) {
             actions.hideGlobalError();
-        } else if (data.selectedPalletForAudit) {
-            actions.setSelectedPalletForAudit(null);
+        } else if (!status.isSubmitting && data.selectedPalletForDelete) {
+            actions.setSelectedPalletForDelete(null);
         } else if (!status.isSubmitting && data.isBlockOpen) {
             actions.setIsBlockOpen(false);
         } else if (!status.isSubmitting && data.isEditOpen) {
@@ -80,7 +90,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
 
 
     return (
-        <div className="space-y-6" id="admin-panel-container">
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300" id="admin-panel-container">
             {/* Quick Stats & Actions */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
                 {/* Available Card */}
@@ -299,7 +309,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                         <td className="px-6 py-4 font-mono text-xs font-semibold">
                                             <button
                                                 type="button"
-                                                onClick={() => actions.handleOpenAuditModal(p)}
+                                                onClick={() => openPalletHistory(p)}
                                                 title={t('audit_trail_title')}
                                                 className="text-brand-accent hover:text-brand-text hover:underline underline-offset-2 cursor-pointer transition-colors focus:outline-none focus:ring-1 focus:ring-brand-accent rounded px-1 -mx-1"
                                             >
@@ -355,7 +365,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex justify-end gap-2">
                                                 <button
-                                                    onClick={() => actions.handleOpenAuditModal(p)}
+                                                    onClick={() => openPalletHistory(p)}
                                                     title={t('audit_trail_title')}
                                                     className="p-1 text-brand-text-muted hover:text-brand-accent transition-colors"
                                                 >
@@ -389,7 +399,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                                 )}
 
                                                 <button
-                                                    onClick={() => actions.handleDeletePallet(p.pallet_id)}
+                                                    onClick={() => actions.setSelectedPalletForDelete(p)}
                                                     title={t('btn_delete')}
                                                     className="p-1 text-brand-text-muted hover:text-red-500 transition-colors"
                                                 >
@@ -407,17 +417,14 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
             </div>
 
             {/* MODAL 1: DODAWANIE NOWEJ PALETY */}
+            <AnimatePresence>
             {data.isAddOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
-                    {/* Backdrop z animacją fade-in */}
+                <ModalTransition
+                    onBackdropClick={() => actions.setIsAddOpen(false)}
+                    className="overflow-y-auto"
+                >
                     <div
-                        className="fixed inset-0 bg-brand-bg/80 backdrop-blur-sm animate-in fade-in duration-200"
-                        onClick={() => actions.setIsAddOpen(false)}
-                    ></div>
-
-                    {/* Okno Modala z animacją zoom-in */}
-                    <div
-                        className="relative bg-brand-surface border border-brand-border w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl z-10 animate-in fade-in zoom-in-95 duration-300">
+                        className="relative bg-brand-surface border border-brand-border w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl z-10">
 
                         {/* Nagłówek */}
                         <div
@@ -557,14 +564,14 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                             />
                         </form>
                     </div>
-                </div>
+                </ModalTransition>
             )}
+            </AnimatePresence>
 
             {/* MODAL 1B: DODAWANIE NOWEGO PROJEKTU */}
+            <AnimatePresence>
             {data.isAddProjectOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-brand-bg/80 backdrop-blur-sm"
-                         onClick={() => actions.setIsAddProjectOpen(false)}></div>
+                <ModalTransition onBackdropClick={() => actions.setIsAddProjectOpen(false)}>
                     <div
                         className="relative bg-brand-surface border border-brand-border w-full max-w-lg rounded-xl overflow-hidden shadow-2xl">
                         <div
@@ -608,19 +615,19 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                             />
                         </form>
                     </div>
-                </div>
+                </ModalTransition>
             )}
+            </AnimatePresence>
 
             {/* MODAL 1C: EDYCJA DANYCH PALETY */}
+            <AnimatePresence>
             {data.isEditOpen && data.selectedPalletForEdit && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+                <ModalTransition
+                    onBackdropClick={() => actions.setIsEditOpen(false)}
+                    className="overflow-y-auto"
+                >
                     <div
-                        className="fixed inset-0 bg-brand-bg/80 backdrop-blur-sm animate-in fade-in duration-200"
-                        onClick={() => actions.setIsEditOpen(false)}
-                    ></div>
-
-                    <div
-                        className="relative bg-brand-surface border border-brand-border w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl z-10 animate-in fade-in zoom-in-95 duration-300">
+                        className="relative bg-brand-surface border border-brand-border w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl z-10">
 
                         {/* Nagłówek */}
                         <div
@@ -762,12 +769,19 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                             />
                         </form>
                     </div>
-                </div>
+                </ModalTransition>
             )}
+            </AnimatePresence>
 
             {/* MODAL: Blokowanie Palety */}
+            <AnimatePresence>
             {data.isBlockOpen && data.selectedPalletForBlock && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                <ModalTransition
+                    onBackdropClick={() => {
+                        if (!status.isSubmitting) actions.setIsBlockOpen(false);
+                    }}
+                    backdropClassName="bg-black/60 backdrop-blur-sm"
+                >
                     <div
                         className="bg-brand-surface border border-brand-border rounded-xl w-full max-w-md p-6 space-y-4">
                         <div className="flex justify-between items-center border-b border-brand-border pb-3">
@@ -805,160 +819,58 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                             />
                         </form>
                     </div>
-                </div>
+                </ModalTransition>
             )}
+            </AnimatePresence>
 
-            {/* Modal: Audit Trail (Historia życia palety) */}
-            {data.selectedPalletForAudit && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    {/* Backdrop */}
-                    <div
-                        className="absolute inset-0 bg-brand-bg/80 backdrop-blur-sm"
-                        onClick={() => actions.setSelectedPalletForAudit(null)}
-                    ></div>
-
-                    {/* Modal Content */}
-                    <div
-                        className="relative bg-brand-surface border border-brand-border w-full max-w-2xl rounded-xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-
-                        {/* Header */}
-                        <div
-                            className="bg-brand-surface-high p-5 border-b border-brand-border flex justify-between items-center">
-                            <div className="flex items-center gap-2 text-brand-accent">
-                                <History size={18}/>
-                                <h3 className="text-base font-bold">{t("audit_trail_title")}</h3>
+            {/* MODAL: Potwierdzenie usunięcia paletki */}
+            <AnimatePresence>
+            {data.selectedPalletForDelete && (
+                <ModalTransition
+                    onBackdropClick={() => {
+                        if (!status.isSubmitting) actions.setSelectedPalletForDelete(null);
+                    }}
+                    backdropClassName="bg-black/70 backdrop-blur-sm"
+                >
+                    <div className="w-full max-w-md overflow-hidden rounded-2xl border border-red-500/30 bg-brand-surface shadow-2xl">
+                        <div className="flex items-center gap-3 border-b border-red-500/20 bg-red-950/30 p-5">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-red-500/30 bg-red-500/10 text-red-400">
+                                <Trash2 size={20}/>
                             </div>
-                            <button
-                                className="text-brand-text-muted hover:text-red-400 transition-colors"
-                                onClick={() => actions.setSelectedPalletForAudit(null)}
-                            >
-                                <X size={18}/>
-                            </button>
-                        </div>
-
-                        {/* Body */}
-                        <div className="p-6 space-y-4 max-h-120 overflow-y-auto">
-
-                            {/* Pallet Info Card */}
-                            <div
-                                className="flex flex-wrap gap-4 justify-between items-center bg-brand-bg p-3 rounded border border-brand-border">
-                                <div>
-                                    <span
-                                        className="text-[10px] uppercase font-bold text-brand-text-muted block">{t("pallet_id_label")}</span>
-                                    {auditPalletHistoryUrl ? (
-                                        <a
-                                            href={auditPalletHistoryUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            title={t('fis_unit_history_link_label', {
-                                                palletId: auditPalletId,
-                                                fis: auditPalletFis,
-                                            })}
-                                            aria-label={t('fis_unit_history_link_label', {
-                                                palletId: auditPalletId,
-                                                fis: auditPalletFis,
-                                            })}
-                                            className="inline-flex items-center gap-1 font-mono text-sm font-bold text-brand-accent hover:text-brand-accent/80 hover:underline underline-offset-4 transition-colors"
-                                        >
-                                            {auditPalletId}
-                                            <ExternalLink size={13} aria-hidden="true"/>
-                                        </a>
-                                    ) : (
-                                        <span className="font-mono text-sm font-bold text-brand-accent">{auditPalletId}</span>
-                                    )}
-                                </div>
-                                <div>
-                                    <span
-                                        className="text-[10px] uppercase font-bold text-brand-text-muted block">{t("project_model")}</span>
-                                    <span
-                                        className="text-xs font-semibold text-brand-text">{data.selectedPalletForAudit.project} {data.selectedPalletForAudit.model ? `(${data.selectedPalletForAudit.model})` : ''}</span>
-                                </div>
-                                <div>
-                                    <span
-                                        className="text-[10px] uppercase font-bold text-brand-text-muted block">{t("col_total_cycles")}</span>
-                                    <span
-                                        className="font-mono text-xs font-semibold text-brand-text">{data.selectedPalletForAudit.total_cycles || 0} {t('cycles_unit')}</span>
-                                </div>
-                            </div>
-
-                            {/* Timeline Space */}
-                            <div
-                                className="overflow-y-auto space-y-4 pr-2 flex-1 relative before:absolute before:inset-y-0 before:left-4 before:w-0.5 before:bg-brand-border">
-
-                                {(!data.selectedPalletForAudit.history || data.selectedPalletForAudit.history.length === 0) ? (
-                                    <div className="relative pl-10 py-4">
-                                        <p className="text-sm text-brand-text-muted text-center bg-brand-surface-high/30 p-4 rounded border border-brand-border dashed">
-                                            {t("no_history_entries")}
-                                        </p>
-                                    </div>
-                                ) : (
-                                    data.selectedPalletForAudit.history.map((entry: AuditLog) => (
-                                        <div key={entry.id} className="relative pl-10">
-
-                                            <div
-                                                className="absolute left-2.5 top-1.5 w-3.5 h-3.5 bg-brand-surface border-2 border-brand-accent rounded-full z-10 flex items-center justify-center">
-                                                <div className="w-1 h-1 bg-brand-accent rounded-full"></div>
-                                            </div>
-
-                                            <div
-                                                className="bg-brand-surface-high/50 p-4 rounded border border-brand-border space-y-2">
-                                                <div className="flex justify-between items-center gap-4">
-                                                    <span className="text-xs font-bold text-brand-accent uppercase">
-                                                        {entry.previous_status === entry.new_status ? (
-                                                            <div className="flex items-center gap-1.5">
-                                                                <span>{t("status_on_modification")}</span>
-                                                                <PalletStatusSpan
-                                                                    status={entry.previous_status as PalletStatus}
-                                                                    block_reason={entry?.description}
-                                                                />
-                                                            </div>
-                                                        ) : (
-                                                            <div className="flex items-center gap-1.5">
-                                                                {t("status_change")}
-                                                                <PalletStatusSpan
-                                                                    status={entry.previous_status as PalletStatus}
-                                                                    block_reason={entry?.description}
-                                                                />
-                                                                <span>➔</span>
-                                                                <PalletStatusSpan
-                                                                    status={entry.new_status as PalletStatus}
-                                                                    block_reason={entry?.description}
-                                                                />
-                                                            </div>
-                                                        )}
-                                                    </span>
-                                                    <span
-                                                        className="text-[10px] font-mono text-brand-text-muted whitespace-nowrap">{new Date(entry.timestamp).toLocaleString(language)}</span>
-                                                </div>
-
-                                                {entry.description && (
-                                                    <p className="text-xs text-brand-text leading-relaxed">
-                                                        {entry.description}
-                                                    </p>
-                                                )}
-
-                                                <div
-                                                    className="flex justify-between items-center text-[10px] text-brand-text-muted border-t border-brand-border/40 pt-1">
-                                                    <span>
-                                                        {t('audit_operator_label')}: <strong
-                                                        className="text-brand-text">{entry.operator_id}</strong>
-                                                    </span>
-                                                    {entry.id && <span>{t('audit_log_id_label')}: {entry.id}</span>}
-                                                </div>
-                                            </div>
-
-                                        </div>
-                                    ))
-                                )}
+                            <div>
+                                <h3 className="text-sm font-black uppercase tracking-wider text-red-400">
+                                    {t('modal_delete_pallet_title')}
+                                </h3>
+                                <p className="mt-0.5 font-mono text-xs font-bold text-brand-text">
+                                    {data.selectedPalletForDelete.pallet_id}
+                                </p>
                             </div>
                         </div>
-
-                        {/* Footer */}
-                        <div className="bg-brand-surface-high p-4 border-t border-brand-border text-right"></div>
-
+                        <div className="space-y-5 p-6">
+                            <div className="space-y-2">
+                                <p className="text-sm font-semibold text-brand-text">
+                                    {t('delete_pallet_confirm', {
+                                        palletId: data.selectedPalletForDelete.pallet_id,
+                                    })}
+                                </p>
+                                <p className="text-xs leading-relaxed text-brand-text-muted">
+                                    {t('delete_pallet_warning')}
+                                </p>
+                            </div>
+                            <ModalFormActions
+                                onCancel={() => actions.setSelectedPalletForDelete(null)}
+                                submitType="button"
+                                onSubmit={() => void actions.handleConfirmDeletePallet()}
+                                submitLabel={t('btn_delete')}
+                                submittingLabel={t('deleting_pallet')}
+                                isSubmitting={status.isSubmitting}
+                                variant="danger"
+                            />
+                        </div>
                     </div>
-                </div>
+                </ModalTransition>
             )}
+            </AnimatePresence>
 
             {/* Global Error Modal */}
             <GlobalErrorModal

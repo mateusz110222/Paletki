@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {lazy, Suspense, useEffect, useState} from 'react';
 import {Navigate, Route, Routes} from 'react-router-dom';
 import {Pallet, Project} from '@backend/shared/types';
 import {API_BASE_URL} from '@backend/shared/API_BASE_URL.ts';
@@ -10,6 +10,10 @@ import {OperatorPanelView as OperatorPanel} from '../views/OperatorPanelView.tsx
 import {MaintenancePanelView as MaintenancePanel} from '../views/MaintenancePanelView.tsx';
 import {LiveMonitorView as LiveMonitor} from '../views/LiveMonitorView.tsx';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
+
+const PalletHistoryView = lazy(() => import('../views/PalletHistoryView.tsx').then(
+    (module) => ({default: module.PalletHistoryView}),
+));
 
 export const AppRoutes: React.FC = () => {
     const {hasITDepartmentAccess} = useAuth();
@@ -32,7 +36,7 @@ export const AppRoutes: React.FC = () => {
             }
         };
 
-        fetchPallets();
+        void fetchPallets();
         const interval = setInterval(fetchPallets, 100000);
         return () => {
             isMounted = false;
@@ -55,7 +59,7 @@ export const AppRoutes: React.FC = () => {
             }
         };
 
-        fetchProjects();
+        void fetchProjects();
         return () => {
             isMounted = false;
         };
@@ -67,14 +71,29 @@ export const AppRoutes: React.FC = () => {
                 <Route path="/" element={<Navigate to={hasITDepartmentAccess ? "/admin" : "/operator"} replace/>}/>
 
                 {hasITDepartmentAccess && (
-                    <Route
-                        path="/admin"
-                        element={<AdminPanel pallets={pallets} projects={projects} setPallets={setPallets}
-                                             setProjects={setProjects}/>}
-                    />
+                    <>
+                        <Route
+                            path="/admin"
+                            element={<AdminPanel pallets={pallets} projects={projects} setPallets={setPallets}
+                                                 setProjects={setProjects}/>}
+                        />
+                        <Route
+                            path="/admin/pallets/:palletId/history"
+                            element={(
+                                <Suspense fallback={(
+                                    <div className="space-y-4 animate-pulse">
+                                        <div className="h-32 rounded-2xl border border-brand-border bg-brand-surface"/>
+                                        <div className="h-20 rounded-xl border border-brand-border bg-brand-surface"/>
+                                    </div>
+                                )}>
+                                    <PalletHistoryView/>
+                                </Suspense>
+                            )}
+                        />
+                    </>
                 )}
 
-                <Route path="/operator" element={<OperatorPanel pallets={pallets} setPallets={setPallets}/>}/>
+                <Route path="/operator" element={<OperatorPanel setPallets={setPallets}/>}/>
 
                 {hasITDepartmentAccess && (
                     <Route path="/maintenance" element={<MaintenancePanel pallets={pallets} setPallets={setPallets}/>}/>

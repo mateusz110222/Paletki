@@ -7,7 +7,6 @@ import {
     FileText,
     RefreshCw,
     ShieldCheck,
-    Sparkles,
     User,
     Wrench,
     X
@@ -19,6 +18,8 @@ import {useSearchParams} from "react-router-dom";
 import {SearchInput} from "../components/SearchInput.tsx";
 import {useEscapeKey} from "../hooks/useEscapeKey.ts";
 import {ModalFormActions} from "../components/ModalFormActions.tsx";
+import {AnimatePresence, motion} from 'motion/react';
+import {ModalTransition} from '../components/ModalTransition.tsx';
 
 interface MaintenancePanelViewProps {
     pallets: Pallet[];
@@ -39,7 +40,7 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
     useEscapeKey(data.selectedPallet !== null, () => actions.setSelectedPallet(null));
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-300" id="maintenance-panel-container">
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300" id="maintenance-panel-container">
             {/* Top statistics section in Bento Grid Style */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
                 <div
@@ -129,11 +130,18 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
                 <div className="flex border-b border-brand-border bg-brand-surface-high/30">
                     <button
                         onClick={() => actions.setActiveTab('repairs')}
-                        className={`flex-1 py-4 px-6 text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${data.activeTab === 'repairs'
-                            ? 'bg-brand-surface text-brand-accent border-b-2 border-brand-accent'
+                        className={`relative flex-1 py-4 px-6 text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${data.activeTab === 'repairs'
+                            ? 'bg-brand-surface text-brand-accent'
                             : 'text-brand-text-muted hover:text-brand-text hover:bg-brand-surface-high/50'
                         }`}
                     >
+                        {data.activeTab === 'repairs' && (
+                            <motion.span
+                                layoutId="maintenance-active-tab"
+                                className="absolute inset-x-0 bottom-0 h-0.5 bg-brand-accent"
+                                transition={{type: 'spring', stiffness: 420, damping: 34}}
+                            />
+                        )}
                         <AlertCircle size={16}/>
                         {t('repairs_tab')}
                         {data.filteredRepairPallets.length > 0 && (
@@ -143,11 +151,18 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
                     </button>
                     <button
                         onClick={() => actions.setActiveTab('routine')}
-                        className={`flex-1 py-4 px-6 text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${data.activeTab === 'routine'
-                            ? 'bg-brand-surface text-brand-accent border-b-2 border-brand-accent'
+                        className={`relative flex-1 py-4 px-6 text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${data.activeTab === 'routine'
+                            ? 'bg-brand-surface text-brand-accent'
                             : 'text-brand-text-muted hover:text-brand-text hover:bg-brand-surface-high/50'
                         }`}
                     >
+                        {data.activeTab === 'routine' && (
+                            <motion.span
+                                layoutId="maintenance-active-tab"
+                                className="absolute inset-x-0 bottom-0 h-0.5 bg-brand-accent"
+                                transition={{type: 'spring', stiffness: 420, damping: 34}}
+                            />
+                        )}
                         <Wrench size={16}/>
                         {t('routine_tab')}
                         {data.filteredRoutinePallets.length > 0 && (
@@ -158,7 +173,10 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
                 </div>
 
                 {/* Content Area */}
-                <div className="p-6">
+                <div
+                    key={data.activeTab}
+                    className="p-6 animate-in fade-in slide-in-from-bottom-4 duration-200"
+                >
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {(data.activeTab === 'repairs' ? data.filteredRepairPallets : data.filteredRoutinePallets).map((p: Pallet) => (
                             <div
@@ -234,10 +252,12 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
             </div>
 
             {/* SERVICE LOG MODAL */}
+            <AnimatePresence>
             {data.selectedPallet && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-brand-bg/80 backdrop-blur-md"
-                         onClick={() => actions.setSelectedPallet(null)}></div>
+                <ModalTransition
+                    onBackdropClick={() => actions.setSelectedPallet(null)}
+                    backdropClassName="bg-brand-bg/80 backdrop-blur-md"
+                >
                     <div
                         className="relative bg-brand-surface border border-brand-border w-full max-w-xl rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)]">
                         {/* Modal Header */}
@@ -266,7 +286,7 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
                         </div>
 
                         {/* Modal Body */}
-                        <form onSubmit={actions.handleReturnToProduction} className="p-8 space-y-6">
+                        <form onSubmit={actions.handleServiceLogSubmit} className="p-8 space-y-6">
                             {data.modalError && (
                                 <div
                                     className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg flex items-start gap-3 animate-in shake duration-300">
@@ -275,79 +295,15 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
                                 </div>
                             )}
 
-                            {/* Maintenance Tasks Checklist */}
-                            <div className="space-y-3">
-                                <p className="text-[10px] font-black text-brand-text-muted uppercase tracking-widest mb-2">{t('required_service_activities')}</p>
-
-                                <label
-                                    className="flex items-center gap-4 p-4 bg-brand-bg border border-brand-border rounded-xl cursor-pointer hover:border-brand-accent/40 transition-all group">
-                                    <div className="relative flex items-center">
-                                        <input
-                                            type="checkbox"
-                                            checked={data.washConfirm}
-                                            onChange={(e) => actions.setWashConfirm(e.target.checked)}
-                                            className="peer h-6 w-6 opacity-0 absolute cursor-pointer"
-                                        />
-                                        <div
-                                            className={`h-6 w-6 rounded-md transition-all flex items-center justify-center border-2 ${data.washConfirm
-                                                ? 'bg-brand-accent border-brand-accent'
-                                                : 'bg-brand-surface border-brand-border'
-                                            }`}
-                                        >
-                                            <Sparkles
-                                                size={14}
-                                                className={`text-white transition-transform ${data.washConfirm ? 'scale-100 opacity-100' : 'scale-0 opacity-0'
-                                                }`}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="flex-1">
-                                        <span
-                                            className="text-xs font-bold text-brand-text block">{t('ultrasonic_washing')}</span>
-                                        <span
-                                            className="text-[10px] text-brand-text-muted">{t('remove_contaminants')}</span>
-                                    </div>
-                                </label>
-
-                                <label
-                                    className="flex items-center gap-4 p-4 bg-brand-bg border border-brand-border rounded-xl cursor-pointer hover:border-brand-accent/40 transition-all group">
-                                    <div className="relative flex items-center">
-                                        <input
-                                            type="checkbox"
-                                            checked={data.fluxConfirm}
-                                            onChange={(e) => actions.setFluxConfirm(e.target.checked)}
-                                            className="peer h-6 w-6 opacity-0 absolute cursor-pointer z-10"
-                                        />
-                                        <div
-                                            className={`h-6 w-6 rounded-md transition-all flex items-center justify-center border-2 ${data.fluxConfirm
-                                                ? 'bg-brand-accent border-brand-accent'
-                                                : 'bg-brand-surface border-brand-border'
-                                            }`}
-                                        >
-                                            <Sparkles
-                                                size={14}
-                                                className={`text-white transition-transform ${data.fluxConfirm ? 'scale-100 opacity-100' : 'scale-0 opacity-0'
-                                                }`}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="flex-1">
-                                        <span
-                                            className="text-xs font-bold text-brand-text block">{t('flux_residue_inspection')}</span>
-                                        <span
-                                            className="text-[10px] text-brand-text-muted">{t('verify_pin_cleanliness')}</span>
-                                    </div>
-                                </label>
-                            </div>
-
-                            {/* Work Description */}
                             <div className="space-y-2">
                                 <label
-                                    className="text-[10px] font-black text-brand-text-muted uppercase tracking-widest">{t('detailed_work_description')}</label>
+                                    className="text-[10px] font-black text-brand-text-muted uppercase tracking-widest">{t('maint_comment')}</label>
                                 <textarea
                                     rows={3}
                                     className="w-full bg-brand-bg border border-brand-border rounded-xl p-4 text-xs text-brand-text focus:ring-2 focus:ring-brand-accent/20 outline-none transition-all"
-                                    placeholder={t('service_description_placeholder')}
+                                    placeholder={t(data.selectedPallet.status === 'Washing_Required'
+                                        ? 'maint_routine_comment_placeholder'
+                                        : 'maint_repair_comment_placeholder')}
                                     value={data.repairDescription}
                                     onChange={(e) => actions.setRepairDescription(e.target.value)}
                                 ></textarea>
@@ -357,11 +313,21 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
                                 onCancel={() => actions.setSelectedPallet(null)}
                                 submitLabel={t('approve_service_and_return')}
                                 submitIcon={<CheckCircle2 size={18} aria-hidden="true"/>}
+                                additionalActionLabel={data.selectedPallet.status === 'Washing_Required'
+                                    ? t('op_report_damage')
+                                    : undefined}
+                                onAdditionalAction={data.selectedPallet.status === 'Washing_Required'
+                                    ? actions.handleReportDamage
+                                    : undefined}
+                                additionalActionIcon={data.selectedPallet.status === 'Washing_Required'
+                                    ? <AlertTriangle size={18} aria-hidden="true"/>
+                                    : undefined}
                             />
                         </form>
                     </div>
-                </div>
+                </ModalTransition>
             )}
+            </AnimatePresence>
         </div>
     );
 };

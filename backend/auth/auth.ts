@@ -3,7 +3,6 @@ import {authHandler} from "encore.dev/auth";
 import {SQLDatabase} from "encore.dev/storage/sqldb";
 import {getAuthData} from "~encore/auth";
 import {Client} from "ldapts";
-import {randomUUID} from "node:crypto";
 import {LoginResponse, UserData} from "../shared/types";
 import {t} from "../pallet/i18n";
 import {config} from "../config";
@@ -28,6 +27,10 @@ interface LoginRequest {
 
 interface LocalizedRequest {
     acceptLanguage?: Header<"Accept-Language">;
+}
+
+interface OperatorSessionRequest extends LocalizedRequest {
+    identifier: string;
 }
 
 interface AuthParams extends LocalizedRequest {
@@ -188,21 +191,29 @@ export const Login = api(
     },
 );
 
-export const GuestLogin = api(
-    {method: "POST", path: "/auth/guest", expose: true, sensitive: true},
-    async (params: LocalizedRequest): Promise<LoginResponse> => {
+export const OperatorSessionLogin = api(
+    {method: "POST", path: "/auth/operator-session", expose: true, sensitive: true},
+    async (params: OperatorSessionRequest): Promise<LoginResponse> => {
+        const identifier = params.identifier?.trim();
+        if (!identifier) {
+            throw APIError.invalidArgument(t("auth_operator_identifier_required", params.acceptLanguage));
+        }
+        if (!/^[A-Za-z0-9][A-Za-z0-9._-]{1,63}$/.test(identifier)) {
+            throw APIError.invalidArgument(t("auth_operator_identifier_invalid", params.acceptLanguage));
+        }
+
         const user: UserData = {
-            FullName: "Guest",
+            FullName: identifier,
             department: "",
-            title: "Operator",
-            username: `guest-${randomUUID()}`,
+            title: "Operator / Station",
+            username: `operator:${identifier.toLocaleLowerCase("en-US")}`,
             role: "operator",
             has_it_department_access: false,
             is_guest: true,
         };
 
         return loginResponse(
-            t("auth_guest_success", params.acceptLanguage),
+            t("auth_operator_session_success", params.acceptLanguage),
             user,
             await createSession(user),
         );

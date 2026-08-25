@@ -11,6 +11,9 @@ export const MainLayout: React.FC = () => {
     const location = useLocation();
 
     const getPageTitle = (pathname: string) => {
+        if (pathname.startsWith('/admin/pallets/') && pathname.endsWith('/history')) {
+            return {title: t('history_page_title'), sub: t('history_page_subtitle')};
+        }
         switch (pathname) {
             case '/admin':
                 return {title: t('panel_admin_title'), sub: t('panel_admin_subtitle')};
@@ -52,7 +55,7 @@ export const MainLayout: React.FC = () => {
                                 </div>
                                 <div className="text-left">
                                     <p className="text-xs font-black text-brand-text leading-tight">
-                                        {isGuest ? t('guest_name') : user.FullName}
+                                        {user.FullName}
                                     </p>
                                     <p className="text-[10px] text-brand-text-muted font-mono leading-tight">
                                         {isGuest ? t('guest_department') : user.department || ''}

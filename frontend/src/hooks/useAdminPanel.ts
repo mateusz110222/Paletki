@@ -33,8 +33,8 @@ export const useAdminPanel = ({
     const [isBlockOpen, setIsBlockOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [selectedPalletForBlock, setSelectedPalletForBlock] = useState<Pallet | null>(null);
-    const [selectedPalletForAudit, setSelectedPalletForAudit] = useState<Pallet | null>(null);
     const [selectedPalletForEdit, setSelectedPalletForEdit] = useState<Pallet | null>(null);
+    const [selectedPalletForDelete, setSelectedPalletForDelete] = useState<Pallet | null>(null);
 
     // Form inputs state
     const [newProjectName, setNewProjectName] = useState('');
@@ -45,8 +45,6 @@ export const useAdminPanel = ({
     const [newMaxCycles, setNewMaxCycles] = useState('200');
     const [newNests, setNewNests] = useState('1');
     const [newFis, setNewFis] = useState('1');
-    const [newStatus, setNewStatus] = useState<PalletStatus>('Active');
-    const [newBlockReason, setNewBlockReason] = useState('');
 
     // Edit Form inputs state
     const [editFis, setEditFis] = useState('1');
@@ -62,7 +60,6 @@ export const useAdminPanel = ({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
 
-    const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(50);
 
     const filteredPallets = (pallets || []).filter((p) => {
@@ -80,11 +77,7 @@ export const useAdminPanel = ({
         return matchesSearch && matchesProject && matchesModel && matchesStatus;
     });
 
-    const totalPages = Math.max(1, Math.ceil(filteredPallets.length / pageSize));
-    const paginatedPallets = filteredPallets.slice(
-        (currentPage - 1) * pageSize,
-        currentPage * pageSize
-    );
+    const paginatedPallets = filteredPallets.slice(0, pageSize);
 
     const totalPallets = pallets.length;
     const availableStock = pallets.filter((p) => p.status === 'Active').length;
@@ -116,8 +109,6 @@ export const useAdminPanel = ({
         setNewMaxCycles('200');
         setNewNests('1');
         setNewFis('1');
-        setNewStatus('Active');
-        setNewBlockReason('');
         setValidationError('');
     };
 
@@ -304,10 +295,12 @@ export const useAdminPanel = ({
         }
     };
 
-    const handleDeletePallet = async (palletId: string) => {
-        if (!window.confirm(t('delete_pallet_confirm'))) return;
+    const handleConfirmDeletePallet = async () => {
+        if (!selectedPalletForDelete) return;
+        const palletId = selectedPalletForDelete.pallet_id;
 
         try {
+            setIsSubmitting(true);
             const response = await authenticatedFetch(`${API_BASE_URL}/pallets/${encodeURIComponent(palletId)}`, {
                 method: "DELETE",
                 headers: {"Accept-Language": language},
@@ -320,39 +313,12 @@ export const useAdminPanel = ({
             }
 
             await fetchPallets();
+            setSelectedPalletForDelete(null);
         } catch (err) {
             console.error('Error deleting pallet:', err);
             showGlobalError(t('error_deleting_pallet_title'), t('error_connecting_to_encore'));
-        }
-    };
-
-    const handleOpenAuditModal = async (pallet: Pallet) => {
-        setSelectedPalletForAudit(pallet);
-        hideGlobalError();
-
-        try {
-            const response = await fetch(`${API_BASE_URL}/pallets/${encodeURIComponent(pallet.pallet_id)}/history`, {
-                headers: {
-                    "Accept-Language": language
-                }
-            });
-
-            if (!response.ok) {
-                const errData = await response.json();
-                showGlobalError(t('error_fetching_audit_history_title'), errData.message);
-                return;
-            }
-
-            const data = await response.json();
-
-            setSelectedPalletForAudit(prev => prev ? {
-                ...prev,
-                history: data.history || []
-            } : null);
-
-        } catch (err) {
-            console.error("Błąd pobierania historii audytowej:", err);
-            showGlobalError(t('error_fetching_audit_history_title'), t('error_connecting_to_encore'));
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -469,10 +435,6 @@ export const useAdminPanel = ({
         data: {
             pallets,
             projects,
-            searchTerm,
-            selectedProject,
-            selectedModel,
-            selectedStatus,
             isAddOpen,
             isAddProjectOpen,
             newProjectName,
@@ -480,8 +442,8 @@ export const useAdminPanel = ({
             isEditOpen,
             selectedPalletForBlock,
             blockReason,
-            selectedPalletForAudit,
             selectedPalletForEdit,
+            selectedPalletForDelete,
             editFis,
             editNests,
             editMaxCycles,
@@ -494,8 +456,6 @@ export const useAdminPanel = ({
             newMaxCycles,
             newNests,
             newFis,
-            newStatus,
-            newBlockReason,
             validationError,
             blockError,
             filteredPallets,
@@ -505,9 +465,7 @@ export const useAdminPanel = ({
             errorModalState,
             avaliblePalletes_Percenetege,
             paginatedPallets,
-            currentPage,
             pageSize,
-            totalPages,
         },
         status: {
             isSubmitting,
@@ -537,8 +495,8 @@ export const useAdminPanel = ({
             },
             setSelectedPalletForBlock,
             setBlockReason,
-            setSelectedPalletForAudit,
             setSelectedPalletForEdit,
+            setSelectedPalletForDelete,
             setEditFis,
             setEditNests,
             setEditMaxCycles,
@@ -551,27 +509,20 @@ export const useAdminPanel = ({
             setNewMaxCycles,
             setNewNests,
             setNewFis,
-            setNewStatus,
-            setNewBlockReason,
             setValidationError,
             handleAddPallet,
             handleAddProject,
             handleBlockClick,
             handleConfirmBlock,
             handleUnblock,
-            handleDeletePallet,
-            handleOpenAuditModal,
+            handleConfirmDeletePallet,
             handleOpenEditModal,
             handleUpdatePallet,
             handleExportAuditTrail,
             handleRefreshPallets,
             showGlobalError,
             hideGlobalError,
-            setCurrentPage,
-            setPageSize: (size: number) => {
-                setPageSize(size);
-                setCurrentPage(1);
-            },
+            setPageSize,
         },
     };
 };

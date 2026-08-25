@@ -72,11 +72,7 @@ export interface DeletePalletResponse extends UpdatePalletResponse {
     message: string;
 }
 
-interface GetPalletHistoryParams extends LocalizedRequest {
-    pallet_id: string;
-}
-
-export interface GetPalletHistoryResponse {
+interface AuditHistoryResponse {
     history: AuditLog[];
 }
 
@@ -120,7 +116,7 @@ export const GetPallet = api(
 
 export const GetAllPalletHistory = api(
     {method: "GET", path: "/pallets/audit-history", expose: true, auth: true},
-    async (params: LocalizedRequest): Promise<GetPalletHistoryResponse> => {
+    async (params: LocalizedRequest): Promise<AuditHistoryResponse> => {
         requireITDepartmentUser();
         const history = await db.queryAll<AuditLog>`
             SELECT * FROM pallet_audit_logs ORDER BY timestamp DESC
@@ -324,23 +320,5 @@ export const DeletePallet = api(
         }
 
         return {status: true, pallet_id: palletId, message: t("pallet_deleted", lang)};
-    },
-);
-
-export const GetPalletHistory = api(
-    {method: "GET", path: "/pallets/:pallet_id/history", expose: true},
-    async (params: GetPalletHistoryParams): Promise<GetPalletHistoryResponse> => {
-        const palletId = normalizePalletId(params.pallet_id);
-        if (!palletId) throw APIError.invalidArgument(t("pallet_id_empty", params.acceptLanguage));
-
-        const pallet = await db.queryRow<{exists: boolean}>`
-            SELECT EXISTS(SELECT 1 FROM pallets WHERE pallet_id = ${palletId}) AS exists
-        `;
-        if (!pallet?.exists) throw APIError.notFound(t("pallet_not_found", params.acceptLanguage));
-
-        const history = await db.queryAll<AuditLog>`
-            SELECT * FROM pallet_audit_logs WHERE pallet_id = ${palletId} ORDER BY timestamp DESC
-        `;
-        return {history: history.map((log) => localizeAuditLog(log, params.acceptLanguage))};
     },
 );

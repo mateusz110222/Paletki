@@ -7,11 +7,10 @@ import {useSearchParams} from "react-router-dom";
 import {useAuth} from "../auth/AuthContext.tsx";
 
 interface UseOperatorPanelProps {
-    pallets: Pallet[];
     setPallets: React.Dispatch<React.SetStateAction<Pallet[]>>;
 }
 
-export const useOperatorPanel = ({pallets, setPallets}: UseOperatorPanelProps) => {
+export const useOperatorPanel = ({setPallets}: UseOperatorPanelProps) => {
     const {t, language} = useTranslation();
     const {authenticatedFetch} = useAuth();
     const {errorModalState, showGlobalError, hideGlobalError} = useGlobalErrorModal();
@@ -196,18 +195,12 @@ export const useOperatorPanel = ({pallets, setPallets}: UseOperatorPanelProps) =
             isToastOpen,
             toastMsg,
             isSubmitting,
-            pallets,
             errorModalState,
-            palletIDFromUrl
         },
         actions: {
             setScannedId,
-            setActivePallet,
-            setScanStatus,
             setIsOtherFaultOpen,
             setCustomFaultText,
-            setIsToastOpen,
-            setToastMsg,
             handleScanSubmit,
             handleReportFault,
             handleClearActivePallet,
