@@ -1,0 +1,15 @@
+{
+  "name": "paletki",
+  "private": true,
+  "packageManager": "pnpm@11.21.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --stream --filter @paletki/frontend --filter @paletki/backend run dev",
+    "build": "pnpm --filter @paletki/frontend run build",
+    "build:docker": "pnpm --filter @paletki/backend run build:docker",
+    "lint": "pnpm --recursive run lint",
+    "test": "pnpm --filter @paletki/backend run test"
+  }
+}

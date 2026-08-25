@@ -1,9 +1,9 @@
 import React, {useState} from 'react';
 import {Pallet, PalletStatus, Project} from '@backend/shared/types';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
-import {useAuth} from "../auth/AuthContext.tsx";
 import {useGlobalErrorModal} from "./useGlobalErrorModal.ts";
 import {API_BASE_URL} from "@backend/shared/API_BASE_URL.ts";
+import {useAuth} from "../auth/AuthContext.tsx";
 
 interface UseAdminPanelProps {
     pallets: Pallet[];
@@ -19,9 +19,7 @@ export const useAdminPanel = ({
                                   setProjects,
                               }: UseAdminPanelProps) => {
     const {t, language} = useTranslation();
-    const {user} = useAuth();
-
-    const Operator = user?.FullName ?? "";
+    const {authenticatedFetch} = useAuth();
     const {errorModalState, showGlobalError, hideGlobalError} = useGlobalErrorModal();
 
     const [searchTerm, setSearchTerm] = useState('');
@@ -95,18 +93,19 @@ export const useAdminPanel = ({
 
     const fetchPallets = async () => {
         try {
-            const res = await fetch(`${API_BASE_URL}/pallets`);
+            const res = await fetch(`${API_BASE_URL}/pallets`, {
+                headers: {"Accept-Language": language},
+            });
             if (res.ok) {
                 const data = await res.json();
                 setPallets(data.pallets || []);
             } else {
                 const errData = await res.json();
-                showGlobalError(t('error_fetching_pallets_title'), errData.message || t('error_connecting_to_encore'));
+                showGlobalError(t('error_fetching_pallets_title'), errData.message);
             }
         } catch (error) {
             console.error("Failed to fetch pallets:", error);
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            showGlobalError(t('error_fetching_pallets_title'), errorMessage || t('error_connecting_to_encore'));
+            showGlobalError(t('error_fetching_pallets_title'), t('error_connecting_to_encore'));
         }
     };
 
@@ -155,19 +154,19 @@ export const useAdminPanel = ({
                 max_cycles: parseInt(newMaxCycles) || 200,
                 nests: parseInt(newNests) || 1,
                 fis: parseInt(newFis) || 1,
-                created_by: Operator,
                 status: "Active",
             };
 
-            const response = await fetch(`${API_BASE_URL}/pallets`, {
+            const response = await authenticatedFetch(`${API_BASE_URL}/pallets`, {
                 method: "POST",
                 headers: {"Content-Type": "application/json", "Accept-Language": language},
                 body: JSON.stringify(payload)
             });
 
             if (!response.ok) {
-                const errData = await response.json().catch(() => ({}));
-                throw new Error(errData.message || t('database_error'));
+                const errData = await response.json();
+                setValidationError(errData.message);
+                return;
             }
 
             await fetchPallets();
@@ -175,8 +174,7 @@ export const useAdminPanel = ({
             setIsAddOpen(false);
         } catch (error) {
             console.error('Error adding pallet:', error);
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            setValidationError(errorMessage || t('error_connecting_to_encore'));
+            setValidationError(t('error_connecting_to_encore'));
         } finally {
             setIsSubmitting(false);
         }
@@ -198,32 +196,34 @@ export const useAdminPanel = ({
 
             const payload = {name: projectName};
 
-            const response = await fetch(`${API_BASE_URL}/projects`, {
+            const response = await authenticatedFetch(`${API_BASE_URL}/projects`, {
                 method: "POST",
                 headers: {"Content-Type": "application/json", "Accept-Language": language},
                 body: JSON.stringify(payload)
             });
 
             if (!response.ok) {
-                const errData = await response.json().catch(() => ({}));
-                throw new Error(errData.message || t('error_connecting_to_encore'));
+                const errData = await response.json();
+                setValidationError(errData.message);
+                return;
             }
 
-            const res = await fetch(`${API_BASE_URL}/projects`);
+            const res = await fetch(`${API_BASE_URL}/projects`, {
+                headers: {"Accept-Language": language},
+            });
             if (res.ok) {
                 const data = await res.json();
                 setProjects(data.projects || []);
             } else {
                 const errData = await res.json();
-                showGlobalError(t('error_fetching_projects_title'), errData.message || t('error_connecting_to_encore'));
+                showGlobalError(t('error_fetching_projects_title'), errData.message);
             }
 
             setNewProjectName('');
             setIsAddProjectOpen(false);
         } catch (error) {
             console.error('Error adding project:', error);
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            setValidationError(errorMessage || t('error_connecting_to_encore'));
+            setValidationError(t('error_connecting_to_encore'));
         } finally {
             setIsSubmitting(false);
         }
@@ -249,19 +249,19 @@ export const useAdminPanel = ({
             setIsSubmitting(true);
             setBlockError('');
 
-            const response = await fetch(`${API_BASE_URL}/pallets/block`, {
+            const response = await authenticatedFetch(`${API_BASE_URL}/pallets/block`, {
                 method: "POST",
                 headers: {"Content-Type": "application/json", "Accept-Language": language},
                 body: JSON.stringify({
                     pallet_id: selectedPalletForBlock.pallet_id,
-                    block_reason: blockReason.trim(),
-                    operator_id: Operator
+                    block_reason: blockReason.trim()
                 })
             });
 
             if (!response.ok) {
-                const errData = await response.json().catch(() => ({}));
-                throw new Error(errData.message || t('error_connecting_to_encore'));
+                const errData = await response.json();
+                setBlockError(errData.message);
+                return;
             }
 
             await fetchPallets();
@@ -270,8 +270,7 @@ export const useAdminPanel = ({
             setBlockReason("");
         } catch (err) {
             console.error('Error blocking pallet:', err);
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            setBlockError(errorMessage || t('error_connecting_to_encore'));
+            setBlockError(t('error_connecting_to_encore'));
         } finally {
             setIsSubmitting(false);
         }
@@ -281,30 +280,27 @@ export const useAdminPanel = ({
         if (!window.confirm(t('confirm_unblock_message'))) return;
 
         try {
-            const response = await fetch(`${API_BASE_URL}/pallets/unblock`, {
+            const response = await authenticatedFetch(`${API_BASE_URL}/pallets/unblock`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     "Accept-Language": language
                 },
                 body: JSON.stringify({
-                    pallet_id: pallet.pallet_id,
-                    operator_id: Operator
+                    pallet_id: pallet.pallet_id
                 })
             });
 
-            const resData = await response.json().catch(() => ({}));
-
             if (!response.ok) {
-                showGlobalError(t('error_unblocking_pallet_title'), resData.message || t('error_connecting_to_encore'));
+                const errData = await response.json();
+                showGlobalError(t('error_unblocking_pallet_title'), errData.message);
                 return;
             }
 
             await fetchPallets();
         } catch (err) {
             console.error('Error unblocking pallet:', err);
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            showGlobalError(t('error_unblocking_pallet_title'), errorMessage || t('error_connecting_to_encore'));
+            showGlobalError(t('error_unblocking_pallet_title'), t('error_connecting_to_encore'));
         }
     };
 
@@ -312,23 +308,21 @@ export const useAdminPanel = ({
         if (!window.confirm(t('delete_pallet_confirm'))) return;
 
         try {
-            const response = await fetch(`${API_BASE_URL}/pallets/${palletId}`, {
+            const response = await authenticatedFetch(`${API_BASE_URL}/pallets/${encodeURIComponent(palletId)}`, {
                 method: "DELETE",
                 headers: {"Accept-Language": language},
             });
 
-            const resData = await response.json().catch(() => ({}));
-
             if (!response.ok) {
-                showGlobalError(t('error_deleting_pallet_title'), resData.message || t('error_connecting_to_encore'));
+                const errData = await response.json();
+                showGlobalError(t('error_deleting_pallet_title'), errData.message);
                 return;
             }
 
             await fetchPallets();
         } catch (err) {
             console.error('Error deleting pallet:', err);
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            showGlobalError(t('error_deleting_pallet_title'), errorMessage || t('error_connecting_to_encore'));
+            showGlobalError(t('error_deleting_pallet_title'), t('error_connecting_to_encore'));
         }
     };
 
@@ -337,15 +331,15 @@ export const useAdminPanel = ({
         hideGlobalError();
 
         try {
-            const response = await fetch(`${API_BASE_URL}/pallets/${pallet.pallet_id}/history`, {
+            const response = await fetch(`${API_BASE_URL}/pallets/${encodeURIComponent(pallet.pallet_id)}/history`, {
                 headers: {
                     "Accept-Language": language
                 }
             });
 
             if (!response.ok) {
-                const errData = await response.json().catch(() => ({}));
-                showGlobalError(t('error_fetching_audit_history_title'), errData.message || t('failed_to_fetch_history'));
+                const errData = await response.json();
+                showGlobalError(t('error_fetching_audit_history_title'), errData.message);
                 return;
             }
 
@@ -358,8 +352,7 @@ export const useAdminPanel = ({
 
         } catch (err) {
             console.error("Błąd pobierania historii audytowej:", err);
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            showGlobalError(t('error_fetching_audit_history_title'), errorMessage || t('failed_to_fetch_history'));
+            showGlobalError(t('error_fetching_audit_history_title'), t('error_connecting_to_encore'));
         }
     };
 
@@ -415,11 +408,10 @@ export const useAdminPanel = ({
                 nests: nestsVal,
                 max_cycles: maxCyclesVal,
                 status: editStatus,
-                block_reason: editStatus === 'Blocked' ? editBlockReason.trim() : null,
-                operator_id: Operator
+                block_reason: editStatus === 'Blocked' ? editBlockReason.trim() : null
             };
 
-            const response = await fetch(`${API_BASE_URL}/pallets/${selectedPalletForEdit.pallet_id}`, {
+            const response = await authenticatedFetch(`${API_BASE_URL}/pallets/${encodeURIComponent(selectedPalletForEdit.pallet_id)}`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
@@ -429,8 +421,9 @@ export const useAdminPanel = ({
             });
 
             if (!response.ok) {
-                const errData = await response.json().catch(() => ({}));
-                throw new Error(errData.message || t('database_error'));
+                const errData = await response.json();
+                setEditError(errData.message);
+                return;
             }
 
             await fetchPallets();
@@ -438,22 +431,38 @@ export const useAdminPanel = ({
             setSelectedPalletForEdit(null);
         } catch (err) {
             console.error('Error updating pallet:', err);
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            setEditError(errorMessage || t('database_error'));
+            setEditError(t('error_connecting_to_encore'));
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    const handleExportAuditTrail = () => {
-        const allHistory = pallets.flatMap((p) => p.history || []);
-        const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(allHistory, null, 2));
-        const downloadAnchor = document.createElement('a');
-        downloadAnchor.setAttribute('href', dataStr);
-        downloadAnchor.setAttribute('download', `dash-solder-audit-trail-${new Date().toISOString().split('T')[0]}.json`);
-        document.body.appendChild(downloadAnchor);
-        downloadAnchor.click();
-        downloadAnchor.remove();
+    const handleExportAuditTrail = async () => {
+        try {
+            const response = await authenticatedFetch(`${API_BASE_URL}/pallets/audit-history`, {
+                headers: {"Accept-Language": language},
+            });
+            const responseData = await response.json();
+            if (!response.ok) {
+                showGlobalError(t('error_fetching_audit_history_title'), responseData.message);
+                return;
+            }
+
+            const dataStr = 'data:text/json;charset=utf-8,' +
+                encodeURIComponent(JSON.stringify(responseData.history || [], null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute('href', dataStr);
+            downloadAnchor.setAttribute(
+                'download',
+                `dash-solder-audit-trail-${new Date().toISOString().split('T')[0]}.json`,
+            );
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        } catch (error) {
+            console.error('Error exporting audit trail:', error);
+            showGlobalError(t('error_fetching_audit_history_title'), t('error_connecting_to_encore'));
+        }
     };
 
     return {
@@ -479,7 +488,6 @@ export const useAdminPanel = ({
             editStatus,
             editBlockReason,
             editError,
-            Operator,
             newId,
             newModel,
             newProject,

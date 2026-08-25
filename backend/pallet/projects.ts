@@ -2,61 +2,45 @@ import {api, APIError, Header} from "encore.dev/api";
 import {db} from "./db";
 import {Project} from "../shared/types";
 import {t} from "./i18n";
+import {requireITDepartmentUser} from "../auth/authorization";
+
+interface LocalizedRequest {
+    acceptLanguage?: Header<"Accept-Language">;
+}
 
 export interface GetAllProjectsResponse {
     projects: Project[];
 }
 
-export interface AddProjectParams {
+export interface AddProjectParams extends LocalizedRequest {
     name: string;
-    acceptLanguage?: Header<"Accept-Language">;
 }
 
 export const GetAllProjects = api(
     {method: "GET", path: "/projects", expose: true},
     async (): Promise<GetAllProjectsResponse> => {
-        const projects = await db.queryAll<Project>`SELECT *
-                                                    FROM projects`;
-
-        if (projects.length === 0) {
-            return {projects: []};
-        }
-
-        return {projects};
-    }
+        return {projects: await db.queryAll<Project>`SELECT * FROM projects ORDER BY name`};
+    },
 );
 
 export const AddProject = api(
-    {method: "POST", path: "/projects", expose: true},
+    {method: "POST", path: "/projects", expose: true, auth: true},
     async (params: AddProjectParams): Promise<void> => {
-        const lang = params.acceptLanguage;
-
-        if (!params.name?.trim()) {
-            throw APIError.invalidArgument(t("project_name_empty", lang));
-        }
-
-        const projectName = params.name.trim();
+        requireITDepartmentUser();
+        const projectName = params.name?.trim();
+        if (!projectName) throw APIError.invalidArgument(t("project_name_empty", params.acceptLanguage));
 
         try {
-                await using tx = await db.begin();
-
-            await tx.exec`
-                INSERT INTO projects (name)
-                VALUES (${projectName})
-            `;
-
-            await tx.commit();
-        } catch (err: unknown) {
-            const isUniqueViolation =
-                String(err?.message || err).includes('23505') ||
-                String(err?.message || err).includes('duplicate key value');
-
-            if (isUniqueViolation) {
-                throw APIError.alreadyExists(t("project_exists", lang));
+            await db.exec`INSERT INTO projects (name) VALUES (${projectName})`;
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (errorMessage.includes("23505") || errorMessage.includes("duplicate key value")) {
+                throw APIError.alreadyExists(t("project_exists", params.acceptLanguage));
             }
-
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            throw APIError.internal(errorMessage);
+            throw APIError.internal(
+                t("database_error", params.acceptLanguage),
+                error instanceof Error ? error : undefined,
+            );
         }
-    }
+    },
 );

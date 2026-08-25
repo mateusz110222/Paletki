@@ -17,6 +17,8 @@ import {Pallet} from '@backend/shared/types';
 import {useMaintenancePanel} from '../hooks/useMaintenancePanel.ts';
 import {useSearchParams} from "react-router-dom";
 import {SearchInput} from "../components/SearchInput.tsx";
+import {useEscapeKey} from "../hooks/useEscapeKey.ts";
+import {ModalFormActions} from "../components/ModalFormActions.tsx";
 
 interface MaintenancePanelViewProps {
     pallets: Pallet[];
@@ -33,6 +35,8 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
     useEffect(() => {
         actions.setSearchTerm(searchTermFromURL);
     }, [actions, searchTermFromURL]);
+
+    useEscapeKey(data.selectedPallet !== null, () => actions.setSelectedPallet(null));
 
     return (
         <div className="space-y-6 animate-in fade-in duration-300" id="maintenance-panel-container">
@@ -116,8 +120,8 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
                 </div>
             </div>
 
-            <SearchInput searchTermFromURL={searchTermFromURL} searchParams={searchParams} actions={actions}
-                         setSearchParams={setSearchParams}/>
+            <SearchInput searchTerm={searchTermFromURL} searchParams={searchParams}
+                         onSearchTermChange={actions.setSearchTerm} setSearchParams={setSearchParams}/>
 
             {/* Main Work Area */}
             <div className="bg-brand-surface rounded-xl border border-brand-border overflow-hidden">
@@ -254,6 +258,8 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
                             <button
                                 className="w-10 h-10 rounded-full flex items-center justify-center text-brand-text-muted hover:bg-red-500/10 hover:text-red-400 transition-all"
                                 onClick={() => actions.setSelectedPallet(null)}
+                                title={t('btn_close')}
+                                aria-label={t('btn_close')}
                             >
                                 <X size={20}/>
                             </button>
@@ -347,14 +353,11 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
                                 ></textarea>
                             </div>
 
-                            {/* Submit Button */}
-                            <button
-                                type="submit"
-                                className="w-full py-4 bg-brand-accent text-brand-bg font-black text-xs uppercase tracking-[0.2em] rounded-xl hover:brightness-110 active:scale-[0.98] transition-all shadow-[0_10px_20px_rgba(99,102,241,0.2)] flex items-center justify-center gap-2"
-                            >
-                                <CheckCircle2 size={18}/>
-                                {t('approve_service_and_return')}
-                            </button>
+                            <ModalFormActions
+                                onCancel={() => actions.setSelectedPallet(null)}
+                                submitLabel={t('approve_service_and_return')}
+                                submitIcon={<CheckCircle2 size={18} aria-hidden="true"/>}
+                            />
                         </form>
                     </div>
                 </div>

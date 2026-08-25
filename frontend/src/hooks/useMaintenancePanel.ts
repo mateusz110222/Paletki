@@ -11,7 +11,7 @@ interface UseMaintenancePanelProps {
 
 export function useMaintenancePanel({pallets, setPallets}: UseMaintenancePanelProps) {
     const {t, language} = useTranslation();
-    const {user} = useAuth();
+    const {user, authenticatedFetch} = useAuth();
 
     const Operator = user?.FullName ?? "";
     const [activeTab, setActiveTab] = useState<'repairs' | 'routine'>('repairs');
@@ -25,7 +25,9 @@ export function useMaintenancePanel({pallets, setPallets}: UseMaintenancePanelPr
 
     const fetchPallets = useCallback(async () => {
         try {
-            const res = await fetch(`${API_BASE_URL}/pallets`);
+            const res = await fetch(`${API_BASE_URL}/pallets`, {
+                headers: {"Accept-Language": language},
+            });
             if (res.ok) {
                 const data = await res.json();
                 setPallets(data.pallets || []);
@@ -33,7 +35,7 @@ export function useMaintenancePanel({pallets, setPallets}: UseMaintenancePanelPr
         } catch (error) {
             console.error("Error fetching pallets:", error);
         }
-    }, [setPallets]);
+    }, [language, setPallets]);
 
     if (!user) {
         window.location.href = "/login";
@@ -88,9 +90,13 @@ export function useMaintenancePanel({pallets, setPallets}: UseMaintenancePanelPr
 
         try {
             const newStatus: PalletStatus = 'Active';
-            const description = `Serwis zakończony: ${repairDescription.trim()}. Mycie: ${washConfirm ? 'Tak' : 'Nie'}, Inspekcja topnika: ${fluxConfirm ? 'Tak' : 'Nie'}.`;
+            const description = t('maint_service_audit_description', {
+                description: repairDescription.trim(),
+                washing: t(washConfirm ? 'answer_yes' : 'answer_no'),
+                inspection: t(fluxConfirm ? 'answer_yes' : 'answer_no'),
+            });
 
-            const response = await fetch(`${API_BASE_URL}/pallets/change-status`, {
+            const response = await authenticatedFetch(`${API_BASE_URL}/pallets/change-status`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -99,7 +105,6 @@ export function useMaintenancePanel({pallets, setPallets}: UseMaintenancePanelPr
                 body: JSON.stringify({
                     pallet_id: selectedPallet.pallet_id,
                     new_status: newStatus,
-                    operator_id: Operator,
                     block_reason: description,
                     reset_cycles: true,
                 })
@@ -107,15 +112,15 @@ export function useMaintenancePanel({pallets, setPallets}: UseMaintenancePanelPr
 
             if (!response.ok) {
                 const errData = await response.json();
-                throw new Error(errData.message || t('error_connecting_to_encore'));
+                setModalError(errData.message);
+                return;
             }
 
             await fetchPallets();
             setSelectedPallet(null);
         } catch (error: unknown) {
             console.error('Error returning pallet to production:', error);
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            setModalError(errorMessage || t('error_connecting_to_encore'));
+            setModalError(t('error_connecting_to_encore'));
         }
     };
 

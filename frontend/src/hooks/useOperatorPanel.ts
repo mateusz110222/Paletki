@@ -1,10 +1,10 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Pallet, PalletStatus} from '@backend/shared/types';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
-import {useAuth} from "../auth/AuthContext.tsx";
 import {useGlobalErrorModal} from "../hooks/useGlobalErrorModal.ts";
 import {API_BASE_URL} from "@backend/shared/API_BASE_URL.ts";
 import {useSearchParams} from "react-router-dom";
+import {useAuth} from "../auth/AuthContext.tsx";
 
 interface UseOperatorPanelProps {
     pallets: Pallet[];
@@ -12,8 +12,8 @@ interface UseOperatorPanelProps {
 }
 
 export const useOperatorPanel = ({pallets, setPallets}: UseOperatorPanelProps) => {
-    const {t} = useTranslation();
-    const {user} = useAuth();
+    const {t, language} = useTranslation();
+    const {authenticatedFetch} = useAuth();
     const {errorModalState, showGlobalError, hideGlobalError} = useGlobalErrorModal();
 
     const [scannedId, setScannedId] = useState('');
@@ -55,26 +55,16 @@ export const useOperatorPanel = ({pallets, setPallets}: UseOperatorPanelProps) =
 
     const processedUrlIdRef = useRef<string | null>(null);
 
-    useEffect(() => {
-        const upperUrlId = palletIDFromUrl.trim().toUpperCase();
-
-        if (upperUrlId && processedUrlIdRef.current !== upperUrlId) {
-            processedUrlIdRef.current = upperUrlId;
-            setScannedId(upperUrlId);
-            handleScanSubmit(undefined, upperUrlId);
-        }
-    }, [palletIDFromUrl])
-
-    const triggerToast = (msg: string) => {
+    const triggerToast = useCallback((msg: string) => {
         if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
         setToastMsg(msg);
         setIsToastOpen(true);
         toastTimerRef.current = setTimeout(() => {
             setIsToastOpen(false);
         }, 4000);
-    };
+    }, []);
 
-    const handleScanSubmit = async (e?: React.SyntheticEvent<HTMLFormElement>, idToScan?: string) => {
+    const handleScanSubmit = useCallback(async (e?: React.SyntheticEvent<HTMLFormElement>, idToScan?: string) => {
         if (e) e.preventDefault();
 
         const palletUpper = (idToScan !== undefined ? idToScan : scannedId).trim().toUpperCase();
@@ -82,18 +72,24 @@ export const useOperatorPanel = ({pallets, setPallets}: UseOperatorPanelProps) =
         if (!palletUpper) return;
 
         try {
-            const response = await fetch(`${API_BASE_URL}/pallets/${palletUpper}`);
+            const response = await fetch(`${API_BASE_URL}/pallets/${encodeURIComponent(palletUpper)}`, {
+                headers: {"Accept-Language": language},
+            });
 
             if (!response.ok) {
-                const errData = await response.json().catch(() => ({}));
-                throw new Error(errData.message || `${t('error_connecting_to_encore')}: ${palletUpper}`);
+                const errData = await response.json();
+                setScanStatus('ERROR');
+                setActivePallet(null);
+                triggerToast(errData.message);
+                setTimeout(() => setScanStatus('IDLE'), 1500);
+                return;
             }
 
             const pallet: Pallet = await response.json();
 
             setActivePallet(pallet);
             setScanStatus('SUCCESS');
-            triggerToast(`${t('op_scan_success') || 'Zeskanowano pomyślnie'}: ${pallet.pallet_id}`);
+            triggerToast(t('op_scan_success_with_id', {palletId: pallet.pallet_id}));
 
             const newParams = new URLSearchParams(searchParams);
             newParams.set('palletID', pallet.pallet_id);
@@ -101,57 +97,73 @@ export const useOperatorPanel = ({pallets, setPallets}: UseOperatorPanelProps) =
             setTimeout(() => setScanStatus('IDLE'), 1000);
         } catch (error: unknown) {
             console.error('Błąd skanowania:', error);
-            const errorMessage = error instanceof Error ? error.message : String(error);
             setScanStatus('ERROR');
             setActivePallet(null);
-            triggerToast(errorMessage || `${t('op_scan_error')}`);
+            triggerToast(t('error_connecting_to_encore'));
 
             setTimeout(() => setScanStatus('IDLE'), 1500);
         }
-    };
+    }, [language, scannedId, searchParams, setSearchParams, t, triggerToast]);
+
+    useEffect(() => {
+        const upperUrlId = palletIDFromUrl.trim().toUpperCase();
+
+        if (upperUrlId && processedUrlIdRef.current !== upperUrlId) {
+            processedUrlIdRef.current = upperUrlId;
+            const scanTimer = window.setTimeout(() => {
+                setScannedId(upperUrlId);
+                void handleScanSubmit(undefined, upperUrlId);
+            }, 0);
+            return () => window.clearTimeout(scanTimer);
+        }
+    }, [handleScanSubmit, palletIDFromUrl]);
 
     const handleReportFault = async (faultName: string, newStatus: PalletStatus) => {
         if (!activePallet) {
-            triggerToast(t('op_no_pallet_scanned') || 'Błąd: Najpierw zeskanuj paletę!');
+            triggerToast(t('op_no_pallet_scanned'));
             return;
         }
 
         setIsSubmitting(true);
-        const description = `Zgłoszono usterkę (Skaner): ${faultName}`;
+        const description = t('op_fault_audit_description', {faultName});
 
         try {
-            const response = await fetch(`${API_BASE_URL}/pallets/change-status`, {
+            const response = await authenticatedFetch(`${API_BASE_URL}/pallets/change-status`, {
                 method: "POST",
-                headers: {"Content-Type": "application/json"},
+                headers: {
+                    "Content-Type": "application/json",
+                    "Accept-Language": language,
+                },
                 body: JSON.stringify({
                     pallet_id: activePallet.pallet_id,
                     new_status: newStatus,
-                    operator_id: user?.FullName || 'Unknown Operator',
                     block_reason: description,
-                    reset_cycles: true,
+                    reset_cycles: false,
                 })
             });
 
             if (!response.ok) {
-                const errData = await response.json().catch(() => ({}));
-                throw new Error(errData.message || t('error_connecting_to_encore'));
+                const errData = await response.json();
+                triggerToast(errData.message);
+                return;
             }
 
-            triggerToast(`${t('op_fault_reported') || 'Zgłoszono usterkę'}: ${faultName}.`);
+            triggerToast(t('op_fault_reported_with_name', {faultName}));
 
             try {
-                const res = await fetch(`${API_BASE_URL}/pallets`);
+                const res = await fetch(`${API_BASE_URL}/pallets`, {
+                    headers: {"Accept-Language": language},
+                });
                 if (res.ok) {
                     const data = await res.json();
                     setPallets(data.pallets || []);
                 } else {
                     const errData = await res.json();
-                    showGlobalError(t('error_fetching_pallets_title'), errData.message || t('error_connecting_to_encore'));
+                    showGlobalError(t('error_fetching_pallets_title'), errData.message);
                 }
             } catch (error: unknown) {
                 console.error("Failed to fetch pallets:", error);
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                showGlobalError(t('error_fetching_pallets_title'), errorMessage || t('error_connecting_to_encore'));
+                showGlobalError(t('error_fetching_pallets_title'), t('error_connecting_to_encore'));
             }
 
             setActivePallet(null);
@@ -160,8 +172,7 @@ export const useOperatorPanel = ({pallets, setPallets}: UseOperatorPanelProps) =
             setScannedId('');
         } catch (error: unknown) {
             console.error('Błąd zgłaszania usterki:', error);
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            triggerToast(errorMessage || t('error_connecting_to_encore'));
+            triggerToast(t('error_connecting_to_encore'));
         } finally {
             setIsSubmitting(false);
         }

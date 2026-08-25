@@ -26,7 +26,8 @@ This document provides instructions on how to set up, build, and run the "paletk
 
 Before you begin, ensure you have the following tools installed on your system:
 - [Docker](https://www.docker.com/get-started) & Docker Compose
-- [Node.js](https://nodejs.org/) (which includes npm)
+- [Node.js](https://nodejs.org/) 22 or newer
+- [pnpm](https://pnpm.io/installation) 11.21.0
 - [Encore CLI](https://encore.dev/docs/install)
 
 ## Getting Started
@@ -39,12 +40,57 @@ git clone https://github.com/your-username/paletki.git
 cd paletki
 ```
 
-### 2. Install Frontend Dependencies
-Navigate to the frontend directory (if applicable) and install the required npm packages.
+### 2. Install Dependencies
+
+On Windows, install the version of pnpm used by this repository:
+
+```powershell
+npm install --global pnpm@11.21.0
+pnpm --version
+```
+
+The version command should print `11.21.0`. Then install all frontend and backend
+dependencies from the project root:
+
+```powershell
+pnpm install
+```
+
+If PowerShell blocks `npm.ps1` or `pnpm.ps1` because script execution is disabled,
+use their `.cmd` launchers instead:
+
+```powershell
+npm.cmd install --global pnpm@11.21.0
+pnpm.cmd install
+pnpm.cmd dev
+```
+
+## Local Development
+
+Create your local environment file before starting the application:
+
 ```bash
-# If your frontend code is in a sub-directory, e.g., 'frontend/'
-# cd frontend/
-npm install
+cp .env.example .env
+```
+
+On Windows PowerShell, use `Copy-Item .env.example .env`. Fill in the LDAP,
+FIS and database values in `.env`; this file is ignored by Git.
+
+Start the frontend and backend together from the project root:
+
+```bash
+pnpm dev
+```
+
+The frontend is available at `http://localhost:3000` and the backend at
+`http://localhost:4000`. Both processes run in the same terminal. Press
+`Ctrl+C` once to stop them.
+
+To run only one part of the application, use:
+
+```bash
+pnpm --filter @paletki/frontend dev
+pnpm --filter @paletki/backend dev
 ```
 
 ## Building the Application
@@ -54,14 +100,17 @@ To prepare the application for deployment, you need to build both the backend an
 ### 1. Build Backend Service
 The backend is built using Encore, which packages it into a Docker image. Run the following command from the project root:
 ```bash
-encore build docker --config infra.config.json paletki-dev:latest
+pnpm install
+pnpm build:docker
 ```
 This command creates a Docker image named `paletki-dev` with the tag `latest`.
+
+The workspace uses pnpm's hoisted linker because Encore's Docker builder cannot copy Windows junction points. If dependencies were previously installed with the default isolated linker, run `pnpm install --force` once before building the image.
 
 ### 2. Build Frontend Assets
 Build the static assets for the frontend application:
 ```bash
-npm run build
+pnpm build
 ```
 This command will typically create a `build` or `dist` directory with the compiled frontend code.
 
@@ -70,8 +119,13 @@ This command will typically create a `build` or `dist` directory with the compil
 With the backend and frontend built, you can run the entire application stack using Docker Compose.
 
 ```bash
-docker-compose up
+docker-compose up -d
 ```
+
+The frontend is exposed on HTTP port 80. To use a hostname such as
+`plblo-paletki.borgwarner.net`, create a DNS `A` record pointing that hostname
+to the IPv4 address of the machine running Docker. For testing on one computer,
+the same mapping can be added to the local Windows `hosts` file instead.
 
 This command starts all the services defined in your `docker-compose.yml` file (e.g., your backend service, a web server for the frontend, databases, etc.).
 

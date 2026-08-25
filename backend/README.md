@@ -132,10 +132,10 @@ Use `encore build docker` to create a Docker image.
 encore build docker --config infra.config.json paletki-dev:latest
 ```
 
-When running the container, you must provide the `DB_PASSWORD` environment variable as configured in `infra.config.json`:
+When running the container directly, provide `PALLETS_DB_PASSWORD` as configured in `infra.config.json`:
 
 ```bash
-docker run -e DB_PASSWORD=your_password paletki-dev:latest
+docker run -e PALLETS_DB_PASSWORD=your_password paletki-dev:latest
 ```
 
 See the [self-hosting instructions](https://encore.dev/docs/self-host/docker-build) for more details.

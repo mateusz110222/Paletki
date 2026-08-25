@@ -1,5 +1,5 @@
 import React, {useEffect} from 'react';
-import {AlertCircle, Download, Edit, History, PlusCircle, RefreshCw, ShieldAlert, Trash2, X} from 'lucide-react';
+import {AlertCircle, Download, Edit, ExternalLink, History, PlusCircle, RefreshCw, ShieldAlert, Trash2, X} from 'lucide-react';
 import {TranslationKey, useTranslation} from '../i18n/LanguageContext.tsx';
 import {AuditLog, Pallet, PALLET_STATUSES, PalletStatus, Project} from '@backend/shared/types';
 import {useAdminPanel} from '../hooks/useAdminPanel.ts';
@@ -7,6 +7,9 @@ import {PalletStatusSpan} from "../components/PalletStatusSpan.tsx";
 import {GlobalErrorModal} from "../components/GlobalErrorModal.tsx";
 import {useSearchParams} from "react-router-dom";
 import {SearchInput} from "../components/SearchInput.tsx";
+import {useEscapeKey} from "../hooks/useEscapeKey.ts";
+import {getFisUnitHistoryUrl} from "../config/fis.ts";
+import {ModalFormActions} from "../components/ModalFormActions.tsx";
 
 interface AdminPanelViewProps {
     pallets: Pallet[];
@@ -28,12 +31,17 @@ const ErrorAlert: React.FC<{ message: string }> = ({message}) => {
 
 export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
     const {data, status, actions} = useAdminPanel(props);
-    const {t} = useTranslation();
+    const {t, language} = useTranslation();
     const [searchParams, setSearchParams] = useSearchParams();
     const selectedProjectFromUrl = searchParams.get('project') || 'ALL';
     const selectedModelFromUrl = searchParams.get('model') || 'ALL';
     const selectedStatusFromUrl = searchParams.get('status') || 'ALL';
     const searchTermFromURL = searchParams.get('searchTerm') || '';
+    const auditPalletId = String(
+        data.selectedPalletForAudit?.pallet_id || data.selectedPalletForAudit?.id || '',
+    );
+    const auditPalletFis = Number(data.selectedPalletForAudit?.fis);
+    const auditPalletHistoryUrl = getFisUnitHistoryUrl(auditPalletFis, auditPalletId);
 
     useEffect(() => {
         actions.setSelectedProject(selectedProjectFromUrl);
@@ -51,6 +59,25 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
         actions.setSearchTerm(searchTermFromURL);
     }, [actions, searchTermFromURL]);
 
+    const hasOpenModal = data.errorModalState.isOpen || data.selectedPalletForAudit !== null ||
+        data.isBlockOpen || data.isEditOpen || data.isAddProjectOpen || data.isAddOpen;
+
+    useEscapeKey(hasOpenModal, () => {
+        if (data.errorModalState.isOpen) {
+            actions.hideGlobalError();
+        } else if (data.selectedPalletForAudit) {
+            actions.setSelectedPalletForAudit(null);
+        } else if (!status.isSubmitting && data.isBlockOpen) {
+            actions.setIsBlockOpen(false);
+        } else if (!status.isSubmitting && data.isEditOpen) {
+            actions.setIsEditOpen(false);
+        } else if (!status.isSubmitting && data.isAddProjectOpen) {
+            actions.setIsAddProjectOpen(false);
+        } else if (!status.isSubmitting && data.isAddOpen) {
+            actions.setIsAddOpen(false);
+        }
+    });
+
 
     return (
         <div className="space-y-6" id="admin-panel-container">
@@ -63,7 +90,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                         className="text-xs font-bold uppercase tracking-wider text-brand-text-muted">{t('stats_available_pallets')}</span>
                     <span className="text-4xl font-extrabold text-brand-accent mt-2">{data.availableStock}</span>
                     <div className="flex items-center gap-1 text-[10px] text-green-400 mt-2">
-                        <span>● {data.avaliblePalletes_Percenetege} % OK</span>
+                        <span>● {data.avaliblePalletes_Percenetege} % {t('availability_ok_suffix')}</span>
                     </div>
                 </div>
 
@@ -75,7 +102,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                     <span className="text-4xl font-extrabold text-red-400 mt-2">{data.blockedOrMaint}</span>
                     <div className="flex items-center gap-1 text-[10px] text-red-400 mt-2">
                         <ShieldAlert size={12}/>
-                        <span>UR</span>
+                        <span>{t('maintenance_abbreviation')}</span>
                     </div>
                 </div>
 
@@ -105,8 +132,8 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                         </button>
                     </div>
 
-                    <SearchInput searchTermFromURL={searchTermFromURL} searchParams={searchParams} actions={actions}
-                                 setSearchParams={setSearchParams}/>
+                    <SearchInput searchTerm={searchTermFromURL} searchParams={searchParams}
+                                 onSearchTermChange={actions.setSearchTerm} setSearchParams={setSearchParams}/>
                 </div>
             </div>
 
@@ -285,7 +312,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                             <div className="flex flex-wrap gap-1">
                                                     <span
                                                         className="bg-brand-surface-high text-[9px] px-2 py-0.5 rounded border border-brand-border font-mono text-brand-text">
-                                                        FIS: {p.fis ?? 'N/A'}
+                                                        FIS: {p.fis ?? t('value_not_available')}
                                                     </span>
                                             </div>
                                         </td>
@@ -321,7 +348,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                                     <span
                                                         className="text-xs font-medium text-brand-text">{p.created_by}</span>
                                                 <span className="text-[9px] text-brand-text-muted font-mono">
-                                                        {p.created_at ? new Date(p.created_at).toLocaleDateString('pl-PL') : 'N/A'}
+                                                        {p.created_at ? new Date(p.created_at).toLocaleDateString(language) : t('value_not_available')}
                                                     </span>
                                             </div>
                                         </td>
@@ -425,6 +452,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                     </label>
                                     <input
                                         type="text"
+                                        autoFocus
                                         placeholder={t('placeholder_pallet_id')}
                                         value={data.newId.toUpperCase()}
                                         onChange={(e) => actions.setNewId(e.target.value.toUpperCase())}
@@ -503,7 +531,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 <div className="flex flex-col gap-1.5">
                                     <label
                                         className="text-[11px] font-bold text-brand-text-muted uppercase tracking-wider block truncate">
-                                        FIS *
+                                        {t('label_fis')}
                                     </label>
                                     <select
                                         value={data.newFis}
@@ -522,30 +550,11 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                             </p>
 
                             {/* Stopka z przyciskami akcji */}
-                            <div className="flex gap-4 pt-4 border-t border-brand-border/60">
-                                <button
-                                    type="button"
-                                    onClick={() => actions.setIsAddOpen(false)}
-                                    className="flex-1 py-3.5 bg-brand-bg border border-brand-border hover:bg-brand-surface-high hover:border-brand-accent/40 text-brand-text font-bold text-xs uppercase tracking-wider rounded-xl transition-all active:scale-[0.98]"
-                                >
-                                    {t('btn_cancel')}
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={status.isSubmitting}
-                                    className="flex-1 py-3.5 bg-brand-accent text-brand-bg font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-[0_10px_20px_rgba(59,130,246,0.15)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 active:scale-[0.98]"
-                                >
-                                    {status.isSubmitting ? (
-                                        <>
-                                            <span
-                                                className="w-4 h-4 border-2 border-brand-bg border-t-transparent rounded-full animate-spin"></span>
-                                            <span>{t('btn_saving')}</span>
-                                        </>
-                                    ) : (
-                                        <span>{t('btn_save')}</span>
-                                    )}
-                                </button>
-                            </div>
+                            <ModalFormActions
+                                onCancel={() => actions.setIsAddOpen(false)}
+                                submitLabel={t('btn_save')}
+                                isSubmitting={status.isSubmitting}
+                            />
                         </form>
                     </div>
                 </div>
@@ -579,6 +588,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                     className="text-[10px] uppercase font-bold text-brand-text-muted">{t('label_project_name')}</label>
                                 <input
                                     type="text"
+                                    autoFocus
                                     placeholder={t('placeholder_project_name')}
                                     value={data.newProjectName.toUpperCase()}
                                     onChange={(e) => actions.setNewProjectName(e.target.value.toUpperCase())}
@@ -591,22 +601,11 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 {t('validation_required_fields')}
                             </p>
 
-                            <div className="flex gap-4 pt-3 border-t border-brand-border">
-                                <button
-                                    type="button"
-                                    onClick={() => actions.setIsAddProjectOpen(false)}
-                                    className="flex-1 py-3 border border-brand-border text-brand-text font-bold text-xs uppercase rounded hover:bg-brand-surface-high transition-all"
-                                >
-                                    {t('btn_cancel')}
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={status.isSubmitting}
-                                    className="flex-1 py-3 bg-brand-accent text-brand-bg font-extrabold text-xs uppercase rounded hover:brightness-110 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-                                >
-                                    {status.isSubmitting ? t('btn_saving') : t('btn_save')}
-                                </button>
-                            </div>
+                            <ModalFormActions
+                                onCancel={() => actions.setIsAddProjectOpen(false)}
+                                submitLabel={t('btn_save')}
+                                isSubmitting={status.isSubmitting}
+                            />
                         </form>
                     </div>
                 </div>
@@ -675,7 +674,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 <div className="flex flex-col gap-1.5">
                                     <label
                                         className="text-[11px] font-bold text-brand-text-muted uppercase tracking-wider block truncate">
-                                        FIS *
+                                        {t('label_fis')}
                                     </label>
                                     <select
                                         value={data.editFis}
@@ -756,30 +755,11 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                             )}
 
                             {/* Stopka z przyciskami akcji */}
-                            <div className="flex gap-4 pt-4 border-t border-brand-border/60">
-                                <button
-                                    type="button"
-                                    onClick={() => actions.setIsEditOpen(false)}
-                                    className="flex-1 py-3.5 bg-brand-bg border border-brand-border hover:bg-brand-surface-high hover:border-brand-accent/40 text-brand-text font-bold text-xs uppercase tracking-wider rounded-xl transition-all active:scale-[0.98]"
-                                >
-                                    {t('btn_cancel')}
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={status.isSubmitting}
-                                    className="flex-1 py-3.5 bg-brand-accent text-brand-bg font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-[0_10px_20px_rgba(59,130,246,0.15)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 active:scale-[0.98]"
-                                >
-                                    {status.isSubmitting ? (
-                                        <>
-                                            <span
-                                                className="w-4 h-4 border-2 border-brand-bg border-t-transparent rounded-full animate-spin"></span>
-                                            <span>{t('btn_saving')}</span>
-                                        </>
-                                    ) : (
-                                        <span>{t('btn_save')}</span>
-                                    )}
-                                </button>
-                            </div>
+                            <ModalFormActions
+                                onCancel={() => actions.setIsEditOpen(false)}
+                                submitLabel={t('btn_save')}
+                                isSubmitting={status.isSubmitting}
+                            />
                         </form>
                     </div>
                 </div>
@@ -816,22 +796,13 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 />
                             </div>
 
-                            <div className="flex justify-end gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => actions.setIsBlockOpen(false)}
-                                    className="px-4 py-2 border border-brand-border text-xs font-bold uppercase rounded text-brand-text hover:bg-brand-surface-high"
-                                >
-                                    {t('btn_cancel')}
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={status.isSubmitting}
-                                    className="px-4 py-2 bg-red-500 text-white text-xs font-bold uppercase rounded hover:bg-red-600 disabled:opacity-50"
-                                >
-                                    {status.isSubmitting ? t('saving') : t('btn_block')}
-                                </button>
-                            </div>
+                            <ModalFormActions
+                                onCancel={() => actions.setIsBlockOpen(false)}
+                                submitLabel={t('btn_block')}
+                                submittingLabel={t('saving')}
+                                isSubmitting={status.isSubmitting}
+                                variant="danger"
+                            />
                         </form>
                     </div>
                 </div>
@@ -874,8 +845,27 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 <div>
                                     <span
                                         className="text-[10px] uppercase font-bold text-brand-text-muted block">{t("pallet_id_label")}</span>
-                                    <span
-                                        className="font-mono text-sm font-bold text-brand-accent">{data.selectedPalletForAudit.pallet_id || data.selectedPalletForAudit.id}</span>
+                                    {auditPalletHistoryUrl ? (
+                                        <a
+                                            href={auditPalletHistoryUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            title={t('fis_unit_history_link_label', {
+                                                palletId: auditPalletId,
+                                                fis: auditPalletFis,
+                                            })}
+                                            aria-label={t('fis_unit_history_link_label', {
+                                                palletId: auditPalletId,
+                                                fis: auditPalletFis,
+                                            })}
+                                            className="inline-flex items-center gap-1 font-mono text-sm font-bold text-brand-accent hover:text-brand-accent/80 hover:underline underline-offset-4 transition-colors"
+                                        >
+                                            {auditPalletId}
+                                            <ExternalLink size={13} aria-hidden="true"/>
+                                        </a>
+                                    ) : (
+                                        <span className="font-mono text-sm font-bold text-brand-accent">{auditPalletId}</span>
+                                    )}
                                 </div>
                                 <div>
                                     <span
@@ -887,7 +877,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                     <span
                                         className="text-[10px] uppercase font-bold text-brand-text-muted block">{t("col_total_cycles")}</span>
                                     <span
-                                        className="font-mono text-xs font-semibold text-brand-text">{data.selectedPalletForAudit.total_cycles || 0} cykli</span>
+                                        className="font-mono text-xs font-semibold text-brand-text">{data.selectedPalletForAudit.total_cycles || 0} {t('cycles_unit')}</span>
                                 </div>
                             </div>
 
@@ -938,7 +928,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                                         )}
                                                     </span>
                                                     <span
-                                                        className="text-[10px] font-mono text-brand-text-muted whitespace-nowrap">{new Date(entry.timestamp).toLocaleString('pl-PL')}</span>
+                                                        className="text-[10px] font-mono text-brand-text-muted whitespace-nowrap">{new Date(entry.timestamp).toLocaleString(language)}</span>
                                                 </div>
 
                                                 {entry.description && (
@@ -950,10 +940,10 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                                 <div
                                                     className="flex justify-between items-center text-[10px] text-brand-text-muted border-t border-brand-border/40 pt-1">
                                                     <span>
-                                                        Operator: <strong
+                                                        {t('audit_operator_label')}: <strong
                                                         className="text-brand-text">{entry.operator_id}</strong>
                                                     </span>
-                                                    {entry.id && <span>Log ID: {entry.id}</span>}
+                                                    {entry.id && <span>{t('audit_log_id_label')}: {entry.id}</span>}
                                                 </div>
                                             </div>
 

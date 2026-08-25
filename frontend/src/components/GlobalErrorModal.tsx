@@ -21,14 +21,14 @@ export const GlobalErrorModal: React.FC<GlobalErrorModalProps> = ({ isOpen, titl
         <div className="bg-red-950/40 p-5 border-b border-red-500/20 flex justify-between items-center">
           <h3 className="text-base font-bold text-red-400 uppercase tracking-wider flex items-center gap-2">
             <AlertCircle size={18} />
-            {title || t('global_error_title')}
+            {title}
           </h3>
-          <button className="text-brand-text-muted hover:text-red-400" onClick={onClose}>
+          <button className="text-brand-text-muted hover:text-red-400" onClick={onClose} title={t('btn_close')} aria-label={t('btn_close')}>
             <X size={18} />
           </button>
         </div>
         <div className="p-6 space-y-4">
-          <p className="text-sm text-brand-text">{message || t('global_error_message_default')}</p>
+          <p className="text-sm text-brand-text">{message}</p>
           <div className="flex justify-end">
             <button
               type="button"

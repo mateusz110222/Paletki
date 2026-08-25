@@ -5,14 +5,11 @@
     "lib": ["ES2022"],
     "target": "ES2022",
     "module": "ES2022",
-    "types": ["node","vite/client"],
+    "types": ["node"],
     "paths": {
       "~encore/*": ["./encore.gen/*"],
-      "@backend/*": ["./backend/*"]
+      "@backend/*": ["./*"]
     },
-
-    /* Workspace Settings */
-    "composite": true,
 
     /* Strict Type-Checking Options */
     "strict": true,
@@ -24,6 +21,7 @@
     "sourceMap": true,
 
     "declaration": true,
+    "noEmit": true,
 
     /* Advanced Options */
     "forceConsistentCasingInFileNames": true,

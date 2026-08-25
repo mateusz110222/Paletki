@@ -1,19 +1,40 @@
 import {api, APIError, Header} from "encore.dev/api";
 import {db} from "./db";
-import {AuditLog, Pallet, PalletStatus} from "../shared/types";
+import {AuditLog, Pallet, PALLET_STATUSES, PalletStatus} from "../shared/types";
 import {t} from "./i18n";
-import {FIS1_RouterPath, FIS2_RouterPath} from "../shared/API_BASE_URL";
+import {config} from "../config";
+import {
+    encodeAuditChanges,
+    encodeAuditDescription,
+    localizeAuditLog,
+} from "./audit-description";
+import {
+    compensateFisMigration,
+    FisClient,
+    migrateFisUnit,
+} from "./fis-client";
+import {requireITDepartmentUser} from "../auth/authorization";
+
+const {
+    router1Url: FIS1_RouterPath,
+    router2Url: FIS2_RouterPath,
+    requestTimeoutMs: FISRequestTimeoutMs,
+} = config.fis;
+const fisClient = new FisClient(FISRequestTimeoutMs);
+
+interface LocalizedRequest {
+    acceptLanguage?: Header<"Accept-Language">;
+}
 
 export interface GetAllPalletsResponse {
     pallets: Pallet[];
 }
 
-interface GetPalletParams {
+interface GetPalletParams extends LocalizedRequest {
     pallet_id: string;
-    acceptLanguage?: Header<"Accept-Language">;
 }
 
-interface AddPalletParams {
+interface AddPalletParams extends LocalizedRequest {
     pallet_id: string;
     project: string;
     model: string;
@@ -22,8 +43,6 @@ interface AddPalletParams {
     status: PalletStatus | string;
     block_reason?: string | null;
     fis?: number | null;
-    created_by: string;
-    acceptLanguage?: Header<"Accept-Language">;
 }
 
 export interface AddPalletResponse {
@@ -31,198 +50,17 @@ export interface AddPalletResponse {
     pallet_id: string;
 }
 
-interface GetPalletHistoryParams {
-    pallet_id: string;
-    acceptLanguage?: Header<"Accept-Language">;
-}
-
-export interface GetPalletHistoryResponse {
-    history: AuditLog[];
-}
-
-export const GetAllPallets = api(
-    {method: "GET", path: "/pallets", expose: true},
-    async (): Promise<GetAllPalletsResponse> => {
-        const pallets = await db.queryAll<Pallet>`SELECT *
-                                                  FROM pallets`;
-
-        if (pallets.length === 0) {
-            return {pallets: []};
-        }
-
-        return {pallets};
-    }
-);
-
-export const GetPallet = api(
-    {method: "GET", path: "/pallets/:pallet_id", expose: true},
-    async (params: GetPalletParams): Promise<Pallet> => {
-        const lang = params.acceptLanguage;
-
-        const pallet = await db.queryRow<Pallet>`
-            SELECT *
-            FROM pallets
-            WHERE pallet_id = ${params.pallet_id}
-        `;
-        if (!pallet) throw APIError.notFound(t("pallet_not_found", lang));
-
-        pallet.history = await db.queryAll<AuditLog>`
-            SELECT *
-            FROM pallet_audit_logs
-            WHERE pallet_id = ${pallet.pallet_id}
-            ORDER BY timestamp DESC
-        `;
-
-        return pallet;
-    }
-);
-
-export const AddPallet = api(
-    {method: "POST", path: "/pallets", expose: true},
-    async (params: AddPalletParams): Promise<AddPalletResponse> => {
-        const lang = params.acceptLanguage;
-
-        if (!params.pallet_id?.trim()) {
-            throw APIError.invalidArgument(t("pallet_id_empty", lang));
-        }
-
-        const fisValue = params.fis ?? 0;
-        if (fisValue <= 0) {
-            throw APIError.invalidArgument(t("fis_invalid", lang));
-        }
-
-        if (!params.created_by?.trim()) {
-            throw APIError.invalidArgument(t("operator_required", lang));
-        }
-
-        const status = params.status ?? "Active";
-        if (status === "Blocked" && !params.block_reason?.trim()) {
-            throw APIError.invalidArgument(t("block_reason_required", lang));
-        }
-
-        if (params.max_cycles !== undefined && params.max_cycles <= 0) {
-            throw APIError.invalidArgument(t("max_cycles_invalid", lang));
-        }
-
-        if (params.nests !== undefined && params.nests <= 0) {
-            throw APIError.invalidArgument(t("nests_invalid", lang));
-        }
-
-        try {
-            const unit = params.pallet_id;
-
-            const fetch_path = params.fis === 1 ? FIS1_RouterPath : FIS2_RouterPath;
-
-            const findResponse = await fetch(`${fetch_path}?job=Unit_Find`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    Unit: unit,
-                }),
-            });
-
-            if (!findResponse.ok) {
-                throw new Error(`Unit_Find HTTP error: ${findResponse.status} ${findResponse.statusText}`);
-            }
-
-            const findResult = await findResponse.json() as { status: boolean; message?: string };
-
-            if (findResult.status === true) {
-                const deleteResponse = await fetch(`${fetch_path}?job=Unit_DeleteUnit`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        Unit: unit,
-                    }),
-                });
-
-                if (!deleteResponse.ok) {
-                    throw new Error(`Unit_DeleteUnit HTTP error: ${deleteResponse.status} ${deleteResponse.statusText}`);
-                }
-
-                const deleteResult = await deleteResponse.json() as { status: boolean; message?: string };
-
-                if (deleteResult.status !== true) {
-                    throw new Error(`Unit_DeleteUnit failed: ${deleteResult.message ?? "Unknown error"}`);
-                }
-            }
-
-            const createResponse = await fetch(`${fetch_path}?job=Unit_DataEntry`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    Unit: unit,
-                    Process: "CREATEUNIT",
-                    Station: "WEB",
-                    DcString: `COMMENT|CREATED PALLET|PROJECT|${params.project}|MODEL|${params.model}|OPERATOR|${params.created_by}`,
-                    UserKey3: "PALLET",
-                }),
-            });
-
-            if (!createResponse.ok) {
-                throw new Error(`Unit_DataEntry HTTP error: ${createResponse.status} ${createResponse.statusText}`);
-            }
-
-            const createResult = await createResponse.json() as { status: boolean; message?: string };
-
-            if (createResult.status !== true) {
-                throw new Error(`Unit_DataEntry failed: ${createResult.message ?? "Unknown error"}`);
-            }
-
-                await using tx = await db.begin();
-
-            await tx.exec`
-                INSERT INTO pallets (pallet_id, project, model, max_cycles, nests, status,
-                                     block_reason, fis, created_by, updated_by, last_operation_description)
-                VALUES (${params.pallet_id.trim()},
-                        ${params.project?.trim() ?? null},
-                        ${params.model?.trim() ?? null},
-                        ${params.max_cycles ?? 200},
-                        ${params.nests ?? 1},
-                        ${status},
-                        ${params.block_reason?.trim() ?? null},
-                        ${fisValue},
-                        ${params.created_by.trim()},
-                        ${params.created_by.trim()},
-                        ${t("added_new_pallet", lang)})
-            `;
-
-            await tx.commit();
-        } catch (err: unknown) {
-            const isUniqueViolation =
-                String(err?.message || err).includes('23505') ||
-                String(err?.message || err).includes('duplicate key value');
-
-            if (isUniqueViolation) {
-                throw APIError.alreadyExists(t("pallet_exists", lang));
-            }
-
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            throw APIError.internal(errorMessage);
-        }
-
-        return {
-            status: true,
-            pallet_id: params.pallet_id,
-        };
-    }
-);
-
-interface UpdatePalletParams {
+interface UpdatePalletParams extends LocalizedRequest {
     pallet_id: string;
     fis?: number | null;
     nests?: number | null;
     max_cycles?: number | null;
     status?: PalletStatus | string | null;
     block_reason?: string | null;
-    operator_id: string;
-    acceptLanguage?: Header<"Accept-Language">;
+}
+
+interface DeletePalletParams extends LocalizedRequest {
+    pallet_id: string;
 }
 
 export interface UpdatePalletResponse {
@@ -230,105 +68,279 @@ export interface UpdatePalletResponse {
     pallet_id: string;
 }
 
-export const UpdatePallet = api(
-    {method: "PUT", path: "/pallets/:pallet_id", expose: true},
-    async (params: UpdatePalletParams): Promise<UpdatePalletResponse> => {
-        const lang = params.acceptLanguage;
-        const palletId = params.pallet_id?.trim();
+export interface DeletePalletResponse extends UpdatePalletResponse {
+    message: string;
+}
 
-        if (!palletId) {
-            throw APIError.invalidArgument(t("pallet_id_empty", lang));
-        }
-        if (!params.operator_id?.trim()) {
-            throw APIError.invalidArgument(t("operator_required", lang));
-        }
+interface GetPalletHistoryParams extends LocalizedRequest {
+    pallet_id: string;
+}
 
-            await using tx = await db.begin();
+export interface GetPalletHistoryResponse {
+    history: AuditLog[];
+}
 
-        const existing = await tx.queryRow<Pallet>`
-            SELECT *
-            FROM pallets
-            WHERE pallet_id = ${palletId}
+function isPalletStatus(status: string): status is PalletStatus {
+    return PALLET_STATUSES.includes(status as PalletStatus);
+}
+
+function fisRouter(fis: number): string {
+    if (fis === 1) return FIS1_RouterPath;
+    if (fis === 2) return FIS2_RouterPath;
+    throw APIError.failedPrecondition(t("fis_unsupported"));
+}
+
+function normalizePalletId(value: string): string {
+    return (value ?? "").trim().toUpperCase();
+}
+
+export const GetAllPallets = api(
+    {method: "GET", path: "/pallets", expose: true},
+    async (): Promise<GetAllPalletsResponse> => {
+        return {pallets: await db.queryAll<Pallet>`SELECT * FROM pallets`};
+    },
+);
+
+export const GetPallet = api(
+    {method: "GET", path: "/pallets/:pallet_id", expose: true},
+    async (params: GetPalletParams): Promise<Pallet> => {
+        const palletId = normalizePalletId(params.pallet_id);
+        if (!palletId) throw APIError.invalidArgument(t("pallet_id_empty", params.acceptLanguage));
+
+        const pallet = await db.queryRow<Pallet>`SELECT * FROM pallets WHERE pallet_id = ${palletId}`;
+        if (!pallet) throw APIError.notFound(t("pallet_not_found", params.acceptLanguage));
+
+        const history = await db.queryAll<AuditLog>`
+            SELECT * FROM pallet_audit_logs WHERE pallet_id = ${palletId} ORDER BY timestamp DESC
         `;
-        if (!existing) {
-            throw APIError.notFound(t("pallet_not_found", lang));
-        }
+        pallet.history = history.map((log) => localizeAuditLog(log, params.acceptLanguage));
+        return pallet;
+    },
+);
 
-        const newFis = params.fis ?? existing.fis;
-        const newNests = params.nests ?? existing.nests;
-        const newMaxCycles = params.max_cycles ?? existing.max_cycles;
-        const newStatus = (params.status ?? existing.status) as PalletStatus;
-        const newBlockReason = newStatus === 'Blocked' ? (params.block_reason ?? existing.block_reason) : null;
+export const GetAllPalletHistory = api(
+    {method: "GET", path: "/pallets/audit-history", expose: true, auth: true},
+    async (params: LocalizedRequest): Promise<GetPalletHistoryResponse> => {
+        requireITDepartmentUser();
+        const history = await db.queryAll<AuditLog>`
+            SELECT * FROM pallet_audit_logs ORDER BY timestamp DESC
+        `;
+        return {history: history.map((log) => localizeAuditLog(log, params.acceptLanguage))};
+    },
+);
 
-        if (newFis !== undefined && newFis !== null && newFis <= 0) {
-            throw APIError.invalidArgument(t("fis_invalid", lang));
-        }
-        if (newNests !== undefined && newNests !== null && newNests <= 0) {
-            throw APIError.invalidArgument(t("nests_invalid", lang));
-        }
-        if (newMaxCycles !== undefined && newMaxCycles !== null && newMaxCycles <= 0) {
-            throw APIError.invalidArgument(t("max_cycles_invalid", lang));
-        }
-        if (newStatus === "Blocked" && !newBlockReason?.trim()) {
+export const AddPallet = api(
+    {method: "POST", path: "/pallets", expose: true, auth: true},
+    async (params: AddPalletParams): Promise<AddPalletResponse> => {
+        const lang = params.acceptLanguage;
+        const palletId = normalizePalletId(params.pallet_id);
+        const project = params.project?.trim();
+        const model = params.model?.trim();
+        const fis = params.fis ?? 0;
+        const status = params.status ?? "Active";
+        const operator = requireITDepartmentUser().fullName;
+
+        if (!palletId) throw APIError.invalidArgument(t("pallet_id_empty", lang));
+        if (!project) throw APIError.invalidArgument(t("project_required", lang));
+        if (!model) throw APIError.invalidArgument(t("model_required", lang));
+        if (fis <= 0) throw APIError.invalidArgument(t("fis_invalid", lang));
+        if (fis !== 1 && fis !== 2) throw APIError.invalidArgument(t("fis_unsupported", lang));
+        if (!isPalletStatus(status)) throw APIError.invalidArgument(t("status_invalid", lang, {status}));
+        if (status === "Blocked" && !params.block_reason?.trim()) {
             throw APIError.invalidArgument(t("block_reason_required", lang));
         }
+        if (params.max_cycles <= 0) throw APIError.invalidArgument(t("max_cycles_invalid", lang));
+        if (params.nests <= 0) throw APIError.invalidArgument(t("nests_invalid", lang));
 
-        const changes: string[] = [];
-
-        if (existing.fis !== newFis) {
-            changes.push(`FIS ${existing.fis} → ${newFis}`);
-        }
-        if (existing.nests !== newNests) {
-            changes.push(`gniazda ${existing.nests} → ${newNests}`);
-        }
-        if (existing.max_cycles !== newMaxCycles) {
-            changes.push(`limit cykli ${existing.max_cycles} → ${newMaxCycles}`);
-        }
-
-        let operationDescription: string | null = null;
-
-        if (changes.length > 0) {
-            operationDescription = "Zmieniono: " + changes.join(", ");
-        }
-
-        await tx.exec`
-            UPDATE pallets
-            SET fis                        = ${newFis},
-                nests                      = ${newNests},
-                max_cycles                 = ${newMaxCycles},
-                status                     = ${newStatus},
-                block_reason               = ${newBlockReason},
-                updated_at                 = NOW(),
-                updated_by                 = ${params.operator_id.trim()},
-                last_operation_description = ${operationDescription}
-            WHERE pallet_id = ${palletId}
+        const projectExists = await db.queryRow<{exists: boolean}>`
+            SELECT EXISTS(SELECT 1 FROM projects WHERE LOWER(name) = LOWER(${project})) AS exists
         `;
+        if (!projectExists?.exists) throw APIError.invalidArgument(t("project_required", lang));
 
-        await tx.commit();
+        const router = fisRouter(fis);
+        let fisSynchronized = false;
 
-        return {
-            status: true,
-            pallet_id: palletId
-        };
-    }
+        try {
+            await using tx = await db.begin();
+            await tx.exec`
+                INSERT INTO pallets (
+                    pallet_id, project, model, max_cycles, nests, status, block_reason,
+                    fis, created_by, updated_by, last_operation_description
+                ) VALUES (
+                    ${palletId}, ${project}, ${model}, ${params.max_cycles}, ${params.nests}, ${status},
+                    ${params.block_reason?.trim() ?? null}, ${fis}, ${operator}, ${operator},
+                    ${encodeAuditDescription("audit_registered")}
+                )
+            `;
+
+            await fisClient.synchronizeUnit(router, {pallet_id: palletId, project, model}, operator, lang);
+            fisSynchronized = true;
+            await tx.commit();
+        } catch (error: unknown) {
+            if (fisSynchronized) {
+                try {
+                    await fisClient.deleteUnitIfPresent(router, palletId, lang);
+                } catch (compensationError) {
+                    console.error("FIS compensation after failed pallet insert did not succeed", compensationError);
+                }
+            }
+
+            if (error instanceof APIError) throw error;
+
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (errorMessage.includes("23505") || errorMessage.includes("duplicate key value")) {
+                throw APIError.alreadyExists(t("pallet_exists", lang));
+            }
+            throw APIError.internal(t("database_error", lang), error instanceof Error ? error : undefined);
+        }
+
+        return {status: true, pallet_id: palletId};
+    },
+);
+
+export const UpdatePallet = api(
+    {method: "PUT", path: "/pallets/:pallet_id", expose: true, auth: true},
+    async (params: UpdatePalletParams): Promise<UpdatePalletResponse> => {
+        const lang = params.acceptLanguage;
+        const palletId = normalizePalletId(params.pallet_id);
+        const operator = requireITDepartmentUser().fullName;
+        if (!palletId) throw APIError.invalidArgument(t("pallet_id_empty", lang));
+
+        let existingForCompensation: Pallet | null = null;
+        let migratedFis: number | null = null;
+
+        try {
+            await using tx = await db.begin();
+            const existing = await tx.queryRow<Pallet>`
+                SELECT * FROM pallets WHERE pallet_id = ${palletId} FOR UPDATE
+            `;
+            if (!existing) throw APIError.notFound(t("pallet_not_found", lang));
+            existingForCompensation = existing;
+
+            const newFis = params.fis ?? existing.fis ?? 0;
+            const newNests = params.nests ?? existing.nests;
+            const newMaxCycles = params.max_cycles ?? existing.max_cycles;
+            const newStatus = params.status ?? existing.status;
+            const newBlockReason = newStatus === "Blocked" ? (params.block_reason ?? existing.block_reason) : null;
+
+            if (newFis === null || newFis <= 0) throw APIError.invalidArgument(t("fis_invalid", lang));
+            if (newFis !== 1 && newFis !== 2) throw APIError.invalidArgument(t("fis_unsupported", lang));
+            if (newNests <= 0) throw APIError.invalidArgument(t("nests_invalid", lang));
+            if (newMaxCycles <= 0) throw APIError.invalidArgument(t("max_cycles_invalid", lang));
+            if (!newStatus || !isPalletStatus(newStatus)) {
+                throw APIError.invalidArgument(t("status_invalid", lang, {status: String(newStatus)}));
+            }
+            if (newStatus === "Blocked" && !newBlockReason?.trim()) {
+                throw APIError.invalidArgument(t("block_reason_required", lang));
+            }
+
+            const changes: Parameters<typeof encodeAuditChanges>[0] = [];
+            if (existing.fis !== newFis) changes.push({key: "audit_change_fis", variables: {from: existing.fis ?? 0, to: newFis}});
+            if (existing.nests !== newNests) changes.push({key: "audit_change_nests", variables: {from: existing.nests, to: newNests}});
+            if (existing.max_cycles !== newMaxCycles) changes.push({key: "audit_change_max_cycles", variables: {from: existing.max_cycles, to: newMaxCycles}});
+
+            const description = changes.length > 0
+                ? encodeAuditChanges(changes)
+                : encodeAuditDescription("audit_edited");
+
+            await tx.exec`
+                UPDATE pallets
+                SET fis = ${newFis}, nests = ${newNests}, max_cycles = ${newMaxCycles}, status = ${newStatus},
+                    block_reason = ${newBlockReason}, updated_at = NOW(), updated_by = ${operator},
+                    last_operation_description = ${description}
+                WHERE pallet_id = ${palletId}
+            `;
+
+            if (await migrateFisUnit(fisClient, fisRouter, existing, newFis, operator, lang)) {
+                migratedFis = newFis;
+            }
+            await tx.commit();
+            return {status: true, pallet_id: palletId};
+        } catch (error: unknown) {
+            if (existingForCompensation && migratedFis !== null) {
+                try {
+                    await compensateFisMigration(
+                        fisClient,
+                        fisRouter,
+                        existingForCompensation,
+                        migratedFis,
+                        operator,
+                        lang,
+                    );
+                } catch (compensationError) {
+                    console.error("FIS compensation after failed pallet update did not succeed", compensationError);
+                }
+            }
+            if (error instanceof APIError) throw error;
+            throw APIError.internal(t("database_error", lang), error instanceof Error ? error : undefined);
+        }
+    },
+);
+
+export const DeletePallet = api(
+    {method: "DELETE", path: "/pallets/:pallet_id", expose: true, auth: true},
+    async (params: DeletePalletParams): Promise<DeletePalletResponse> => {
+        const lang = params.acceptLanguage;
+        requireITDepartmentUser();
+        const palletId = normalizePalletId(params.pallet_id);
+        if (!palletId) throw APIError.invalidArgument(t("pallet_id_empty", lang));
+
+        let existingForCompensation: Pallet | null = null;
+        let fisUnitDeleted = false;
+
+        try {
+            await using tx = await db.begin();
+            const pallet = await tx.queryRow<Pallet>`
+                SELECT * FROM pallets WHERE pallet_id = ${palletId} FOR UPDATE
+            `;
+            if (!pallet) throw APIError.notFound(t("pallet_not_found", lang));
+            existingForCompensation = pallet;
+
+            const assignedFis = pallet.fis ?? 0;
+            const router = fisRouter(assignedFis);
+            fisUnitDeleted = await fisClient.deleteUnitIfPresent(router, palletId, lang);
+
+            await tx.exec`DELETE FROM pallets WHERE pallet_id = ${palletId}`;
+            await tx.commit();
+        } catch (error: unknown) {
+            if (existingForCompensation && fisUnitDeleted) {
+                try {
+                    await fisClient.synchronizeUnit(
+                        fisRouter(existingForCompensation.fis ?? 0),
+                        {
+                            pallet_id: existingForCompensation.pallet_id,
+                            project: existingForCompensation.project,
+                            model: existingForCompensation.model,
+                        },
+                        "SYSTEM_DB_ROLLBACK",
+                        lang,
+                    );
+                } catch (compensationError) {
+                    console.error("FIS compensation after failed pallet deletion did not succeed", compensationError);
+                }
+            }
+            if (error instanceof APIError) throw error;
+            throw APIError.internal(t("database_error", lang), error instanceof Error ? error : undefined);
+        }
+
+        return {status: true, pallet_id: palletId, message: t("pallet_deleted", lang)};
+    },
 );
 
 export const GetPalletHistory = api(
     {method: "GET", path: "/pallets/:pallet_id/history", expose: true},
     async (params: GetPalletHistoryParams): Promise<GetPalletHistoryResponse> => {
-        const lang = params.acceptLanguage;
+        const palletId = normalizePalletId(params.pallet_id);
+        if (!palletId) throw APIError.invalidArgument(t("pallet_id_empty", params.acceptLanguage));
 
-        if (!params.pallet_id?.trim()) {
-            throw APIError.invalidArgument(t("pallet_id_empty", lang));
-        }
+        const pallet = await db.queryRow<{exists: boolean}>`
+            SELECT EXISTS(SELECT 1 FROM pallets WHERE pallet_id = ${palletId}) AS exists
+        `;
+        if (!pallet?.exists) throw APIError.notFound(t("pallet_not_found", params.acceptLanguage));
 
         const history = await db.queryAll<AuditLog>`
-            SELECT *
-            FROM pallet_audit_logs
-            WHERE pallet_id = ${params.pallet_id.trim()}
-            ORDER BY timestamp DESC
+            SELECT * FROM pallet_audit_logs WHERE pallet_id = ${palletId} ORDER BY timestamp DESC
         `;
-
-        return {history: history || []};
-    }
+        return {history: history.map((log) => localizeAuditLog(log, params.acceptLanguage))};
+    },
 );

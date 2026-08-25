@@ -9,6 +9,11 @@ export const dictionaries = {
         nav_operator: 'Skaner (Operator)',
         nav_maintenance: 'Utrzymanie Ruchu (UR)',
         nav_live: 'Monitor Live (Dashboard)',
+        app_name: 'DASH SOLDER',
+        app_product_name: 'DASH-SOLDER SMT',
+        app_version: 'Zarządzanie obiektem v4.2',
+        language_polish: 'Polski',
+        language_english: 'Angielski',
 
         // Titles
         panel_admin_title: 'Panel Zarządzania (Baza i Audyt)',
@@ -33,6 +38,10 @@ export const dictionaries = {
         btn_unblock: 'Odblokuj',
         btn_delete: 'Usuń z ewidencji',
         btn_search_placeholder: 'Szukaj ID palety, projektu, pracownika...',
+        btn_close: 'Zamknij',
+        btn_open_menu: 'Otwórz menu',
+        btn_close_menu: 'Zamknij menu',
+        btn_scan: 'Skanuj',
 
         // Statuses
         status_all: 'Wszystkie Statusy',
@@ -61,6 +70,13 @@ export const dictionaries = {
         col_actions: 'Akcje',
         no_pallets_found: 'Brak palet spełniających wybrane kryteria wyszukiwania.',
         saving: 'Zapisywanie',
+        value_not_available: 'Brak danych',
+        cycles_unit: 'cykli',
+        audit_operator_label: 'Operator',
+        audit_log_id_label: 'ID logu',
+        fis_unit_history_link_label: 'Otwórz historię paletki {{palletId}} w FIS {{fis}}',
+        maintenance_abbreviation: 'UR',
+        availability_ok_suffix: 'OK',
 
         // Modals
         modal_add_pallet_title: 'Dodaj Nową Paletę do Bazy',
@@ -70,6 +86,7 @@ export const dictionaries = {
         label_model: 'Model *',
         label_max_cycles: 'Limit Cykli *',
         label_nests: 'Gniazda (Nests)',
+        label_fis: 'FIS *',
         label_block_reason: 'Przyczyna Zablokowania (block_reason) *',
         label_project_name: 'Nazwa Projektu *',
 
@@ -83,7 +100,7 @@ export const dictionaries = {
         op_mechanical_damage: 'Uszkodzenie mechaniczne',
         op_washing_required: 'Wymagane mycie',
         op_pockets_error: 'Błąd gniazd (Pockets)',
-        op_other_fault_type: '+ Inny rodzaj usterki',
+        op_other_fault_type: 'Inny rodzaj usterki',
         op_describe_fault: 'Opisz usterkę',
         op_fault_description_placeholder: 'Np. Pęknięta rama boczna przy pinu pozycjonującym...',
         op_report_damage: 'Zgłoś Uszkodzenie',
@@ -95,6 +112,11 @@ export const dictionaries = {
         op_scan_error: 'Błąd skanowania palety. Nie znaleziono palety o podanym ID.',
         op_no_pallet_scanned: 'Najpierw zeskanuj paletę.',
         op_fault_reported: 'Zgłoszenie usterki zostało zarejestrowane.',
+        op_scan_success_with_id: 'Paleta {{palletId}} została zeskanowana poprawnie.',
+        op_scan_error_with_id: 'Nie udało się zeskanować palety {{palletId}}.',
+        op_fault_reported_with_name: 'Zarejestrowano usterkę: {{faultName}}.',
+        op_fault_audit_description: 'Zgłoszono usterkę (skaner): {{faultName}}',
+        unknown_operator: 'Nieznany operator',
 
         // Maintenance Panel
         maintenance_queue: 'Kolejka Serwisowa',
@@ -133,6 +155,9 @@ export const dictionaries = {
         approve_service_and_return: 'Zatwierdź Serwis i Przywróć do Pracy',
         maint_modal_error_confirm_tasks: 'Potwierdź wykonanie co najmniej jednej czynności serwisowej.',
         maint_modal_error_description_required: 'Opis wykonanych prac jest wymagany.',
+        maint_service_audit_description: 'Serwis zakończony: {{description}}. Mycie: {{washing}}, inspekcja topnika: {{inspection}}.',
+        answer_yes: 'Tak',
+        answer_no: 'Nie',
 
 
         // Live Monitor
@@ -181,12 +206,15 @@ export const dictionaries = {
         login_username_placeholder: 'np. jkowalski lub domain\\jkowalski',
         login_password_label: 'Hasło Active Directory',
         login_password_placeholder: '••••••••••••',
+        login_show_password: 'Pokaż hasło',
+        login_hide_password: 'Ukryj hasło',
         login_button: 'Zaloguj do Systemu',
         login_guest_button: 'Wejdź jako Gość',
         login_authenticating: 'Uwierzytelnianie w LDAP...',
         login_or_divider: 'LUB',
         login_error_title: 'Błąd logowania',
         auth_error: 'Wystąpił błąd podczas logowania.',
+        login_security_note: 'Zabezpieczono przez firmową usługę Active Directory BorgWarner',
         logout_button: 'Wyloguj',
         guest_name: 'Gość',
         guest_department: 'Dostęp Ograniczony',
@@ -209,6 +237,11 @@ export const dictionaries = {
         nav_operator: 'Scanner (Operator)',
         nav_maintenance: 'Maintenance (UR)',
         nav_live: 'Live Monitor (Dashboard)',
+        app_name: 'DASH SOLDER',
+        app_product_name: 'DASH-SOLDER SMT',
+        app_version: 'Facility Management v4.2',
+        language_polish: 'Polish',
+        language_english: 'English',
 
         // Titles
         panel_admin_title: 'Management Panel (Database & Audit)',
@@ -233,6 +266,10 @@ export const dictionaries = {
         btn_unblock: 'Unblock',
         btn_delete: 'Delete from inventory',
         btn_search_placeholder: 'Search pallet ID, project, employee...',
+        btn_close: 'Close',
+        btn_open_menu: 'Open menu',
+        btn_close_menu: 'Close menu',
+        btn_scan: 'Scan',
 
         // Statuses
         status_all: 'All Statuses',
@@ -261,6 +298,13 @@ export const dictionaries = {
         col_actions: 'Actions',
         no_pallets_found: 'No pallets matching the selected search criteria.',
         saving: 'saving',
+        value_not_available: 'Not available',
+        cycles_unit: 'cycles',
+        audit_operator_label: 'Operator',
+        audit_log_id_label: 'Log ID',
+        fis_unit_history_link_label: 'Open pallet {{palletId}} history in FIS {{fis}}',
+        maintenance_abbreviation: 'Maintenance',
+        availability_ok_suffix: 'OK',
 
         // Modals
         modal_add_pallet_title: 'Add New Pallet to Database',
@@ -270,6 +314,7 @@ export const dictionaries = {
         label_model: 'Model *',
         label_max_cycles: 'Cycle Limit *',
         label_nests: 'Nests',
+        label_fis: 'FIS *',
         label_block_reason: 'Block Reason (block_reason) *',
         label_project_name: 'Project Name *',
 
@@ -283,7 +328,7 @@ export const dictionaries = {
         op_mechanical_damage: 'Mechanical damage',
         op_washing_required: 'Washing required',
         op_pockets_error: 'Pockets error',
-        op_other_fault_type: '+ Other fault type',
+        op_other_fault_type: 'Other fault type',
         op_describe_fault: 'Describe fault',
         op_fault_description_placeholder: 'E.g., Cracked side frame near positioning pin...',
         op_report_damage: 'Report Damage',
@@ -295,6 +340,11 @@ export const dictionaries = {
         op_scan_error: 'Pallet scan error. No pallet found with the given ID.',
         op_no_pallet_scanned: 'Scan a pallet first.',
         op_fault_reported: 'Fault report has been registered.',
+        op_scan_success_with_id: 'Pallet {{palletId}} was scanned successfully.',
+        op_scan_error_with_id: 'Could not scan pallet {{palletId}}.',
+        op_fault_reported_with_name: 'Fault registered: {{faultName}}.',
+        op_fault_audit_description: 'Fault reported (scanner): {{faultName}}',
+        unknown_operator: 'Unknown operator',
 
         // Maintenance Panel
         maintenance_queue: 'Service Queue',
@@ -333,6 +383,9 @@ export const dictionaries = {
         approve_service_and_return: 'Approve Service and Return to Production',
         maint_modal_error_confirm_tasks: 'Confirm at least one service activity.',
         maint_modal_error_description_required: 'Description of performed work is required.',
+        maint_service_audit_description: 'Service completed: {{description}}. Washing: {{washing}}, flux inspection: {{inspection}}.',
+        answer_yes: 'Yes',
+        answer_no: 'No',
 
         // Live Monitor & PubSub
         project_health_monitor: "PROJECT HEALTH MONITOR",
@@ -380,12 +433,15 @@ export const dictionaries = {
         login_username_placeholder: 'e.g. jkowalski or domain\\jkowalski',
         login_password_label: 'Active Directory Password',
         login_password_placeholder: '••••••••••••',
+        login_show_password: 'Show password',
+        login_hide_password: 'Hide password',
         login_button: 'Log In to System',
         login_guest_button: 'Continue as Guest',
         login_authenticating: 'Authenticating via LDAP...',
         login_or_divider: 'OR',
         login_error_title: 'Login Error',
         auth_error: 'An error occurred during login.',
+        login_security_note: 'Secured by BorgWarner Corporate Active Directory',
         logout_button: 'Log Out',
         guest_name: 'Guest',
         guest_department: 'Limited Access',
@@ -409,7 +465,7 @@ export type TranslationKey = keyof typeof dictionaries['pl'];
 interface LanguageContextType {
     language: Language;
     setLanguage: (lang: Language) => void;
-    t: (key: TranslationKey) => string;
+    t: (key: TranslationKey, variables?: Record<string, string | number>) => string;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
@@ -417,8 +473,11 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 export const LanguageProvider: React.FC<{ children: ReactNode }> = ({children}) => {
     const [language, setLanguage] = useState<Language>('pl');
 
-    const t = (key: TranslationKey): string => {
-        return dictionaries[language][key] || dictionaries['pl'][key] || key;
+    const t = (key: TranslationKey, variables: Record<string, string | number> = {}): string => {
+        return Object.entries(variables).reduce(
+            (translation, [name, value]) => translation.replaceAll(`{{${name}}}`, String(value)),
+            dictionaries[language][key],
+        );
     };
 
     return (
@@ -437,28 +496,32 @@ export const useTranslation = () => {
 };
 
 export const LanguageSwitcher: React.FC = () => {
-    const {language, setLanguage} = useTranslation();
+    const {language, setLanguage, t} = useTranslation();
 
     return (
         <div
             className="flex items-center bg-brand-surface border border-brand-border rounded-lg p-1 text-xs font-bold font-mono">
             <button
                 onClick={() => setLanguage('pl')}
+                title={t('language_polish')}
+                aria-label={t('language_polish')}
                 className={`px-2 py-1 rounded transition-all flex items-center gap-1 ${language === 'pl'
                     ? 'bg-brand-accent text-brand-bg font-extrabold shadow'
                     : 'text-brand-text-muted hover:text-brand-text'
                 }`}
             >
-                <span>🇵🇱</span> PL
+                <span aria-hidden="true">🇵🇱</span> PL
             </button>
             <button
                 onClick={() => setLanguage('en')}
+                title={t('language_english')}
+                aria-label={t('language_english')}
                 className={`px-2 py-1 rounded transition-all flex items-center gap-1 ${language === 'en'
                     ? 'bg-brand-accent text-brand-bg font-extrabold shadow'
                     : 'text-brand-text-muted hover:text-brand-text'
                 }`}
             >
-                <span>🇬🇧</span> EN
+                <span aria-hidden="true">🇬🇧</span> EN
             </button>
         </div>
     );

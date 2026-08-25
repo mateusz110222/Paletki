@@ -9,9 +9,11 @@ import {AdminPanelView as AdminPanel} from '../views/AdminPanelView.tsx';
 import {OperatorPanelView as OperatorPanel} from '../views/OperatorPanelView.tsx';
 import {MaintenancePanelView as MaintenancePanel} from '../views/MaintenancePanelView.tsx';
 import {LiveMonitorView as LiveMonitor} from '../views/LiveMonitorView.tsx';
+import {useTranslation} from '../i18n/LanguageContext.tsx';
 
 export const AppRoutes: React.FC = () => {
-    const {isGuest} = useAuth();
+    const {hasITDepartmentAccess} = useAuth();
+    const {language} = useTranslation();
     const [pallets, setPallets] = useState<Pallet[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
 
@@ -19,7 +21,9 @@ export const AppRoutes: React.FC = () => {
         let isMounted = true;
         const fetchPallets = async () => {
             try {
-                const response = await fetch(`${API_BASE_URL}/pallets`);
+                const response = await fetch(`${API_BASE_URL}/pallets`, {
+                    headers: {"Accept-Language": language},
+                });
                 if (!response.ok) throw new Error('Network error');
                 const data = await response.json();
                 if (isMounted) setPallets(data.pallets || []);
@@ -34,13 +38,15 @@ export const AppRoutes: React.FC = () => {
             isMounted = false;
             clearInterval(interval);
         };
-    }, []);
+    }, [language]);
 
     useEffect(() => {
         let isMounted = true;
         const fetchProjects = async () => {
             try {
-                const response = await fetch(`${API_BASE_URL}/projects`);
+                const response = await fetch(`${API_BASE_URL}/projects`, {
+                    headers: {"Accept-Language": language},
+                });
                 if (!response.ok) throw new Error('Network error');
                 const data = await response.json();
                 if (isMounted) setProjects(data.projects || []);
@@ -53,14 +59,14 @@ export const AppRoutes: React.FC = () => {
         return () => {
             isMounted = false;
         };
-    }, []);
+    }, [language]);
 
     return (
         <Routes>
             <Route element={<MainLayout/>}>
-                <Route path="/" element={<Navigate to={isGuest ? "/operator" : "/admin"} replace/>}/>
+                <Route path="/" element={<Navigate to={hasITDepartmentAccess ? "/admin" : "/operator"} replace/>}/>
 
-                {!isGuest && (
+                {hasITDepartmentAccess && (
                     <Route
                         path="/admin"
                         element={<AdminPanel pallets={pallets} projects={projects} setPallets={setPallets}
@@ -70,14 +76,14 @@ export const AppRoutes: React.FC = () => {
 
                 <Route path="/operator" element={<OperatorPanel pallets={pallets} setPallets={setPallets}/>}/>
 
-                {!isGuest && (
+                {hasITDepartmentAccess && (
                     <Route path="/maintenance" element={<MaintenancePanel pallets={pallets} setPallets={setPallets}/>}/>
                 )}
 
                 <Route path="/live" element={<LiveMonitor pallets={pallets}/>}/>
             </Route>
 
-            <Route path="*" element={<Navigate to={isGuest ? "/operator" : "/admin"} replace/>}/>
+            <Route path="*" element={<Navigate to={hasITDepartmentAccess ? "/admin" : "/operator"} replace/>}/>
         </Routes>
     );
 };

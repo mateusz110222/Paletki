@@ -1,172 +1,153 @@
 import {api, APIError, Header} from "encore.dev/api";
 import {db} from "./db";
+import {PALLET_STATUSES, PalletStatus} from "../shared/types";
 import {t} from "./i18n";
+import {encodeAuditDescription} from "./audit-description";
+import {requireAuthenticatedUser, requireITDepartmentUser} from "../auth/authorization";
+import {canChangePalletStatus} from "../auth/permissions";
 
-interface UpdateStatusParams {
-    pallet_id: string;
-    operator_id: string;
-    block_reason?: string | null;
-    new_status?: string | null;
-    reset_cycles?: boolean | null;
+interface LocalizedAuthorizedRequest {
     acceptLanguage?: Header<"Accept-Language">;
 }
 
-interface ResetCyclesParams {
+interface UpdateStatusParams extends LocalizedAuthorizedRequest {
     pallet_id: string;
-    operator_id: string;
     block_reason?: string | null;
-    acceptLanguage?: Header<"Accept-Language">;
+    new_status?: string | null;
+    reset_cycles?: boolean | null;
+}
+
+interface ResetCyclesParams extends LocalizedAuthorizedRequest {
+    pallet_id: string;
+    block_reason?: string | null;
 }
 
 interface ResetCyclesResponse {
     status: boolean;
     pallet_id: string;
-    new_status: string;
+    new_status: PalletStatus;
     current_cycles: number;
 }
 
-function buildDescription(key: string, comment: string | null | undefined, lang?: string): string {
-    const base = t(key, lang);
-    const c = comment?.trim();
-    return c ? `${base}: ${c}` : base;
+function isPalletStatus(status: string): status is PalletStatus {
+    return PALLET_STATUSES.includes(status as PalletStatus);
 }
 
 async function changePalletStatus(
     palletId: string,
-    newStatus: string,
-    operatorId: string,
+    newStatus: PalletStatus,
+    operator: string,
     blockReason: string | null,
     description: string,
-    resetCycles = false,
-    lang?: string
+    resetCycles: boolean,
+    lang?: string,
 ): Promise<void> {
+    try {
         await using tx = await db.begin();
+        const row = await tx.queryRow<{id: number}>`SELECT id FROM pallets WHERE pallet_id = ${palletId}`;
+        if (!row) throw APIError.notFound(t("pallet_not_found", lang));
 
-    const row = await tx.queryRow`SELECT id
-                                  FROM pallets
-                                  WHERE pallet_id = ${palletId}`;
-    if (!row) throw APIError.notFound(t("pallet_not_found", lang));
-
-    await tx.exec`
-        UPDATE pallets
-        SET status                     = ${newStatus},
-            block_reason               = ${blockReason},
-            updated_by                 = ${operatorId},
-            updated_at                 = NOW(),
-            current_cycles             = CASE WHEN ${resetCycles} THEN 0 ELSE current_cycles END,
-            last_operation_description = ${description}
-        WHERE pallet_id = ${palletId}
-    `;
-
-    await tx.commit();
+        await tx.exec`
+            UPDATE pallets
+            SET status = ${newStatus}, block_reason = ${blockReason}, updated_by = ${operator},
+                updated_at = NOW(), current_cycles = CASE WHEN ${resetCycles} THEN 0 ELSE current_cycles END,
+                last_operation_description = ${description}
+            WHERE pallet_id = ${palletId}
+        `;
+        await tx.commit();
+    } catch (error) {
+        if (error instanceof APIError) throw error;
+        throw APIError.internal(t("database_error", lang), error instanceof Error ? error : undefined);
+    }
 }
 
 export const ChangePalletStatus = api(
-    {method: "POST", path: "/pallets/change-status", expose: true},
+    {method: "POST", path: "/pallets/change-status", expose: true, auth: true},
     async (params: UpdateStatusParams): Promise<void> => {
-        const lang = params.acceptLanguage;
-        if (!params.pallet_id?.trim()) throw APIError.invalidArgument(t("pallet_id_empty", lang));
-        if (!params.operator_id?.trim()) throw APIError.invalidArgument(t("operator_required", lang));
-        if (!params.new_status?.trim()) throw APIError.invalidArgument(t("new_status_required", lang));
-        if (!params.block_reason?.trim()) throw APIError.invalidArgument(t("block_reason_required", lang));
+        const palletId = params.pallet_id?.trim();
+        const requestedStatus = params.new_status?.trim();
+        const auth = requireAuthenticatedUser();
 
+        if (!palletId) throw APIError.invalidArgument(t("pallet_id_empty", params.acceptLanguage));
+        if (!requestedStatus) throw APIError.invalidArgument(t("new_status_required", params.acceptLanguage));
+        if (!isPalletStatus(requestedStatus)) {
+            throw APIError.invalidArgument(t("status_invalid", params.acceptLanguage, {status: requestedStatus}));
+        }
+        if (!params.block_reason?.trim()) {
+            throw APIError.invalidArgument(t("block_reason_required", params.acceptLanguage));
+        }
+        if (!canChangePalletStatus(auth.hasITDepartmentAccess, requestedStatus, params.reset_cycles === true)) {
+            throw APIError.permissionDenied(t("auth_staff_required", params.acceptLanguage));
+        }
         await changePalletStatus(
-            params.pallet_id.trim(),
-            params.new_status.trim(),
-            params.operator_id.trim(),
+            palletId,
+            requestedStatus,
+            auth.fullName,
             params.block_reason.trim(),
-            buildDescription("audit_status_changed", params.block_reason, lang),
-            params.reset_cycles ?? false,
-            lang
+            encodeAuditDescription("audit_status_changed", {}, params.block_reason),
+            params.reset_cycles === true,
+            params.acceptLanguage,
         );
-    }
+    },
 );
 
 export const BlockPallet = api(
-    {method: "POST", path: "/pallets/block", expose: true},
+    {method: "POST", path: "/pallets/block", expose: true, auth: true},
     async (params: UpdateStatusParams): Promise<void> => {
-        const lang = params.acceptLanguage;
-        if (!params.pallet_id?.trim()) throw APIError.invalidArgument(t("pallet_id_empty", lang));
-        if (!params.operator_id?.trim()) throw APIError.invalidArgument(t("operator_required", lang));
-        if (!params.block_reason?.trim()) throw APIError.invalidArgument(t("block_reason_required", lang));
+        const palletId = params.pallet_id?.trim();
+        const operator = requireITDepartmentUser().fullName;
+        const reason = params.block_reason?.trim();
+        if (!palletId) throw APIError.invalidArgument(t("pallet_id_empty", params.acceptLanguage));
+        if (!reason) throw APIError.invalidArgument(t("block_reason_required", params.acceptLanguage));
 
         await changePalletStatus(
-            params.pallet_id.trim(),
+            palletId,
             "Blocked",
-            params.operator_id.trim(),
-            params.block_reason.trim(),
-            buildDescription("audit_blocked", params.block_reason, lang),
+            operator,
+            reason,
+            encodeAuditDescription("audit_blocked", {}, reason),
             false,
-            lang
+            params.acceptLanguage,
         );
-    }
+    },
 );
 
 export const UnblockPallet = api(
-    {method: "POST", path: "/pallets/unblock", expose: true},
+    {method: "POST", path: "/pallets/unblock", expose: true, auth: true},
     async (params: UpdateStatusParams): Promise<void> => {
-        const lang = params.acceptLanguage;
-        if (!params.pallet_id?.trim()) throw APIError.invalidArgument(t("pallet_id_empty", lang));
-        if (!params.operator_id?.trim()) throw APIError.invalidArgument(t("operator_required", lang));
+        const palletId = params.pallet_id?.trim();
+        const operator = requireITDepartmentUser().fullName;
+        if (!palletId) throw APIError.invalidArgument(t("pallet_id_empty", params.acceptLanguage));
 
         await changePalletStatus(
-            params.pallet_id.trim(),
+            palletId,
             "Active",
-            params.operator_id.trim(),
+            operator,
             null,
-            buildDescription("audit_unblocked", params.block_reason, lang),
+            encodeAuditDescription("audit_unblocked"),
             false,
-            lang
+            params.acceptLanguage,
         );
-    }
+    },
 );
 
 export const ResetPalletCycles = api(
-    {method: "POST", path: "/pallets/reset-cycles", expose: true},
+    {method: "POST", path: "/pallets/reset-cycles", expose: true, auth: true},
     async (params: ResetCyclesParams): Promise<ResetCyclesResponse> => {
-        const lang = params.acceptLanguage;
+        const palletId = params.pallet_id?.trim();
+        const operator = requireITDepartmentUser().fullName;
+        if (!palletId) throw APIError.invalidArgument(t("pallet_id_empty", params.acceptLanguage));
 
-        if (!params.pallet_id?.trim()) throw APIError.invalidArgument(t("pallet_id_empty", lang));
-        if (!params.operator_id?.trim()) throw APIError.invalidArgument(t("operator_required", lang));
+        await changePalletStatus(
+            palletId,
+            "Active",
+            operator,
+            null,
+            encodeAuditDescription("audit_reset_cycles", {}, params.block_reason),
+            true,
+            params.acceptLanguage,
+        );
 
-        try {
-                await using tx = await db.begin();
-
-            const currentPallet = await tx.queryRow`
-                SELECT status
-                FROM pallets
-                WHERE pallet_id = ${params.pallet_id.trim()}
-            `;
-
-            if (!currentPallet) throw APIError.notFound(t("pallet_not_found", lang));
-
-            const description = buildDescription("audit_reset_cycles", params.block_reason, lang);
-
-            await tx.exec`
-                UPDATE pallets
-                SET current_cycles             = 0,
-                    current_unit_cycle         = 0,
-                    status                     = 'Active',
-                    block_reason               = NULL,
-                    updated_at                 = NOW(),
-                    updated_by                 = ${params.operator_id.trim()},
-                    last_operation_description = ${description}
-                WHERE pallet_id = ${params.pallet_id.trim()}
-            `;
-
-            await tx.commit();
-
-            return {
-                status: true,
-                pallet_id: params.pallet_id.trim(),
-                new_status: "Active",
-                current_cycles: 0
-            };
-
-        } catch (err) {
-            if (err instanceof APIError) throw err;
-            const errorMessage = err instanceof Error ? err.message : String(err);
-            throw APIError.internal(`${t("reset_cycles_error", lang)}: ${errorMessage}`);
-        }
-    }
+        return {status: true, pallet_id: palletId, new_status: "Active", current_cycles: 0};
+    },
 );

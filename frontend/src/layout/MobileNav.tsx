@@ -10,18 +10,18 @@ interface NavItem {
 }
 
 interface MobileNavProps {
-    isGuest: boolean;
+    hasITDepartmentAccess: boolean;
     onLogout: () => void;
 }
 
-export const MobileNav: React.FC<MobileNavProps> = ({isGuest, onLogout}) => {
+export const MobileNav: React.FC<MobileNavProps> = ({hasITDepartmentAccess, onLogout}) => {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const {t} = useTranslation();
 
     const navItems: NavItem[] = [
-        ...(!isGuest ? [{path: '/admin', label: t('nav_admin'), icon: LayoutDashboard}] : []),
+        ...(hasITDepartmentAccess ? [{path: '/admin', label: t('nav_admin'), icon: LayoutDashboard}] : []),
         {path: '/operator', label: t('nav_operator'), icon: Scan},
-        ...(!isGuest ? [{path: '/maintenance', label: t('nav_maintenance'), icon: Wrench}] : []),
+        ...(hasITDepartmentAccess ? [{path: '/maintenance', label: t('nav_maintenance'), icon: Wrench}] : []),
         {path: '/live', label: t('nav_live'), icon: Tv},
     ];
 
@@ -32,7 +32,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({isGuest, onLogout}) => {
                 className="md:hidden bg-brand-surface border-b border-brand-border h-16 flex items-center justify-between px-6 z-40 sticky top-0">
                 <div className="flex items-center gap-2">
           <span className="font-black text-sm tracking-widest text-brand-accent font-sans">
-            DASH SOLDER
+            {t('app_name')}
           </span>
                 </div>
                 <div className="flex items-center gap-3">
@@ -45,9 +45,11 @@ export const MobileNav: React.FC<MobileNavProps> = ({isGuest, onLogout}) => {
                     </button>
                     <button
                         onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                        title={t(mobileMenuOpen ? 'btn_close_menu' : 'btn_open_menu')}
+                        aria-label={t(mobileMenuOpen ? 'btn_close_menu' : 'btn_open_menu')}
                         className="text-brand-text p-2 hover:bg-brand-surface-high rounded transition-colors"
                     >
-                        {mobileMenuOpen ? <X size={20}/> : <Menu size={20}/>}
+                        {mobileMenuOpen ? <X size={20} aria-hidden="true"/> : <Menu size={20} aria-hidden="true"/>}
                     </button>
                 </div>
             </header>

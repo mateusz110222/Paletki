@@ -5,6 +5,8 @@ import { Pallet, PalletStatus } from '@backend/shared/types';
 import { useOperatorPanel } from '../hooks/useOperatorPanel.ts';
 import { PalletStatusSpan } from "../components/PalletStatusSpan.tsx";
 import { GlobalErrorModal } from "../components/GlobalErrorModal.tsx";
+import { useEscapeKey } from "../hooks/useEscapeKey.ts";
+import { ModalFormActions } from "../components/ModalFormActions.tsx";
 
 interface OperatorPanelViewProps {
     pallets: Pallet[];
@@ -18,6 +20,14 @@ export const OperatorPanelView: React.FC<OperatorPanelViewProps> = (props) => {
     const currentCycles = data.activePallet?.current_cycles ?? 0;
     const maxCycles = data.activePallet?.max_cycles || 1;
     const cyclePercentage = Math.min(100, Math.round((currentCycles / maxCycles) * 100));
+
+    useEscapeKey(data.errorModalState.isOpen || data.isOtherFaultOpen, () => {
+        if (data.errorModalState.isOpen) {
+            actions.hideGlobalError();
+        } else if (!data.isSubmitting) {
+            actions.setIsOtherFaultOpen(false);
+        }
+    });
 
     const getProgressColor = (percent: number) => {
         if (percent >= 90) return 'bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.5)]';
@@ -70,7 +80,7 @@ export const OperatorPanelView: React.FC<OperatorPanelViewProps> = (props) => {
                                     autoComplete="off"
                                 />
                             </div>
-                            <button type="submit" className="hidden">Scan</button>
+                            <button type="submit" className="hidden">{t('btn_scan')}</button>
 
                             <div
                                 className="flex items-center justify-center gap-2 text-xs font-bold text-brand-text-muted uppercase tracking-wider pt-1">
@@ -115,6 +125,7 @@ export const OperatorPanelView: React.FC<OperatorPanelViewProps> = (props) => {
                                         onClick={actions.handleClearActivePallet}
                                         className="p-2.5 bg-brand-bg border border-brand-border rounded-xl text-brand-text-muted hover:text-white hover:border-red-500/50 hover:bg-red-500/10 transition-all active:scale-95"
                                         title={t('btn_cancel')}
+                                        aria-label={t('btn_cancel')}
                                     >
                                         <X size={22} />
                                     </button>
@@ -253,6 +264,8 @@ export const OperatorPanelView: React.FC<OperatorPanelViewProps> = (props) => {
                                 {t('op_describe_fault')}
                             </h3>
                             <button onClick={() => actions.setIsOtherFaultOpen(false)}
+                                title={t('btn_close')}
+                                aria-label={t('btn_close')}
                                 className="text-brand-text-muted hover:text-white transition-colors">
                                 <X size={20} />
                             </button>
@@ -265,22 +278,16 @@ export const OperatorPanelView: React.FC<OperatorPanelViewProps> = (props) => {
                                 value={data.customFaultText}
                                 onChange={(e) => actions.setCustomFaultText(e.target.value)}
                             />
-                            <div className="flex gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => actions.setIsOtherFaultOpen(false)}
-                                    className="w-1/3 py-3 border border-brand-border text-xs font-bold uppercase rounded-xl text-brand-text hover:bg-brand-surface"
-                                >
-                                    {t('btn_cancel')}
-                                </button>
-                                <button
-                                    disabled={!data.customFaultText.trim() || data.isSubmitting}
-                                    onClick={() => actions.handleReportFault(data.customFaultText, "Blocked")}
-                                    className="w-2/3 py-3 bg-red-600 text-white font-black text-xs uppercase tracking-widest rounded-xl hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-[0_4px_14px_rgba(220,38,38,0.3)] active:scale-[0.98]"
-                                >
-                                    {data.isSubmitting ? t('saving') : t('op_report_damage')}
-                                </button>
-                            </div>
+                            <ModalFormActions
+                                onCancel={() => actions.setIsOtherFaultOpen(false)}
+                                submitType="button"
+                                onSubmit={() => actions.handleReportFault(data.customFaultText, "Blocked")}
+                                submitLabel={t('op_report_damage')}
+                                submittingLabel={t('saving')}
+                                isSubmitting={data.isSubmitting}
+                                submitDisabled={!data.customFaultText.trim()}
+                                variant="danger"
+                            />
                         </div>
                     </div>
                 </div>

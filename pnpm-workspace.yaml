@@ -1,0 +1,11 @@
+packages:
+  - frontend
+  - backend
+
+# Encore's Windows Docker builder cannot copy pnpm junction points.
+nodeLinker: hoisted
+
+allowBuilds:
+  esbuild: true
+minimumReleaseAgeExclude:
+  - encore.dev@1.58.0 || 1.58.3

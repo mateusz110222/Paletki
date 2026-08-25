@@ -1,12 +1,14 @@
 {
-  "name": "encore-ts-starter",
+  "name": "@paletki/backend",
   "private": true,
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "Encore Typescript Starter",
   "license": "MPL-2.0",
   "type": "module",
   "scripts": {
-    "test": "vitest --passWithNoTests",
+    "dev": "encore run",
+    "build:docker": "encore build docker --config infra.config.json paletki-dev:latest",
+    "test": "vitest run --passWithNoTests",
     "lint": "eslint ."
   },
   "devDependencies": {
@@ -19,7 +21,8 @@
     "vitest": "^1.5.0"
   },
   "dependencies": {
-    "encore.dev": "^1.57.13",
+    "dotenv": "^17.2.3",
+    "encore.dev": "^1.58.3",
     "ldapts": "^9.0.0"
   },
   "optionalDependencies": {

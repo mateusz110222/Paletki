@@ -1,7 +1,7 @@
 import React from 'react';
 import {useLocation} from 'react-router-dom';
 import {UserCheck} from 'lucide-react';
-import {useAuth} from '../../auth/AuthContext.tsx';
+import {useAuth} from '../auth/AuthContext.tsx';
 import {LanguageSwitcher, useTranslation} from '../i18n/LanguageContext.tsx';
 
 export const Header: React.FC = () => {

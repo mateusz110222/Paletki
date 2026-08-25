@@ -1,0 +1,9 @@
+node_modules/
+*.log
+.env
+.env.*
+!.env.example
+.pnpm-store/
+
+# Local corporate LDAP certificate bundle
+/backend/certs/borgwarner-enterprise-root.pem

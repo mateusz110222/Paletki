@@ -44,16 +44,22 @@ export interface Project {
     name: string;
 }
 
+export type UserRole = 'staff' | 'operator';
+
 export interface UserData {
     FullName: string;
     department: string;
     title: string;
     username: string;
+    role: UserRole;
+    has_it_department_access: boolean;
+    is_guest: boolean;
 }
 
 export interface LoginResponse {
     status: boolean;
     message: string;
     data?: UserData;
-    rawError?: string;
+    token?: string;
+    expires_at?: string;
 }

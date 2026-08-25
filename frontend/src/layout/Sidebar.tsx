@@ -10,17 +10,17 @@ interface NavItem {
 }
 
 interface SidebarProps {
-    isGuest: boolean;
+    hasITDepartmentAccess: boolean;
     onLogout: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({isGuest, onLogout}) => {
+export const Sidebar: React.FC<SidebarProps> = ({hasITDepartmentAccess, onLogout}) => {
     const {t} = useTranslation();
 
     const navItems: NavItem[] = [
-        ...(!isGuest ? [{path: '/admin', label: t('nav_admin'), icon: LayoutDashboard}] : []),
+        ...(hasITDepartmentAccess ? [{path: '/admin', label: t('nav_admin'), icon: LayoutDashboard}] : []),
         {path: '/operator', label: t('nav_operator'), icon: Scan},
-        ...(!isGuest ? [{path: '/maintenance', label: t('nav_maintenance'), icon: Wrench}] : []),
+        ...(hasITDepartmentAccess ? [{path: '/maintenance', label: t('nav_maintenance'), icon: Wrench}] : []),
         {path: '/live', label: t('nav_live'), icon: Tv},
     ];
 
@@ -28,9 +28,9 @@ export const Sidebar: React.FC<SidebarProps> = ({isGuest, onLogout}) => {
         <aside
             className="hidden md:flex flex-col w-64 bg-brand-surface border-r border-brand-border h-screen sticky top-0 shrink-0">
             <div className="p-6 border-b border-brand-border">
-                <span className="text-lg font-black tracking-wider text-brand-accent">DASH SOLDER</span>
+                <span className="text-lg font-black tracking-wider text-brand-accent">{t('app_name')}</span>
                 <p className="text-[10px] uppercase font-bold tracking-widest text-brand-text-muted/60">
-                    Facility Management v4.2
+                    {t('app_version')}
                 </p>
             </div>
 

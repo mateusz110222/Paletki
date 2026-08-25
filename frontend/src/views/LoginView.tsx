@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, User, Key, ShieldCheck, AlertCircle, Loader2, UserCircle } from 'lucide-react';
+import { Lock, User, Key, ShieldCheck, AlertCircle, Loader2, UserCircle, Eye, EyeOff } from 'lucide-react';
 import { useTranslation } from '../i18n/LanguageContext';
 import { useAuth } from '../auth/AuthContext';
 
@@ -9,6 +9,7 @@ export const LoginView: React.FC = () => {
 
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -20,10 +21,25 @@ export const LoginView: React.FC = () => {
         setErrorMessage(null);
 
         try {
-            await login(username.trim(), password);
+            const result = await login(username.trim(), password);
+
+            if (!result.status) {
+                setErrorMessage(result.message);
+            }
         } catch (error: unknown) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            setErrorMessage(errorMessage || t('auth_error'));
+            const message = error instanceof Error ? error.message : String(error);
+            setErrorMessage(message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleGuestLogin = async () => {
+        setLoading(true);
+        setErrorMessage(null);
+        try {
+            const result = await loginAsGuest();
+            if (!result.status) setErrorMessage(result.message);
         } finally {
             setLoading(false);
         }
@@ -42,7 +58,7 @@ export const LoginView: React.FC = () => {
                         <ShieldCheck size={36} />
                     </div>
                     <span className="text-xs font-black tracking-[0.25em] text-brand-accent uppercase">
-                        DASH-SOLDER SMT
+                        {t('app_product_name')}
                     </span>
                     <h1 className="text-2xl font-black text-brand-text tracking-tight uppercase">
                         {t('login_title')}
@@ -90,14 +106,24 @@ export const LoginView: React.FC = () => {
                         <div className="relative flex items-center">
                             <Key size={18} className="absolute left-4 text-brand-text-muted" />
                             <input
-                                type="password"
+                                type={showPassword ? 'text' : 'password'}
                                 required
                                 autoComplete="current-password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 placeholder={t('login_password_placeholder')}
-                                className="w-full bg-brand-bg border border-brand-border rounded-xl py-3.5 pl-11 pr-4 text-sm text-brand-text focus:ring-2 focus:ring-brand-accent/30 outline-none transition-all"
+                                className="w-full bg-brand-bg border border-brand-border rounded-xl py-3.5 pl-11 pr-12 text-sm text-brand-text focus:ring-2 focus:ring-brand-accent/30 outline-none transition-all"
                             />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword((visible) => !visible)}
+                                aria-label={t(showPassword ? 'login_hide_password' : 'login_show_password')}
+                                aria-pressed={showPassword}
+                                title={t(showPassword ? 'login_hide_password' : 'login_show_password')}
+                                className="absolute right-3 p-1 text-brand-text-muted hover:text-brand-accent rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent/50 transition-colors"
+                            >
+                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </button>
                         </div>
                     </div>
 
@@ -127,7 +153,8 @@ export const LoginView: React.FC = () => {
 
                     <button
                         type="button"
-                        onClick={loginAsGuest}
+                        onClick={() => void handleGuestLogin()}
+                        disabled={loading}
                         className="w-full py-3.5 bg-brand-bg border border-brand-border hover:bg-brand-surface-high hover:border-brand-accent/40 text-brand-text font-bold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
                     >
                         <UserCircle size={18} className="text-brand-accent" />
@@ -138,7 +165,7 @@ export const LoginView: React.FC = () => {
                 {/* Footer security note */}
                 <div className="pt-4 border-t border-brand-border/60 text-center">
                     <p className="text-[10px] font-bold text-brand-text-muted/60 uppercase tracking-widest">
-                        BorgWarner Corporate Active Directory Secured
+                        {t('login_security_note')}
                     </p>
                 </div>
             </div>

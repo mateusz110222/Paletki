@@ -6,7 +6,7 @@ import {Sidebar} from './Sidebar.tsx';
 import {UserCheck} from 'lucide-react';
 
 export const MainLayout: React.FC = () => {
-    const {user, isGuest, logout} = useAuth();
+    const {user, isGuest, hasITDepartmentAccess, logout} = useAuth();
     const {t} = useTranslation();
     const location = useLocation();
 
@@ -30,7 +30,7 @@ export const MainLayout: React.FC = () => {
     return (
         <div
             className="flex flex-col md:flex-row min-h-screen bg-brand-bg text-brand-text font-sans selection:bg-brand-accent selection:text-brand-bg">
-            <Sidebar isGuest={isGuest} onLogout={logout}/>
+            <Sidebar hasITDepartmentAccess={hasITDepartmentAccess} onLogout={logout}/>
 
             <main className="flex-1 p-6 md:p-8 space-y-6 overflow-y-auto max-w-[1600px] mx-auto w-full">
                 {/* Top Header */}
