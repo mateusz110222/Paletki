@@ -9,8 +9,9 @@ export const dictionaries = {
         nav_operator: 'Skaner (Operator)',
         nav_maintenance: 'Utrzymanie Ruchu (UR)',
         nav_live: 'Monitor Live (Dashboard)',
-        app_name: 'DASH SOLDER',
-        app_product_name: 'DASH-SOLDER SMT',
+        app_name: 'PALLETX',
+        app_product_name: 'PALLETX',
+        app_meta_description: 'System ewidencji, obiegu i historii paletek lutowniczych.',
         language_polish: 'Polski',
         language_english: 'Angielski',
 
@@ -255,8 +256,9 @@ export const dictionaries = {
         nav_operator: 'Scanner (Operator)',
         nav_maintenance: 'Maintenance (UR)',
         nav_live: 'Live Monitor (Dashboard)',
-        app_name: 'DASH SOLDER',
-        app_product_name: 'DASH-SOLDER SMT',
+        app_name: 'PALLETX',
+        app_product_name: 'PALLETX',
+        app_meta_description: 'Soldering pallet inventory, circulation, and history system.',
         language_polish: 'Polish',
         language_english: 'English',
 

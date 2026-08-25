@@ -4,10 +4,11 @@ import {useAuth} from '../auth/AuthContext.tsx';
 import {LanguageSwitcher, useTranslation} from '../i18n/LanguageContext.tsx';
 import {Sidebar} from './Sidebar.tsx';
 import {UserCheck} from 'lucide-react';
+import {useDocumentMetadata} from '../hooks/useDocumentMetadata.ts';
 
 export const MainLayout: React.FC = () => {
     const {user, isGuest, hasITDepartmentAccess, logout} = useAuth();
-    const {t} = useTranslation();
+    const {t, language} = useTranslation();
     const location = useLocation();
 
     const getPageTitle = (pathname: string) => {
@@ -29,6 +30,11 @@ export const MainLayout: React.FC = () => {
     };
 
     const {title, sub} = getPageTitle(location.pathname);
+    useDocumentMetadata(
+        title ? `PalletX | ${title}` : 'PalletX',
+        sub || t('app_meta_description'),
+        language,
+    );
 
     return (
         <div

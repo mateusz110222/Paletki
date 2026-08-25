@@ -15,9 +15,10 @@ import {
 import { useTranslation } from '../i18n/LanguageContext';
 import { useAuth } from '../auth/AuthContext';
 import {AnimatePresence, motion, useReducedMotion} from 'motion/react';
+import {useDocumentMetadata} from '../hooks/useDocumentMetadata.ts';
 
 export const LoginView: React.FC = () => {
-    const { t } = useTranslation();
+    const {t, language} = useTranslation();
     const {login, loginAsOperator} = useAuth();
     const reduceMotion = useReducedMotion();
 
@@ -28,6 +29,12 @@ export const LoginView: React.FC = () => {
     const [operatorIdentifier, setOperatorIdentifier] = useState('');
     const [loading, setLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+    useDocumentMetadata(
+        `PalletX | ${t('login_title')}`,
+        t('app_meta_description'),
+        language,
+    );
 
     const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
         e.preventDefault();
