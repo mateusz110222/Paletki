@@ -14,13 +14,11 @@ import {
 } from 'lucide-react';
 import { useTranslation } from '../i18n/LanguageContext';
 import { useAuth } from '../auth/AuthContext';
-import {AnimatePresence, motion, useReducedMotion} from 'motion/react';
 import {useDocumentMetadata} from '../hooks/useDocumentMetadata.ts';
 
 export const LoginView: React.FC = () => {
     const {t, language} = useTranslation();
     const {login, loginAsOperator} = useAuth();
-    const reduceMotion = useReducedMotion();
 
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -78,23 +76,16 @@ export const LoginView: React.FC = () => {
         <div className="min-h-dvh box-border w-full bg-brand-bg grid place-items-center px-4 py-6 relative overflow-x-clip font-sans">
             {/* Dynamic visual background elements */}
             <div className="fixed inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-            <motion.div
-                className="absolute -top-40 -left-40 w-96 h-96 bg-brand-accent/10 rounded-full blur-3xl"
-                animate={reduceMotion ? undefined : {x: [0, 28, 0], y: [0, 18, 0], scale: [1, 1.08, 1]}}
-                transition={{duration: 13, repeat: Infinity, ease: 'easeInOut'}}
+            <div
+                className="login-glow login-glow-primary absolute -top-40 -left-40 w-96 h-96 bg-brand-accent/10 rounded-full blur-3xl"
             />
-            <motion.div
-                className="absolute -bottom-40 -right-40 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl"
-                animate={reduceMotion ? undefined : {x: [0, -24, 0], y: [0, -16, 0], scale: [1, 1.06, 1]}}
-                transition={{duration: 15, repeat: Infinity, ease: 'easeInOut', delay: 0.6}}
+            <div
+                className="login-glow login-glow-secondary absolute -bottom-40 -right-40 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl"
             />
             </div>
 
-            <motion.div
-                initial={reduceMotion ? false : {opacity: 0, y: 22, scale: 0.97}}
-                animate={{opacity: 1, y: 0, scale: 1}}
-                transition={{duration: 0.5, ease: [0.22, 1, 0.36, 1]}}
-                className="w-full max-w-md bg-brand-surface border border-brand-border rounded-3xl p-8 md:p-10 shadow-2xl relative z-10 space-y-8"
+            <div
+                className="login-card-enter w-full max-w-md bg-brand-surface border border-brand-border rounded-3xl p-8 md:p-10 shadow-2xl relative z-10 space-y-8"
             >
                 {/* Header / Logo */}
                 <div className="flex flex-col items-center text-center space-y-3">
@@ -113,33 +104,25 @@ export const LoginView: React.FC = () => {
                 </div>
 
                 {/* Error Banner */}
-                <AnimatePresence initial={false}>
                 {errorMessage && (
-                    <motion.div
-                        initial={reduceMotion ? false : {opacity: 0, height: 0, y: -8}}
-                        animate={{opacity: 1, height: 'auto', y: 0}}
-                        exit={reduceMotion ? {opacity: 0} : {opacity: 0, height: 0, y: -8}}
-                        transition={{duration: 0.24}}
-                        className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-start gap-3 text-red-400 text-xs overflow-hidden"
+                    <div
+                        role="alert"
+                        className="login-fields-enter bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-start gap-3 text-red-400 text-xs overflow-hidden"
                     >
                         <AlertCircle size={18} className="shrink-0 mt-0.5" />
                         <div className="space-y-1">
                             <p className="font-bold uppercase tracking-wider">{t('login_error_title')}</p>
                             <p className="text-red-300/90 leading-relaxed">{errorMessage}</p>
                         </div>
-                    </motion.div>
+                    </div>
                 )}
-                </AnimatePresence>
 
                 {/* Login Form */}
                 <form onSubmit={handleSubmit} className="space-y-5">
                     {!showOperatorSession && (
-                    <motion.div
+                    <div
                         key="ldap-login"
-                        initial={reduceMotion ? false : {opacity: 0, y: -8}}
-                        animate={{opacity: 1, y: 0}}
-                        transition={{duration: 0.2, ease: [0.22, 1, 0.36, 1]}}
-                        className="space-y-5"
+                        className="login-fields-enter space-y-5"
                     >
                     <div className="space-y-2">
                         <label className="text-[11px] font-bold text-brand-text-muted uppercase tracking-wider block">
@@ -210,10 +193,10 @@ export const LoginView: React.FC = () => {
                         <span className="shrink mx-4 text-[10px] font-bold text-brand-text-muted/60 uppercase tracking-widest">{t('login_or_divider')}</span>
                         <div className="grow border-t border-brand-border/60"></div>
                     </div>
-                    </motion.div>
+                    </div>
                     )}
 
-                    <motion.button
+                    <button
                         type="button"
                         onClick={() => {
                             setShowOperatorSession((visible) => !visible);
@@ -222,9 +205,7 @@ export const LoginView: React.FC = () => {
                         disabled={loading}
                         aria-expanded={showOperatorSession}
                         aria-controls="operator-session-panel"
-                        whileHover={reduceMotion ? undefined : {y: -1}}
-                        whileTap={reduceMotion ? undefined : {scale: 0.985}}
-                        className={`w-full py-3.5 border font-bold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-between px-4 active:scale-[0.98] ${showOperatorSession
+                        className={`w-full py-3.5 border font-bold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-between px-4 hover:-translate-y-px active:translate-y-0 active:scale-[0.98] disabled:transform-none ${showOperatorSession
                             ? 'bg-brand-accent/10 border-brand-accent/50 text-brand-accent'
                             : 'bg-brand-bg border-brand-border hover:bg-brand-surface-high hover:border-brand-accent/40 text-brand-text'
                         }`}
@@ -237,16 +218,13 @@ export const LoginView: React.FC = () => {
                             size={17}
                             className={`text-brand-text-muted transition-transform duration-200 ${showOperatorSession ? 'rotate-180' : ''}`}
                         />
-                    </motion.button>
+                    </button>
 
                     {showOperatorSession && (
-                        <motion.div
+                        <div
                             key="operator-session"
                             id="operator-session-panel"
-                            initial={reduceMotion ? false : {opacity: 0, y: 10}}
-                            animate={{opacity: 1, y: 0}}
-                            transition={{duration: 0.22, ease: [0.22, 1, 0.36, 1]}}
-                            className="space-y-4 rounded-2xl border border-brand-accent/25 bg-brand-accent/5 p-4"
+                            className="login-fields-enter space-y-4 rounded-2xl border border-brand-accent/25 bg-brand-accent/5 p-4"
                         >
                             <div className="flex items-start gap-3">
                                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-accent/15 text-brand-accent">
@@ -303,7 +281,7 @@ export const LoginView: React.FC = () => {
                                 {loading ? <Loader2 size={16} className="animate-spin"/> : <IdCard size={16}/>}
                                 {t(loading ? 'login_operator_session_starting' : 'login_operator_session_start')}
                             </button>
-                        </motion.div>
+                        </div>
                     )}
                 </form>
 
@@ -313,7 +291,7 @@ export const LoginView: React.FC = () => {
                         {t('login_security_note')}
                     </p>
                 </div>
-            </motion.div>
+            </div>
         </div>
     );
 };

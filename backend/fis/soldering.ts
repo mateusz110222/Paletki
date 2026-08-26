@@ -1,7 +1,6 @@
 import {api, APIError} from "encore.dev/api";
 import {SQLDatabase} from "encore.dev/storage/sqldb";
 import {PalletStatus} from "../shared/types";
-import {requireAuthenticatedUser} from "../auth/authorization";
 
 const db = SQLDatabase.named("pallets");
 
@@ -44,10 +43,6 @@ function normalizePalletId(value: string): string {
     return palletId;
 }
 
-/**
- * Fast, read-only view used by the legacy soldering UI.
- * It replaces direct reads from the old `soldering.fixtures` table.
- */
 export const GetSolderingPallet = api(
     {method: "GET", path: "/fis/soldering/pallets/:pallet_id", expose: true},
     async (params: PalletPathParams): Promise<SolderingPallet> => {
@@ -83,12 +78,13 @@ export const GetSolderingPallet = api(
  * Both counters are incremented in one statement, so concurrent stations cannot
  * overwrite one another. The existing database trigger changes the pallet to
  * Washing_Required when the configured limit is reached.
+ * This FIS integration does not require a user session; it restricts network access
+ * to trusted stations. The source label below is not an authenticated identity.
  */
 export const RegisterSolderingCycle = api(
-    {method: "POST", path: "/fis/soldering/pallets/:pallet_id/cycles", expose: true, auth: true},
+    {method: "POST", path: "/fis/soldering/pallets/:pallet_id/cycles", expose: true},
     async (params: RegisterCycleParams): Promise<RegisterCycleResponse> => {
         const palletId = normalizePalletId(params.pallet_id);
-        const operatorId = requireAuthenticatedUser().fullName;
 
         try {
             const updated = await db.queryRow<{
@@ -100,7 +96,7 @@ export const RegisterSolderingCycle = api(
                 SET current_cycles = current_cycles + 1,
                     total_cycles = total_cycles + 1,
                     updated_at = NOW(),
-                    updated_by = ${operatorId}
+                    updated_by = 'FIS'
                 WHERE pallet_id = ${palletId}
                   AND status = 'Active'
                   AND current_cycles < max_cycles

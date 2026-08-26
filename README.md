@@ -95,6 +95,25 @@ pnpm --filter @paletki/backend dev
 
 ## Building the Application
 
+### LDAP departments and directory lookup
+
+Access is based on the LDAP `department` attribute, not AD `memberOf` groups or the legacy role field:
+
+| Department matches | Available views |
+| --- | --- |
+| `LDAP_IT_DEPARTMENTS` | All views, including the IT-only LDAP directory |
+| `LDAP_ME_DEPARTMENTS` (without IT) | All views and pallet/project management, except the LDAP directory |
+| `LDAP_UR_DEPARTMENTS` only | Maintenance only (also the landing page) |
+| Neither list / operator session | Operator scanner and live monitor |
+
+Set `LDAP_UR_DEPARTMENTS` and `LDAP_ME_DEPARTMENTS` to the exact department names from your directory, separated by semicolons. Whitespace and letter case are normalized. Empty lists grant no access. Overlapping matches use this precedence: IT → ME → UR; only IT can access the directory endpoint. UR can service damaged pallets or pallets requiring washing, including reporting damage and returning serviced pallets to production. Administrative mutations and audit exports require IT or ME. Existing public pallet reads and the FIS integration are unchanged; these view restrictions are not a data-isolation boundary.
+
+The directory screen (`/directory`) uses the IT-protected `POST /auth/directory/lookup` endpoint. Configure `LDAP_LOOKUP_BIND_USER` (UPN or full DN) and `LDAP_LOOKUP_BIND_PASSWORD` for a least-privilege directory **read-only** account on the backend. It reuses `LDAP_URL`, `LDAP_SEARCH_BASE`, certificate verification and timeouts. No user login passwords are saved. Do not put these credentials in frontend/VITE variables or commit them to Git; provide them through your deployment's secret configuration.
+
+Lookup returns the department, job title and direct AD groups (`memberOf`, full distinguished names). Nested memberships and the primary group are not included; server-truncated results are marked incomplete. These groups are informational — access uses the department lists.
+
+Restart/redeploy the backend after changing environment variables and sign in again to refresh the frontend's access flags. This update requires rebuilding both backend and frontend; sessions saved by older frontends require signing in again. No database migration is needed.
+
 To prepare the application for deployment, you need to build both the backend and frontend components.
 
 ### 1. Build Backend Service

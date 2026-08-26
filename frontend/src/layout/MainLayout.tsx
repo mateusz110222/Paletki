@@ -7,7 +7,7 @@ import {UserCheck} from 'lucide-react';
 import {useDocumentMetadata} from '../hooks/useDocumentMetadata.ts';
 
 export const MainLayout: React.FC = () => {
-    const {user, isGuest, hasITDepartmentAccess, logout} = useAuth();
+    const {user, isGuest, hasITDepartmentAccess, canManagePallets, isMaintenanceOnly, canAccessMaintenance, logout} = useAuth();
     const {t, language} = useTranslation();
     const location = useLocation();
 
@@ -16,6 +16,8 @@ export const MainLayout: React.FC = () => {
             return {title: t('history_page_title'), sub: t('history_page_subtitle')};
         }
         switch (pathname) {
+            case '/directory':
+                return {title: t('directory_title'), sub: t('directory_subtitle')};
             case '/admin':
                 return {title: t('panel_admin_title'), sub: t('panel_admin_subtitle')};
             case '/operator':
@@ -39,7 +41,8 @@ export const MainLayout: React.FC = () => {
     return (
         <div
             className="flex flex-col md:flex-row min-h-screen bg-brand-bg text-brand-text font-sans selection:bg-brand-accent selection:text-brand-bg">
-            <Sidebar hasITDepartmentAccess={hasITDepartmentAccess} onLogout={logout}/>
+            <Sidebar hasITDepartmentAccess={hasITDepartmentAccess} canManagePallets={canManagePallets} isMaintenanceOnly={isMaintenanceOnly}
+                     canAccessMaintenance={canAccessMaintenance} onLogout={logout}/>
 
             <main className="flex-1 p-6 md:p-8 space-y-6 overflow-y-auto max-w-[1600px] mx-auto w-full">
                 {/* Top Header */}

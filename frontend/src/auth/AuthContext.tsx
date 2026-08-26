@@ -2,6 +2,7 @@ import React, {createContext, ReactNode, use, useCallback, useEffect, useState} 
 import {LoginResponse, UserData} from "@backend/shared/types";
 import {API_BASE_URL} from "@backend/shared/API_BASE_URL.ts";
 import {useTranslation} from "../i18n/LanguageContext.tsx";
+import {getViewAccess} from './view-access';
 
 interface StoredSession {
     user: UserData;
@@ -14,6 +15,12 @@ interface AuthContextType {
     isAuthenticated: boolean;
     isGuest: boolean;
     hasITDepartmentAccess: boolean;
+    hasURDepartmentAccess: boolean;
+    hasMEDepartmentAccess: boolean;
+    canManagePallets: boolean;
+    isMaintenanceOnly: boolean;
+    canAccessMaintenance: boolean;
+    defaultPath: string;
     login: (username: string, password: string) => Promise<LoginResponse>;
     loginAsOperator: (identifier: string) => Promise<LoginResponse>;
     logout: () => Promise<void>;
@@ -42,6 +49,10 @@ function parseStoredSession(value: string | null): StoredSession | null {
             (parsed.user.role !== "staff" && parsed.user.role !== "operator") ||
             !("has_it_department_access" in parsed.user) ||
             typeof parsed.user.has_it_department_access !== "boolean" ||
+            !("has_ur_department_access" in parsed.user) ||
+            typeof parsed.user.has_ur_department_access !== "boolean" ||
+            !("has_me_department_access" in parsed.user) ||
+            typeof parsed.user.has_me_department_access !== "boolean" ||
             !("is_guest" in parsed.user) ||
             typeof parsed.user.is_guest !== "boolean" ||
             !("token" in parsed) ||
@@ -157,7 +168,7 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({children}) => {
             user,
             isAuthenticated: session !== null,
             isGuest: user?.is_guest === true,
-            hasITDepartmentAccess: user?.has_it_department_access === true,
+            ...getViewAccess(user),
             login,
             loginAsOperator,
             logout,

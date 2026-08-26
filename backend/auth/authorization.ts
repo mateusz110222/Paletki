@@ -16,3 +16,11 @@ export function requireITDepartmentUser(): AuthData {
     }
     return auth;
 }
+
+export function requirePalletManagementUser(): AuthData {
+    const auth = requireAuthenticatedUser();
+    if (!auth.hasITDepartmentAccess && !auth.hasMEDepartmentAccess) {
+        throw APIError.permissionDenied(t('auth_management_required'));
+    }
+    return auth;
+}

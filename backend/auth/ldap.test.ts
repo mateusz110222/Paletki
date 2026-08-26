@@ -10,6 +10,7 @@ import {
     LdapProfileNotFoundError,
     parseLdapLogin,
     withLdapClient,
+    lookupLdapUser,
 } from "./ldap";
 
 function mockClient(searchEntries: Array<Record<string, string | string[]>> = []): LdapClient {
@@ -19,6 +20,40 @@ function mockClient(searchEntries: Array<Record<string, string | string[]>> = []
         unbind: vi.fn().mockResolvedValue(undefined),
     } as unknown as LdapClient;
 }
+
+describe('directory lookup', () => {
+    it('looks up an exact NetID and returns department and deduplicated direct groups', async () => {
+        const client = mockClient([{dn: 'CN=Test', sAMAccountName: 'test', displayName: 'Test User',
+            department: 'UR', title: 'Technician', memberOf: ['CN=B,DC=test', 'CN=A,DC=test', 'CN=A,DC=test']}]);
+        expect(await lookupLdapUser(client, 'test', 'DC=test', 3000)).toEqual({
+            net_id: 'test', full_name: 'Test User', department: 'UR', title: 'Technician',
+            groups: ['CN=A,DC=test', 'CN=B,DC=test'], groups_complete: true,
+        });
+        expect(client.search).toHaveBeenCalledWith('DC=test', expect.objectContaining({
+            filter: '(&(objectCategory=person)(objectClass=user)(sAMAccountName=test))', sizeLimit: 2, timeLimit: 3,
+        }));
+    });
+
+    it.each(['*', 'a)(sAMAccountName=*)', 'test@example.com', 'DOMAIN\\test', '', 'a'.repeat(65)])('rejects invalid or wildcard NetID %s before search', async netId => {
+        const client = mockClient();
+        await expect(lookupLdapUser(client, netId, 'DC=test', 1000)).rejects.toBeInstanceOf(InvalidLdapLoginError);
+        expect(client.search).not.toHaveBeenCalled();
+    });
+
+    it('handles scalar groups and reports ranged results honestly', async () => {
+        expect((await lookupLdapUser(mockClient([{dn: 'CN=Test', memberOf: 'CN=A,DC=test'}]), 'test', 'DC=test', 1000)).groups).toEqual(['CN=A,DC=test']);
+        expect((await lookupLdapUser(mockClient([{dn: 'CN=Test', 'memberOf;range=0-1499': ['CN=A,DC=test']}]), 'test', 'DC=test', 1000)).groups_complete).toBe(false);
+        expect((await lookupLdapUser(mockClient([{dn: 'CN=Test', 'memberOf;range=0-*': ['CN=A,DC=test']}]), 'test', 'DC=test', 1000)).groups_complete).toBe(true);
+    });
+
+    it('handles missing groups, unknown users and ambiguous results', async () => {
+        const result = await lookupLdapUser(mockClient([{dn: 'CN=Test'}]), 'test', 'DC=test', 1000);
+        expect(result.groups).toEqual([]);
+        expect(result.full_name).toBe('test');
+        await expect(lookupLdapUser(mockClient(), 'test', 'DC=test', 1000)).rejects.toBeInstanceOf(LdapProfileNotFoundError);
+        await expect(lookupLdapUser(mockClient([{dn: 'a'}, {dn: 'b'}]), 'test', 'DC=test', 1000)).rejects.toBeInstanceOf(LdapProfileAmbiguousError);
+    });
+});
 
 describe("LDAP login parsing", () => {
     it("escapes every RFC 4515 special character", () => {

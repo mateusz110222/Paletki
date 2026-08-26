@@ -2,7 +2,7 @@ import {api, APIError, Header} from "encore.dev/api";
 import {db} from "./db";
 import {Project} from "../shared/types";
 import {t} from "./i18n";
-import {requireITDepartmentUser} from "../auth/authorization";
+import {requirePalletManagementUser} from "../auth/authorization";
 
 interface LocalizedRequest {
     acceptLanguage?: Header<"Accept-Language">;
@@ -26,7 +26,7 @@ export const GetAllProjects = api(
 export const AddProject = api(
     {method: "POST", path: "/projects", expose: true, auth: true},
     async (params: AddProjectParams): Promise<void> => {
-        requireITDepartmentUser();
+        requirePalletManagementUser();
         const projectName = params.name?.trim();
         if (!projectName) throw APIError.invalidArgument(t("project_name_empty", params.acceptLanguage));
 

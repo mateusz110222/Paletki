@@ -8,6 +8,12 @@ export default defineConfig(() => {
     envDir: resolve(__dirname, '..'),
     envPrefix: ['VITE_', 'FIS1_UNIT_HISTORY_URL', 'FIS2_UNIT_HISTORY_URL'],
     plugins: [react(), tailwindcss()],
+    build: {
+      minify: 'terser' as const,
+      terserOptions: {
+        compress: {passes: 2},
+      },
+    },
     resolve: {
       alias: {
         '@backend': resolve(__dirname, '..', 'backend'),

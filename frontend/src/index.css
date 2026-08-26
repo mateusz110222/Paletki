@@ -109,4 +109,92 @@
   animation-duration: 200ms, 300ms;
 }
 
+/* CSS-only motion: animate opacity/transform without changing document layout. */
+@keyframes modal-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modal-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes modal-panel-in {
+  from { transform: translateY(22px) scale(0.965); }
+  to { transform: translateY(0) scale(1); }
+}
+
+@keyframes modal-panel-out {
+  from { transform: translateY(0) scale(1); }
+  to { transform: translateY(12px) scale(0.975); }
+}
+
+.modal-overlay {
+  animation: modal-fade-in 180ms ease-out both;
+}
+
+.modal-panel {
+  animation: modal-panel-in 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.modal-overlay[data-state='closing'] {
+  pointer-events: none;
+  animation: modal-fade-out 180ms ease-in both;
+}
+
+.modal-overlay[data-state='closing'] .modal-panel {
+  animation: modal-panel-out 180ms ease-in both;
+}
+
+.login-card-enter {
+  --ui-enter-opacity: 0;
+  --ui-enter-translate-y: 22px;
+  --ui-enter-scale: 0.97;
+  animation: ui-enter 500ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+.login-fields-enter {
+  --ui-enter-opacity: 0;
+  --ui-enter-translate-y: 8px;
+  --ui-enter-scale: 1;
+  animation: ui-enter 220ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+@keyframes login-glow-drift {
+  50% { transform: translate(var(--glow-x), var(--glow-y)) scale(1.06); }
+}
+
+.login-glow-primary {
+  --glow-x: 28px;
+  --glow-y: 18px;
+  animation: login-glow-drift 13s ease-in-out infinite;
+}
+
+.login-glow-secondary {
+  --glow-x: -24px;
+  --glow-y: -16px;
+  animation: login-glow-drift 15s ease-in-out 600ms infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-in,
+  .login-card-enter,
+  .login-fields-enter,
+  .login-glow {
+    animation: none !important;
+  }
+
+  .modal-overlay,
+  .modal-panel {
+    /* Keep animationend firing so closed modals are unmounted immediately. */
+    animation-duration: 0.01ms !important;
+  }
+
+  button,
+  button svg {
+    transition-duration: 0.01ms !important;
+  }
+}
+
 

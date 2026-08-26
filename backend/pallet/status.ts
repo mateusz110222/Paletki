@@ -3,7 +3,7 @@ import {db} from "./db";
 import {PALLET_STATUSES, PalletStatus} from "../shared/types";
 import {t} from "./i18n";
 import {encodeAuditDescription} from "./audit-description";
-import {requireAuthenticatedUser, requireITDepartmentUser} from "../auth/authorization";
+import {requireAuthenticatedUser, requirePalletManagementUser} from "../auth/authorization";
 import {canChangePalletStatus} from "../auth/permissions";
 
 interface LocalizedAuthorizedRequest {
@@ -41,11 +41,15 @@ async function changePalletStatus(
     description: string,
     resetCycles: boolean,
     lang?: string,
+    maintenanceOnly = false,
 ): Promise<void> {
     try {
         await using tx = await db.begin();
-        const row = await tx.queryRow<{id: number}>`SELECT id FROM pallets WHERE pallet_id = ${palletId}`;
+        const row = await tx.queryRow<{id: number; status: PalletStatus}>`SELECT id, status FROM pallets WHERE pallet_id = ${palletId} FOR UPDATE`;
         if (!row) throw APIError.notFound(t("pallet_not_found", lang));
+        if (maintenanceOnly && row.status !== 'Damaged' && row.status !== 'Washing_Required') {
+            throw APIError.permissionDenied(t('auth_maintenance_required', lang));
+        }
 
         await tx.exec`
             UPDATE pallets
@@ -76,8 +80,8 @@ export const ChangePalletStatus = api(
         if (!params.block_reason?.trim()) {
             throw APIError.invalidArgument(t("block_reason_required", params.acceptLanguage));
         }
-        if (!canChangePalletStatus(auth.hasITDepartmentAccess, requestedStatus, params.reset_cycles === true)) {
-            throw APIError.permissionDenied(t("auth_staff_required", params.acceptLanguage));
+        if (!canChangePalletStatus(auth.hasITDepartmentAccess, requestedStatus, params.reset_cycles === true, auth.hasURDepartmentAccess, auth.hasMEDepartmentAccess)) {
+            throw APIError.permissionDenied(t("auth_status_forbidden", params.acceptLanguage));
         }
         await changePalletStatus(
             palletId,
@@ -87,6 +91,7 @@ export const ChangePalletStatus = api(
             encodeAuditDescription("audit_status_changed", {}, params.block_reason),
             params.reset_cycles === true,
             params.acceptLanguage,
+            auth.hasURDepartmentAccess && !auth.hasITDepartmentAccess && !auth.hasMEDepartmentAccess,
         );
     },
 );
@@ -95,7 +100,7 @@ export const BlockPallet = api(
     {method: "POST", path: "/pallets/block", expose: true, auth: true},
     async (params: UpdateStatusParams): Promise<void> => {
         const palletId = params.pallet_id?.trim();
-        const operator = requireITDepartmentUser().fullName;
+        const operator = requirePalletManagementUser().fullName;
         const reason = params.block_reason?.trim();
         if (!palletId) throw APIError.invalidArgument(t("pallet_id_empty", params.acceptLanguage));
         if (!reason) throw APIError.invalidArgument(t("block_reason_required", params.acceptLanguage));
@@ -116,7 +121,7 @@ export const UnblockPallet = api(
     {method: "POST", path: "/pallets/unblock", expose: true, auth: true},
     async (params: UpdateStatusParams): Promise<void> => {
         const palletId = params.pallet_id?.trim();
-        const operator = requireITDepartmentUser().fullName;
+        const operator = requirePalletManagementUser().fullName;
         if (!palletId) throw APIError.invalidArgument(t("pallet_id_empty", params.acceptLanguage));
 
         await changePalletStatus(
@@ -135,7 +140,7 @@ export const ResetPalletCycles = api(
     {method: "POST", path: "/pallets/reset-cycles", expose: true, auth: true},
     async (params: ResetCyclesParams): Promise<ResetCyclesResponse> => {
         const palletId = params.pallet_id?.trim();
-        const operator = requireITDepartmentUser().fullName;
+        const operator = requirePalletManagementUser().fullName;
         if (!palletId) throw APIError.invalidArgument(t("pallet_id_empty", params.acceptLanguage));
 
         await changePalletStatus(

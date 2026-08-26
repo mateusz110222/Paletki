@@ -19,8 +19,8 @@ import {useNavigate, useSearchParams} from "react-router-dom";
 import {SearchInput} from "../components/SearchInput.tsx";
 import {useEscapeKey} from "../hooks/useEscapeKey.ts";
 import {ModalFormActions} from "../components/ModalFormActions.tsx";
-import {AnimatePresence} from 'motion/react';
-import {ModalTransition} from '../components/ModalTransition.tsx';
+import {ModalPresence, ModalTransition} from '../components/ModalTransition.tsx';
+import {InputField, SelectField, TextareaField} from '../components/FormFields.tsx';
 
 interface AdminPanelViewProps {
     pallets: Pallet[];
@@ -417,7 +417,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
             </div>
 
             {/* MODAL 1: DODAWANIE NOWEJ PALETY */}
-            <AnimatePresence>
+            <ModalPresence>
             {data.isAddOpen && (
                 <ModalTransition
                     onBackdropClick={() => actions.setIsAddOpen(false)}
@@ -452,104 +452,73 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
 
                             {/* Sekcja główna: ID, Model, Projekt (Siatka 2-kolumnowa) */}
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="flex flex-col gap-1.5">
-                                    <label
-                                        className="text-[11px] font-bold text-brand-text-muted uppercase tracking-wider">
-                                        {t('label_pallet_id')}
-                                    </label>
-                                    <input
-                                        type="text"
-                                        autoFocus
-                                        placeholder={t('placeholder_pallet_id')}
-                                        value={data.newId.toUpperCase()}
-                                        onChange={(e) => actions.setNewId(e.target.value.toUpperCase())}
-                                        className="w-full bg-brand-bg border border-brand-border rounded-xl p-3 text-xs text-brand-text focus:ring-2 focus:ring-brand-accent/30 outline-none font-mono transition-all"
-                                        required
-                                    />
-                                </div>
+                                <InputField
+                                    label={t('label_pallet_id')}
+                                    type="text"
+                                    autoFocus
+                                    placeholder={t('placeholder_pallet_id')}
+                                    value={data.newId.toUpperCase()}
+                                    onChange={(e) => actions.setNewId(e.target.value.toUpperCase())}
+                                    required
+                                />
 
-                                <div className="flex flex-col gap-1.5">
-                                    <label
-                                        className="text-[11px] font-bold text-brand-text-muted uppercase tracking-wider">
-                                        {t('label_model')}
-                                    </label>
-                                    <input
-                                        type="text"
-                                        placeholder={t('placeholder_model')}
-                                        value={data.newModel.toUpperCase()}
-                                        onChange={(e) => actions.setNewModel(e.target.value.toUpperCase())}
-                                        className="w-full bg-brand-bg border border-brand-border rounded-xl p-3 text-xs text-brand-text focus:ring-2 focus:ring-brand-accent/30 outline-none font-mono transition-all"
-                                        required
-                                    />
-                                </div>
+                                <InputField
+                                    label={t('label_model')}
+                                    type="text"
+                                    placeholder={t('placeholder_model')}
+                                    value={data.newModel.toUpperCase()}
+                                    onChange={(e) => actions.setNewModel(e.target.value.toUpperCase())}
+                                    required
+                                />
 
-                                <div className="flex flex-col gap-1.5 col-span-2">
-                                    <label
-                                        className="text-[11px] font-bold text-brand-text-muted uppercase tracking-wider">
-                                        {t('label_project')}
-                                    </label>
-                                    <select
-                                        value={data.newProject}
-                                        onChange={(e) => actions.setNewProject(e.target.value)}
-                                        className="w-full bg-brand-bg border border-brand-border rounded-xl p-3 text-xs text-brand-text focus:ring-2 focus:ring-brand-accent/30 outline-none transition-all cursor-pointer"
-                                        required
-                                    >
-                                        <option value="">{t('placeholder_select_project')}</option>
-                                        {data.projects.map((proj: Project) => {
-                                            const name = proj.name
-                                            return <option key={name} value={name}>{name}</option>
-                                        })}
-                                    </select>
-                                </div>
+                                <SelectField
+                                    label={t('label_project')}
+                                    fieldClassName="flex flex-col gap-1.5 col-span-2"
+                                    value={data.newProject}
+                                    onChange={(e) => actions.setNewProject(e.target.value)}
+                                    required
+                                >
+                                    <option value="">{t('placeholder_select_project')}</option>
+                                    {data.projects.map((proj: Project) => {
+                                        const name = proj.name
+                                        return <option key={name} value={name}>{name}</option>
+                                    })}
+                                </SelectField>
                             </div>
 
                             {/* Sekcja parametrów technicznych: Cykle, Gniazda, FIS */}
                             <div className="grid grid-cols-3 gap-3">
-                                <div className="flex flex-col gap-1.5">
-                                    <label
-                                        className="text-[11px] font-bold text-brand-text-muted uppercase tracking-wider block truncate">
-                                        {t('label_max_cycles')}
-                                    </label>
-                                    <input
-                                        type="number"
-                                        value={data.newMaxCycles}
-                                        onChange={(e) => actions.setNewMaxCycles(e.target.value)}
-                                        className="w-full bg-brand-bg border border-brand-border rounded-xl p-3 text-xs text-brand-text focus:ring-2 focus:ring-brand-accent/30 outline-none font-mono transition-all"
-                                        required
-                                        min="1"
-                                    />
-                                </div>
+                                <InputField
+                                    label={t('label_max_cycles')}
+                                    labelClassName="text-[11px] font-bold text-brand-text-muted uppercase tracking-wider block truncate"
+                                    type="number"
+                                    value={data.newMaxCycles}
+                                    onChange={(e) => actions.setNewMaxCycles(e.target.value)}
+                                    required
+                                    min="1"
+                                />
 
-                                <div className="flex flex-col gap-1.5">
-                                    <label
-                                        className="text-[11px] font-bold text-brand-text-muted uppercase tracking-wider block truncate">
-                                        {t('label_nests')}
-                                    </label>
-                                    <input
-                                        type="number"
-                                        value={data.newNests}
-                                        onChange={(e) => actions.setNewNests(e.target.value)}
-                                        className="w-full bg-brand-bg border border-brand-border rounded-xl p-3 text-xs text-brand-text focus:ring-2 focus:ring-brand-accent/30 outline-none font-mono transition-all"
-                                        required
-                                        min="1"
-                                    />
-                                </div>
+                                <InputField
+                                    label={t('label_nests')}
+                                    labelClassName="text-[11px] font-bold text-brand-text-muted uppercase tracking-wider block truncate"
+                                    type="number"
+                                    value={data.newNests}
+                                    onChange={(e) => actions.setNewNests(e.target.value)}
+                                    required
+                                    min="1"
+                                />
 
-                                <div className="flex flex-col gap-1.5">
-                                    <label
-                                        className="text-[11px] font-bold text-brand-text-muted uppercase tracking-wider block truncate">
-                                        {t('label_fis')}
-                                    </label>
-                                    <select
-                                        value={data.newFis}
-                                        onChange={(e) => actions.setNewFis(e.target.value)}
-                                        className="w-full bg-brand-bg border border-brand-border rounded-xl p-3 text-xs text-brand-text focus:ring-2 focus:ring-brand-accent/30 outline-none font-mono transition-all cursor-pointer"
-                                        required
-                                    >
-                                        <option value="1">1</option>
-                                        <option value="2">2</option>
-                                    </select>
-                                </div>
+                                <SelectField
+                                    label={t('label_fis')}
+                                    labelClassName="text-[11px] font-bold text-brand-text-muted uppercase tracking-wider block truncate"
+                                    monospace
+                                    value={data.newFis}
+                                    onChange={(e) => actions.setNewFis(e.target.value)}
+                                    required
+                                >
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                </SelectField>
                             </div>
 
                             <p className="text-[10px] text-brand-text-muted/60 leading-relaxed italic tracking-wide">
@@ -566,10 +535,10 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                     </div>
                 </ModalTransition>
             )}
-            </AnimatePresence>
+            </ModalPresence>
 
             {/* MODAL 1B: DODAWANIE NOWEGO PROJEKTU */}
-            <AnimatePresence>
+            <ModalPresence>
             {data.isAddProjectOpen && (
                 <ModalTransition onBackdropClick={() => actions.setIsAddProjectOpen(false)}>
                     <div
@@ -590,19 +559,17 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
 
                         <form onSubmit={actions.handleAddProject} className="p-6 space-y-4">
 
-                            <div className="flex flex-col gap-1">
-                                <label
-                                    className="text-[10px] uppercase font-bold text-brand-text-muted">{t('label_project_name')}</label>
-                                <input
-                                    type="text"
-                                    autoFocus
-                                    placeholder={t('placeholder_project_name')}
-                                    value={data.newProjectName.toUpperCase()}
-                                    onChange={(e) => actions.setNewProjectName(e.target.value.toUpperCase())}
-                                    className="w-full bg-brand-bg border border-brand-border rounded-xl p-3 text-xs text-brand-text focus:ring-2 focus:ring-brand-accent/30 outline-none font-mono transition-all"
-                                    required
-                                />
-                            </div>
+                            <InputField
+                                label={t('label_project_name')}
+                                fieldClassName="flex flex-col gap-1"
+                                labelClassName="text-[10px] uppercase font-bold text-brand-text-muted"
+                                type="text"
+                                autoFocus
+                                placeholder={t('placeholder_project_name')}
+                                value={data.newProjectName.toUpperCase()}
+                                onChange={(e) => actions.setNewProjectName(e.target.value.toUpperCase())}
+                                required
+                            />
 
                             <p className="text-[10px] text-brand-text-muted/60 leading-relaxed italic">
                                 {t('validation_required_fields')}
@@ -617,10 +584,10 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                     </div>
                 </ModalTransition>
             )}
-            </AnimatePresence>
+            </ModalPresence>
 
             {/* MODAL 1C: EDYCJA DANYCH PALETY */}
-            <AnimatePresence>
+            <ModalPresence>
             {data.isEditOpen && data.selectedPalletForEdit && (
                 <ModalTransition
                     onBackdropClick={() => actions.setIsEditOpen(false)}
@@ -678,87 +645,62 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
 
                             {/* Sekcja parametrów technicznych: FIS, Gniazda (nests), Limit Cykli (max_cycles) */}
                             <div className="grid grid-cols-3 gap-3">
-                                <div className="flex flex-col gap-1.5">
-                                    <label
-                                        className="text-[11px] font-bold text-brand-text-muted uppercase tracking-wider block truncate">
-                                        {t('label_fis')}
-                                    </label>
-                                    <select
-                                        value={data.editFis}
-                                        onChange={(e) => actions.setEditFis(e.target.value)}
-                                        className="w-full bg-brand-bg border border-brand-border rounded-xl p-3 text-xs text-brand-text focus:ring-2 focus:ring-brand-accent/30 outline-none font-mono transition-all cursor-pointer"
-                                        required
-                                    >
-                                        <option value="1">1</option>
-                                        <option value="2">2</option>
-                                    </select>
-                                </div>
+                                <SelectField
+                                    label={t('label_fis')}
+                                    labelClassName="text-[11px] font-bold text-brand-text-muted uppercase tracking-wider block truncate"
+                                    monospace
+                                    value={data.editFis}
+                                    onChange={(e) => actions.setEditFis(e.target.value)}
+                                    required
+                                >
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                </SelectField>
 
-                                <div className="flex flex-col gap-1.5">
-                                    <label
-                                        className="text-[11px] font-bold text-brand-text-muted uppercase tracking-wider block truncate">
-                                        {t('label_nests')} *
-                                    </label>
-                                    <input
-                                        type="number"
-                                        value={data.editNests}
-                                        onChange={(e) => actions.setEditNests(e.target.value)}
-                                        className="w-full bg-brand-bg border border-brand-border rounded-xl p-3 text-xs text-brand-text focus:ring-2 focus:ring-brand-accent/30 outline-none font-mono transition-all"
-                                        required
-                                        min="1"
-                                    />
-                                </div>
+                                <InputField
+                                    label={<>{t('label_nests')} *</>}
+                                    labelClassName="text-[11px] font-bold text-brand-text-muted uppercase tracking-wider block truncate"
+                                    type="number"
+                                    value={data.editNests}
+                                    onChange={(e) => actions.setEditNests(e.target.value)}
+                                    required
+                                    min="1"
+                                />
 
-                                <div className="flex flex-col gap-1.5">
-                                    <label
-                                        className="text-[11px] font-bold text-brand-text-muted uppercase tracking-wider block truncate">
-                                        {t('label_max_cycles')} *
-                                    </label>
-                                    <input
-                                        type="number"
-                                        value={data.editMaxCycles}
-                                        onChange={(e) => actions.setEditMaxCycles(e.target.value)}
-                                        className="w-full bg-brand-bg border border-brand-border rounded-xl p-3 text-xs text-brand-text focus:ring-2 focus:ring-brand-accent/30 outline-none font-mono transition-all"
-                                        required
-                                        min="1"
-                                    />
-                                </div>
+                                <InputField
+                                    label={<>{t('label_max_cycles')} *</>}
+                                    labelClassName="text-[11px] font-bold text-brand-text-muted uppercase tracking-wider block truncate"
+                                    type="number"
+                                    value={data.editMaxCycles}
+                                    onChange={(e) => actions.setEditMaxCycles(e.target.value)}
+                                    required
+                                    min="1"
+                                />
                             </div>
 
                             {/* Sekcja statusu */}
-                            <div className="flex flex-col gap-1.5">
-                                <label className="text-[11px] font-bold text-brand-text-muted uppercase tracking-wider">
-                                    {t('col_status')} *
-                                </label>
-                                <select
-                                    value={data.editStatus}
-                                    onChange={(e) => actions.setEditStatus(e.target.value as PalletStatus)}
-                                    className="w-full bg-brand-bg border border-brand-border rounded-xl p-3 text-xs text-brand-text focus:ring-2 focus:ring-brand-accent/30 outline-none transition-all cursor-pointer"
-                                    required
-                                >
-                                    {PALLET_STATUSES.map((status) => (
-                                        <option key={status} value={status}>
-                                            {t(`status_${status.toLowerCase()}` as TranslationKey)}
-                                        </option>))}
-                                </select>
-                            </div>
+                            <SelectField
+                                label={<>{t('col_status')} *</>}
+                                value={data.editStatus}
+                                onChange={(e) => actions.setEditStatus(e.target.value as PalletStatus)}
+                                required
+                            >
+                                {PALLET_STATUSES.map((status) => (
+                                    <option key={status} value={status}>
+                                        {t(`status_${status.toLowerCase()}` as TranslationKey)}
+                                    </option>))}
+                            </SelectField>
 
                             {/* Powód Blokady (gdy wybrany status to Blocked) */}
                             {data.editStatus === 'Blocked' && (
-                                <div className="flex flex-col gap-1.5">
-                                    <label
-                                        className="text-[11px] font-bold text-brand-text-muted uppercase tracking-wider">
-                                        {t('label_block_reason')} *
-                                    </label>
-                                    <textarea
-                                        value={data.editBlockReason}
-                                        onChange={(e) => actions.setEditBlockReason(e.target.value)}
-                                        className="w-full bg-brand-bg border border-brand-border rounded-xl p-3 text-xs text-brand-text focus:ring-2 focus:ring-brand-accent/30 outline-none transition-all"
-                                        rows={3}
-                                        placeholder={t('block_reason_required')}
-                                        required
-                                    />
-                                </div>
+                                <TextareaField
+                                    label={<>{t('label_block_reason')} *</>}
+                                    value={data.editBlockReason}
+                                    onChange={(e) => actions.setEditBlockReason(e.target.value)}
+                                    rows={3}
+                                    placeholder={t('block_reason_required')}
+                                    required
+                                />
                             )}
 
                             {/* Stopka z przyciskami akcji */}
@@ -771,10 +713,10 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                     </div>
                 </ModalTransition>
             )}
-            </AnimatePresence>
+            </ModalPresence>
 
             {/* MODAL: Blokowanie Palety */}
-            <AnimatePresence>
+            <ModalPresence>
             {data.isBlockOpen && data.selectedPalletForBlock && (
                 <ModalTransition
                     onBackdropClick={() => {
@@ -821,10 +763,10 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                     </div>
                 </ModalTransition>
             )}
-            </AnimatePresence>
+            </ModalPresence>
 
             {/* MODAL: Potwierdzenie usunięcia paletki */}
-            <AnimatePresence>
+            <ModalPresence>
             {data.selectedPalletForDelete && (
                 <ModalTransition
                     onBackdropClick={() => {
@@ -870,7 +812,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                     </div>
                 </ModalTransition>
             )}
-            </AnimatePresence>
+            </ModalPresence>
 
             {/* Global Error Modal */}
             <GlobalErrorModal

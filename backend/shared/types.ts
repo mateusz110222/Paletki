@@ -53,6 +53,8 @@ export interface UserData {
     username: string;
     role: UserRole;
     has_it_department_access: boolean;
+    has_ur_department_access: boolean;
+    has_me_department_access: boolean;
     is_guest: boolean;
 }
 
@@ -62,4 +64,16 @@ export interface LoginResponse {
     data?: UserData;
     token?: string;
     expires_at?: string;
+}
+
+export interface DirectoryUser {
+    net_id: string;
+    full_name: string;
+    department: string;
+    title: string;
+    groups: string[];
+    groups_complete: boolean;
+    has_it_department_access: boolean;
+    has_ur_department_access: boolean;
+    has_me_department_access: boolean;
 }

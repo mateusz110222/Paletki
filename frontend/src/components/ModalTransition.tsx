@@ -1,6 +1,39 @@
-import React, {type ReactNode} from 'react';
+import React, {createContext, use, useCallback, useEffect, useState, type ReactElement, type ReactNode} from 'react';
 import {createPortal} from 'react-dom';
-import {motion, useReducedMotion} from 'motion/react';
+
+const ModalPresenceContext = createContext({isExiting: false, onExitComplete: () => {}});
+
+/** Keep the last modal content mounted until its CSS exit animation finishes. */
+export function ModalPresence({children}: {children: ReactElement | null | false}) {
+    const child = children || null;
+    const [snapshot, setSnapshot] = useState({input: child, retained: child});
+    const isPresent = child !== null;
+
+    // Capture the element before the parent clears its selected pallet/form data.
+    // Reconcile during render so closing never paints an empty modal first.
+    if (snapshot.input !== child) {
+        setSnapshot({input: child, retained: child ?? snapshot.retained});
+    }
+
+    const onExitComplete = useCallback(() => {
+        setSnapshot((current) => current.input === null && current.retained !== null
+            ? {input: null, retained: null}
+            : current);
+    }, []);
+
+    useEffect(() => {
+        if (isPresent) return;
+        // Fallback if the browser does not dispatch animationend (e.g. a hidden tab).
+        const timer = window.setTimeout(onExitComplete, 250);
+        return () => window.clearTimeout(timer);
+    }, [isPresent, onExitComplete]);
+
+    return (
+        <ModalPresenceContext value={{isExiting: !isPresent, onExitComplete}}>
+            {child ?? snapshot.retained}
+        </ModalPresenceContext>
+    );
+}
 
 interface ModalTransitionProps {
     children: ReactNode;
@@ -15,33 +48,28 @@ export function ModalTransition({
     className = '',
     backdropClassName = 'bg-brand-bg/80 backdrop-blur-sm',
 }: ModalTransitionProps) {
-    const reduceMotion = useReducedMotion();
+    const {isExiting, onExitComplete} = use(ModalPresenceContext);
 
     return createPortal(
-        <motion.div
-            className={`fixed inset-0 z-50 flex items-center justify-center p-4 ${className}`}
-            initial={{opacity: 0}}
-            animate={{opacity: 1}}
-            exit={{opacity: 0}}
-            transition={{duration: reduceMotion ? 0.01 : 0.18, ease: 'easeOut'}}
+        <div
+            className={`modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 ${className}`}
+            data-state={isExiting ? 'closing' : 'open'}
+            inert={isExiting}
+            onAnimationEnd={(event) => {
+                if (isExiting && event.target === event.currentTarget) onExitComplete();
+            }}
         >
-            <motion.div
+            <div
                 className={`fixed inset-0 ${backdropClassName}`}
                 onClick={onBackdropClick}
                 aria-hidden="true"
             />
-            <motion.div
-                className="relative z-10 flex w-full justify-center"
-                initial={reduceMotion ? {opacity: 0} : {opacity: 0, y: 22, scale: 0.965}}
-                animate={{opacity: 1, y: 0, scale: 1}}
-                exit={reduceMotion ? {opacity: 0} : {opacity: 0, y: 12, scale: 0.975}}
-                transition={reduceMotion
-                    ? {duration: 0.01}
-                    : {type: 'spring', stiffness: 420, damping: 34, mass: 0.75}}
+            <div
+                className="modal-panel relative z-10 flex w-full justify-center"
             >
                 {children}
-            </motion.div>
-        </motion.div>,
+            </div>
+        </div>,
         document.body,
     );
 }

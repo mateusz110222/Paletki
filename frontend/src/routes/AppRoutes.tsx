@@ -1,4 +1,4 @@
-import React, {lazy, Suspense, useEffect, useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {Navigate, Route, Routes} from 'react-router-dom';
 import {Pallet, Project} from '@backend/shared/types';
 import {API_BASE_URL} from '@backend/shared/API_BASE_URL.ts';
@@ -10,13 +10,11 @@ import {OperatorPanelView as OperatorPanel} from '../views/OperatorPanelView.tsx
 import {MaintenancePanelView as MaintenancePanel} from '../views/MaintenancePanelView.tsx';
 import {LiveMonitorView as LiveMonitor} from '../views/LiveMonitorView.tsx';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
-
-const PalletHistoryView = lazy(() => import('../views/PalletHistoryView.tsx').then(
-    (module) => ({default: module.PalletHistoryView}),
-));
+import {PalletHistoryView} from '../views/PalletHistoryView.tsx';
+import {DirectoryView} from '../views/DirectoryView.tsx';
 
 export const AppRoutes: React.FC = () => {
-    const {hasITDepartmentAccess} = useAuth();
+    const {hasITDepartmentAccess, canManagePallets, isMaintenanceOnly, canAccessMaintenance, defaultPath} = useAuth();
     const {language} = useTranslation();
     const [pallets, setPallets] = useState<Pallet[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
@@ -68,9 +66,11 @@ export const AppRoutes: React.FC = () => {
     return (
         <Routes>
             <Route element={<MainLayout/>}>
-                <Route path="/" element={<Navigate to={hasITDepartmentAccess ? "/admin" : "/operator"} replace/>}/>
+                <Route path="/" element={<Navigate to={defaultPath} replace/>}/>
 
-                {hasITDepartmentAccess && (
+                {hasITDepartmentAccess && <Route path="/directory" element={<DirectoryView/>}/>}
+
+                {canManagePallets && (
                     <>
                         <Route
                             path="/admin"
@@ -79,30 +79,21 @@ export const AppRoutes: React.FC = () => {
                         />
                         <Route
                             path="/admin/pallets/:palletId/history"
-                            element={(
-                                <Suspense fallback={(
-                                    <div className="space-y-4 animate-pulse">
-                                        <div className="h-32 rounded-2xl border border-brand-border bg-brand-surface"/>
-                                        <div className="h-20 rounded-xl border border-brand-border bg-brand-surface"/>
-                                    </div>
-                                )}>
-                                    <PalletHistoryView/>
-                                </Suspense>
-                            )}
+                            element={<PalletHistoryView/>}
                         />
                     </>
                 )}
 
-                <Route path="/operator" element={<OperatorPanel setPallets={setPallets}/>}/>
+                {!isMaintenanceOnly && <Route path="/operator" element={<OperatorPanel setPallets={setPallets}/>}/>}
 
-                {hasITDepartmentAccess && (
+                {canAccessMaintenance && (
                     <Route path="/maintenance" element={<MaintenancePanel pallets={pallets} setPallets={setPallets}/>}/>
                 )}
 
-                <Route path="/live" element={<LiveMonitor pallets={pallets}/>}/>
+                {!isMaintenanceOnly && <Route path="/live" element={<LiveMonitor pallets={pallets}/>}/>}
             </Route>
 
-            <Route path="*" element={<Navigate to={hasITDepartmentAccess ? "/admin" : "/operator"} replace/>}/>
+            <Route path="*" element={<Navigate to={defaultPath} replace/>}/>
         </Routes>
     );
 };

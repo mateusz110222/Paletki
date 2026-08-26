@@ -18,8 +18,7 @@ import {useSearchParams} from "react-router-dom";
 import {SearchInput} from "../components/SearchInput.tsx";
 import {useEscapeKey} from "../hooks/useEscapeKey.ts";
 import {ModalFormActions} from "../components/ModalFormActions.tsx";
-import {AnimatePresence, motion} from 'motion/react';
-import {ModalTransition} from '../components/ModalTransition.tsx';
+import {ModalPresence, ModalTransition} from '../components/ModalTransition.tsx';
 
 interface MaintenancePanelViewProps {
     pallets: Pallet[];
@@ -127,7 +126,7 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
             {/* Main Work Area */}
             <div className="bg-brand-surface rounded-xl border border-brand-border overflow-hidden">
                 {/* Custom Tabs */}
-                <div className="flex border-b border-brand-border bg-brand-surface-high/30">
+                <div className="relative grid grid-cols-2 border-b border-brand-border bg-brand-surface-high/30">
                     <button
                         onClick={() => actions.setActiveTab('repairs')}
                         className={`relative flex-1 py-4 px-6 text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${data.activeTab === 'repairs'
@@ -135,13 +134,6 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
                             : 'text-brand-text-muted hover:text-brand-text hover:bg-brand-surface-high/50'
                         }`}
                     >
-                        {data.activeTab === 'repairs' && (
-                            <motion.span
-                                layoutId="maintenance-active-tab"
-                                className="absolute inset-x-0 bottom-0 h-0.5 bg-brand-accent"
-                                transition={{type: 'spring', stiffness: 420, damping: 34}}
-                            />
-                        )}
                         <AlertCircle size={16}/>
                         {t('repairs_tab')}
                         {data.filteredRepairPallets.length > 0 && (
@@ -156,13 +148,6 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
                             : 'text-brand-text-muted hover:text-brand-text hover:bg-brand-surface-high/50'
                         }`}
                     >
-                        {data.activeTab === 'routine' && (
-                            <motion.span
-                                layoutId="maintenance-active-tab"
-                                className="absolute inset-x-0 bottom-0 h-0.5 bg-brand-accent"
-                                transition={{type: 'spring', stiffness: 420, damping: 34}}
-                            />
-                        )}
                         <Wrench size={16}/>
                         {t('routine_tab')}
                         {data.filteredRoutinePallets.length > 0 && (
@@ -170,6 +155,11 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
                                 className="ml-2 px-1.5 py-0.5 bg-yellow-500 text-brand-bg text-[9px] rounded-full">{data.filteredRoutinePallets.length}</span>
                         )}
                     </button>
+                    <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute bottom-0 left-0 h-0.5 w-1/2 bg-brand-accent transition-transform duration-300 motion-reduce:transition-none"
+                        style={{transform: data.activeTab === 'routine' ? 'translateX(100%)' : 'translateX(0)'}}
+                    />
                 </div>
 
                 {/* Content Area */}
@@ -252,7 +242,7 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
             </div>
 
             {/* SERVICE LOG MODAL */}
-            <AnimatePresence>
+            <ModalPresence>
             {data.selectedPallet && (
                 <ModalTransition
                     onBackdropClick={() => actions.setSelectedPallet(null)}
@@ -327,7 +317,7 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
                     </div>
                 </ModalTransition>
             )}
-            </AnimatePresence>
+            </ModalPresence>
         </div>
     );
 };

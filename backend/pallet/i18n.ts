@@ -3,6 +3,13 @@ export type SupportedLanguage = "pl" | "en";
 export const defaultLanguage: SupportedLanguage = "pl";
 
 const pl = {
+    auth_management_required: 'Ta operacja jest dostępna wyłącznie dla skonfigurowanych działów IT lub ME LDAP.',
+    auth_status_forbidden: 'Nie masz uprawnień do tej zmiany statusu.',
+    auth_maintenance_required: 'Panel UR obsługuje tylko palety uszkodzone lub wymagające mycia. Odśwież listę palet.',
+    directory_invalid_netid: 'Podaj NetID (1–64 znaki: litery, cyfry, kropka, myślnik lub podkreślenie).',
+    directory_not_configured: 'Wyszukiwanie LDAP wymaga ustawienia LDAP_LOOKUP_BIND_USER i LDAP_LOOKUP_BIND_PASSWORD na backendzie.',
+    directory_not_found: 'Nie znaleziono użytkownika o podanym NetID.',
+    directory_lookup_failed: 'Nie udało się odczytać katalogu LDAP. Sprawdź połączenie oraz konfigurację i uprawnienia konta wyszukiwania.',
     pallet_id_empty: "Kod palety (pallet_id) nie może być pusty.",
     pallet_exists: "Paleta o podanym ID już istnieje w bazie danych.",
     project_exists: "Projekt o takiej nazwie już istnieje w bazie danych.",
@@ -57,6 +64,13 @@ const pl = {
 export type TranslationKey = keyof typeof pl;
 
 const en: Record<TranslationKey, string> = {
+    auth_management_required: 'This operation is restricted to configured LDAP IT or ME departments.',
+    auth_status_forbidden: 'You do not have permission for this status change.',
+    auth_maintenance_required: 'Maintenance can only process damaged pallets or pallets requiring washing. Refresh the pallet list.',
+    directory_invalid_netid: 'Enter a NetID (1–64 characters: letters, digits, dots, hyphens or underscores).',
+    directory_not_configured: 'LDAP lookup requires LDAP_LOOKUP_BIND_USER and LDAP_LOOKUP_BIND_PASSWORD on the backend.',
+    directory_not_found: 'No user was found with this NetID.',
+    directory_lookup_failed: 'Could not read the LDAP directory. Check the connection and the lookup account configuration and permissions.',
     pallet_id_empty: "Pallet ID (pallet_id) cannot be empty.",
     pallet_exists: "A pallet with the specified ID already exists in the database.",
     project_exists: "A project with the same name already exists in the database.",

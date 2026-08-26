@@ -108,6 +108,42 @@ function attributeValue(entry: Entry, name: string): string {
     return value?.toString() ?? "";
 }
 
+export function isValidDirectoryNetId(netId: string): boolean {
+    return /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/.test(netId);
+}
+
+export async function lookupLdapUser(client: LdapClient, netId: string, searchBase: string, timeoutMs: number) {
+    if (!isValidDirectoryNetId(netId)) throw new InvalidLdapLoginError('invalid_format');
+    const {searchEntries} = await client.search(searchBase, {
+        scope: 'sub',
+        filter: `(&(objectCategory=person)(objectClass=user)(sAMAccountName=${escapeLdapFilterValue(netId)}))`,
+        attributes: ['sAMAccountName', 'displayName', 'cn', 'department', 'title', 'memberOf'],
+        sizeLimit: 2,
+        timeLimit: Math.max(1, Math.ceil(timeoutMs / 1000)),
+    });
+    if (!searchEntries.length) throw new LdapProfileNotFoundError();
+    if (searchEntries.length !== 1) throw new LdapProfileAmbiguousError();
+
+    const entry = searchEntries[0];
+    const groups: string[] = [];
+    let groupsComplete = true;
+    for (const [key, value] of Object.entries(entry)) {
+        if (!/^memberOf(?:;range=\d+-(?:\d+|\*))?$/i.test(key)) continue;
+        if (/;range=\d+-\d+$/i.test(key)) groupsComplete = false;
+        for (const group of Array.isArray(value) ? value : [value]) {
+            if (group) groups.push(group.toString());
+        }
+    }
+    return {
+        net_id: attributeValue(entry, 'sAMAccountName') || netId,
+        full_name: attributeValue(entry, 'displayName') || attributeValue(entry, 'cn') || netId,
+        department: attributeValue(entry, 'department'),
+        title: attributeValue(entry, 'title'),
+        groups: [...new Set(groups)].sort((a, b) => a.localeCompare(b)),
+        groups_complete: groupsComplete,
+    };
+}
+
 export async function authenticateLdapUser(
     client: LdapClient,
     identity: LdapIdentity,

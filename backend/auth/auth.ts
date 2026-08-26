@@ -2,7 +2,6 @@ import {api, APIError, Gateway, Header} from "encore.dev/api";
 import {authHandler} from "encore.dev/auth";
 import {SQLDatabase} from "encore.dev/storage/sqldb";
 import {getAuthData} from "~encore/auth";
-import {Client} from "ldapts";
 import {LoginResponse, UserData} from "../shared/types";
 import {t} from "../pallet/i18n";
 import {config} from "../config";
@@ -15,7 +14,8 @@ import {
 } from "./ldap";
 import type {LdapUserProfile} from "./ldap";
 import {createSessionToken, extractBearerToken, hashSessionToken} from "./session-token";
-import {hasITDepartmentAccess} from "./permissions";
+import {departmentAccess} from "./permissions";
+import {createLdapClient} from "./ldap-client";
 
 const db = SQLDatabase.named("pallets");
 
@@ -51,6 +51,8 @@ export interface AuthData {
     department: string;
     title: string;
     hasITDepartmentAccess: boolean;
+    hasURDepartmentAccess: boolean;
+    hasMEDepartmentAccess: boolean;
     sessionHash: string;
 }
 
@@ -101,12 +103,16 @@ export const authentication = authHandler<AuthParams, AuthData>(async (params) =
 
     if (!session) throw APIError.unauthenticated(t("auth_session_invalid", params.acceptLanguage));
 
+    const access = departmentAccess(session.department, config.ldap.itDepartments, config.ldap.urDepartments, config.ldap.meDepartments);
+
     return {
         userID: session.username,
         fullName: session.full_name,
         department: session.department,
         title: session.title,
-        hasITDepartmentAccess: hasITDepartmentAccess(session.department, config.ldap.itDepartments),
+        hasITDepartmentAccess: access.has_it_department_access,
+        hasURDepartmentAccess: access.has_ur_department_access,
+        hasMEDepartmentAccess: access.has_me_department_access,
         sessionHash,
     };
 });
@@ -134,16 +140,7 @@ export const Login = api(
             throw error;
         }
 
-        const client = new Client({
-            url: config.ldap.url,
-            tlsOptions: {
-                rejectUnauthorized: config.ldap.rejectUnauthorized,
-                ...(config.ldap.ca ? {ca: config.ldap.ca} : {}),
-                ...(config.ldap.allowLegacyServerCertificate ? {ciphers: "DEFAULT@SECLEVEL=1"} : {}),
-            },
-            timeout: config.ldap.timeoutMs,
-            connectTimeout: config.ldap.connectTimeoutMs,
-        });
+        const client = createLdapClient();
 
         let userData: LdapUserProfile;
         try {
@@ -176,14 +173,14 @@ export const Login = api(
             throw APIError.internal(t("auth_error", lang), cause);
         }
 
-        const hasDepartmentAccess = hasITDepartmentAccess(userData.department, config.ldap.itDepartments);
+        const access = departmentAccess(userData.department, config.ldap.itDepartments, config.ldap.urDepartments, config.ldap.meDepartments);
         const user: UserData = {
             FullName: userData.fullName,
             department: userData.department,
             title: userData.title,
             username: userData.username,
-            role: hasDepartmentAccess ? "staff" : "operator",
-            has_it_department_access: hasDepartmentAccess,
+            role: access.has_it_department_access || access.has_ur_department_access || access.has_me_department_access ? "staff" : "operator",
+            ...access,
             is_guest: false,
         };
 
@@ -209,6 +206,8 @@ export const OperatorSessionLogin = api(
             username: `operator:${identifier.toLocaleLowerCase("en-US")}`,
             role: "operator",
             has_it_department_access: false,
+            has_ur_department_access: false,
+            has_me_department_access: false,
             is_guest: true,
         };
 

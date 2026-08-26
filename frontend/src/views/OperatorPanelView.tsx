@@ -8,8 +8,7 @@ import { PalletStatusSpan } from "../components/PalletStatusSpan.tsx";
 import { GlobalErrorModal } from "../components/GlobalErrorModal.tsx";
 import { useEscapeKey } from "../hooks/useEscapeKey.ts";
 import { ModalFormActions } from "../components/ModalFormActions.tsx";
-import {AnimatePresence} from 'motion/react';
-import {ModalTransition} from '../components/ModalTransition.tsx';
+import {ModalPresence, ModalTransition} from '../components/ModalTransition.tsx';
 
 interface OperatorPanelViewProps {
     setPallets: React.Dispatch<React.SetStateAction<Pallet[]>>;
@@ -253,7 +252,7 @@ export const OperatorPanelView: React.FC<OperatorPanelViewProps> = (props) => {
             )}
 
             {/* MODAL: INNA USTERKA */}
-            <AnimatePresence>
+            <ModalPresence>
             {data.isOtherFaultOpen && (
                 <ModalTransition
                     onBackdropClick={() => actions.setIsOtherFaultOpen(false)}
@@ -296,7 +295,7 @@ export const OperatorPanelView: React.FC<OperatorPanelViewProps> = (props) => {
                     </div>
                 </ModalTransition>
             )}
-            </AnimatePresence>
+            </ModalPresence>
 
             {createPortal(<div
                 className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 transform ${data.isToastOpen ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0 pointer-events-none'

@@ -1,8 +1,7 @@
 import React from 'react';
 import { X, AlertCircle } from 'lucide-react';
 import { useTranslation } from '../i18n/LanguageContext.tsx';
-import {AnimatePresence} from 'motion/react';
-import {ModalTransition} from './ModalTransition.tsx';
+import {ModalPresence, ModalTransition} from './ModalTransition.tsx';
 
 interface GlobalErrorModalProps {
   isOpen: boolean;
@@ -15,7 +14,7 @@ export const GlobalErrorModal: React.FC<GlobalErrorModalProps> = ({ isOpen, titl
   const { t } = useTranslation();
 
   return (
-    <AnimatePresence>
+    <ModalPresence>
       {isOpen && (
       <ModalTransition onBackdropClick={onClose}>
       <div className="relative bg-brand-surface border border-red-500/30 w-full max-w-md rounded-xl overflow-hidden shadow-2xl">
@@ -43,6 +42,6 @@ export const GlobalErrorModal: React.FC<GlobalErrorModalProps> = ({ isOpen, titl
       </div>
       </ModalTransition>
       )}
-    </AnimatePresence>
+    </ModalPresence>
   );
 };

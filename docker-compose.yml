@@ -35,18 +35,22 @@ services:
       db-migrations:
         condition: service_completed_successfully
     volumes:
-      - ./backend/certs/cert.pem:/etc/ssl/certs/cert.pem:ro
+      - ./backend/certs/borgwarner-enterprise-root.pem:/etc/ssl/certs/borgwarner-enterprise-root.pem:ro
     environment:
       PALLETS_DB_PASSWORD: ${POSTGRES_PASSWORD}
       LDAP_URL: ${LDAP_URL}
       LDAP_LOGIN_DOMAIN: ${LDAP_LOGIN_DOMAIN}
       LDAP_SEARCH_BASE: ${LDAP_SEARCH_BASE}
       LDAP_IT_DEPARTMENTS: ${LDAP_IT_DEPARTMENTS}
+      LDAP_UR_DEPARTMENTS: ${LDAP_UR_DEPARTMENTS:-}
+      LDAP_ME_DEPARTMENTS: ${LDAP_ME_DEPARTMENTS:-}
+      LDAP_LOOKUP_BIND_USER: ${LDAP_LOOKUP_BIND_USER:-}
+      LDAP_LOOKUP_BIND_PASSWORD: ${LDAP_LOOKUP_BIND_PASSWORD:-}
       LDAP_TIMEOUT_MS: ${LDAP_TIMEOUT_MS}
       LDAP_CONNECT_TIMEOUT_MS: ${LDAP_CONNECT_TIMEOUT_MS}
       LDAP_TLS_REJECT_UNAUTHORIZED: ${LDAP_TLS_REJECT_UNAUTHORIZED}
       LDAP_TLS_ALLOW_LEGACY_SERVER_CERT: ${LDAP_TLS_ALLOW_LEGACY_SERVER_CERT:-false}
-      LDAP_CA_CERT_PATH: /etc/ssl/certs/cert.pem
+      LDAP_CA_CERT_PATH: /etc/ssl/certs/borgwarner-enterprise-root.pem
       AUTH_SESSION_TTL_MINUTES: ${AUTH_SESSION_TTL_MINUTES:-720}
       FIS1_ROUTER_URL: ${FIS1_ROUTER_URL}
       FIS2_ROUTER_URL: ${FIS2_ROUTER_URL}

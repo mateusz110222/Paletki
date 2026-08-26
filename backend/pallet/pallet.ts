@@ -13,7 +13,7 @@ import {
     FisClient,
     migrateFisUnit,
 } from "./fis-client";
-import {requireITDepartmentUser} from "../auth/authorization";
+import {requirePalletManagementUser} from "../auth/authorization";
 
 const {
     router1Url: FIS1_RouterPath,
@@ -117,7 +117,7 @@ export const GetPallet = api(
 export const GetAllPalletHistory = api(
     {method: "GET", path: "/pallets/audit-history", expose: true, auth: true},
     async (params: LocalizedRequest): Promise<AuditHistoryResponse> => {
-        requireITDepartmentUser();
+        requirePalletManagementUser();
         const history = await db.queryAll<AuditLog>`
             SELECT * FROM pallet_audit_logs ORDER BY timestamp DESC
         `;
@@ -134,7 +134,7 @@ export const AddPallet = api(
         const model = params.model?.trim();
         const fis = params.fis ?? 0;
         const status = params.status ?? "Active";
-        const operator = requireITDepartmentUser().fullName;
+        const operator = requirePalletManagementUser().fullName;
 
         if (!palletId) throw APIError.invalidArgument(t("pallet_id_empty", lang));
         if (!project) throw APIError.invalidArgument(t("project_required", lang));
@@ -199,7 +199,7 @@ export const UpdatePallet = api(
     async (params: UpdatePalletParams): Promise<UpdatePalletResponse> => {
         const lang = params.acceptLanguage;
         const palletId = normalizePalletId(params.pallet_id);
-        const operator = requireITDepartmentUser().fullName;
+        const operator = requirePalletManagementUser().fullName;
         if (!palletId) throw APIError.invalidArgument(t("pallet_id_empty", lang));
 
         let existingForCompensation: Pallet | null = null;
@@ -277,7 +277,7 @@ export const DeletePallet = api(
     {method: "DELETE", path: "/pallets/:pallet_id", expose: true, auth: true},
     async (params: DeletePalletParams): Promise<DeletePalletResponse> => {
         const lang = params.acceptLanguage;
-        requireITDepartmentUser();
+        requirePalletManagementUser();
         const palletId = normalizePalletId(params.pallet_id);
         if (!palletId) throw APIError.invalidArgument(t("pallet_id_empty", lang));
 
