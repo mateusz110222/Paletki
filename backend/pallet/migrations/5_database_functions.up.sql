@@ -50,6 +50,17 @@ BEGIN
             'DELETED',
             COALESCE(NEW.last_operation_description, 'i18n:{"key":"audit_deleted"}')
         );
+    ELSIF OLD.deleted_at IS NOT NULL AND NEW.deleted_at IS NULL THEN
+        INSERT INTO pallet_audit_logs (
+            pallet_id, timestamp, operator_id, previous_status, new_status, description
+        ) VALUES (
+            NEW.pallet_id,
+            NOW(),
+            COALESCE(NEW.created_by, NEW.updated_by, 'System'),
+            'DELETED',
+            NEW.status,
+            COALESCE(NEW.last_operation_description, 'i18n:{"key":"audit_registered"}')
+        );
     ELSIF TG_OP = 'UPDATE' AND (
         OLD.project IS DISTINCT FROM NEW.project OR
         OLD.model IS DISTINCT FROM NEW.model OR

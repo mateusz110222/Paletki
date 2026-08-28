@@ -1,4 +1,5 @@
 import React, {useCallback, useMemo, useState} from 'react';
+import {getErrorMessage} from '../lib/errors.ts';
 import {Pallet, PalletStatus} from '@backend/shared/types';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
 import {useAuth} from '../auth/AuthContext.tsx';
@@ -93,7 +94,7 @@ export function useMaintenancePanel({pallets}: UseMaintenancePanelProps) {
             setSelectedPallet(null);
         } catch (error: unknown) {
             console.error('Error returning pallet to production:', error);
-            setModalError(t('error_connecting_to_encore'));
+            setModalError(getErrorMessage(error, t('error_connecting_to_encore')));
         }
     };
 

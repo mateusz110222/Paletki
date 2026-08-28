@@ -4,6 +4,7 @@ import type {DirectoryUser} from '@backend/shared/types';
 import {useAuth} from '../auth/AuthContext';
 import {useTranslation} from '../i18n/LanguageContext';
 import {InputField} from '../components/FormFields';
+import {getErrorMessage} from '../lib/errors';
 
 export function DirectoryView() {
     const {apiClient} = useAuth();
@@ -33,8 +34,8 @@ export function DirectoryView() {
             });
             if (controller.signal.aborted) return;
             setResult(data as DirectoryUser);
-        } catch {
-            if (!controller.signal.aborted) setError(t('directory_error'));
+        } catch (err: unknown) {
+            if (!controller.signal.aborted) setError(getErrorMessage(err, t('directory_error')));
         } finally {
             if (!controller.signal.aborted) setLoading(false);
         }

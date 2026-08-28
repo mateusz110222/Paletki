@@ -23,6 +23,7 @@ import {PalletStatusSpan} from '../components/PalletStatusSpan.tsx';
 import {asPallet} from '../lib/api.ts';
 import {Pagination} from '../components/Pagination.tsx';
 import {formatHistoryEntries, formatOperatorsCount} from '../i18n/pluralization.ts';
+import {getErrorMessage} from '../lib/errors.ts';
 
 type SortOrder = 'newest' | 'oldest';
 type EventType = 'all' | 'status' | 'update';
@@ -81,7 +82,7 @@ export const PalletHistoryView: React.FC = () => {
             } catch (fetchError) {
                 if (fetchError instanceof DOMException && fetchError.name === 'AbortError') return;
                 console.error('Failed to fetch pallet history:', fetchError);
-                setError(t('history_load_error'));
+                setError(getErrorMessage(fetchError, t('history_load_error')));
             } finally {
                 if (!controller.signal.aborted) setIsLoading(false);
             }

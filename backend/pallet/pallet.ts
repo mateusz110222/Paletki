@@ -243,16 +243,47 @@ export const AddPallet = api(
 
         try {
             await using tx = await db.begin();
-            await tx.exec`
-                INSERT INTO pallets (
-                    pallet_id, project, model, max_cycles, nests, status, block_reason,
-                    fis, created_by, updated_by, last_operation_description
-                ) VALUES (
-                    ${palletId}, ${project}, ${model}, ${params.max_cycles}, ${params.nests}, ${status},
-                    ${params.block_reason?.trim() ?? null}, ${fis}, ${operator}, ${operator},
-                    ${encodeAuditDescription("audit_registered")}
-                )
+            const existing = await tx.queryRow<PalletRecord>`
+                SELECT * FROM pallets WHERE pallet_id = ${palletId} FOR UPDATE
             `;
+
+            if (existing) {
+                if (existing.deleted_at === null) {
+                    throw APIError.alreadyExists(t("pallet_exists", lang));
+                }
+
+                await tx.exec`
+                    UPDATE pallets
+                    SET project = ${project},
+                        model = ${model},
+                        max_cycles = ${params.max_cycles},
+                        current_cycles = 0,
+                        total_cycles = 0,
+                        nests = ${params.nests},
+                        status = ${status},
+                        block_reason = ${params.block_reason?.trim() ?? null},
+                        fis = ${fis},
+                        created_at = NOW(),
+                        created_by = ${operator},
+                        updated_at = NOW(),
+                        updated_by = ${operator},
+                        deleted_at = NULL,
+                        deleted_by = NULL,
+                        last_operation_description = ${encodeAuditDescription("audit_registered")}
+                    WHERE pallet_id = ${palletId}
+                `;
+            } else {
+                await tx.exec`
+                    INSERT INTO pallets (
+                        pallet_id, project, model, max_cycles, nests, status, block_reason,
+                        fis, created_by, updated_by, last_operation_description
+                    ) VALUES (
+                        ${palletId}, ${project}, ${model}, ${params.max_cycles}, ${params.nests}, ${status},
+                        ${params.block_reason?.trim() ?? null}, ${fis}, ${operator}, ${operator},
+                        ${encodeAuditDescription("audit_registered")}
+                    )
+                `;
+            }
 
             await enqueueFisSync(tx, fis, {pallet_id: palletId, project, model}, operator);
             await tx.commit();

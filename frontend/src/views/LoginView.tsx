@@ -15,6 +15,7 @@ import {
 import { useTranslation } from '../i18n/LanguageContext';
 import { useAuth } from '../auth/AuthContext';
 import {useDocumentMetadata} from '../hooks/useDocumentMetadata.ts';
+import {getErrorMessage} from '../lib/errors';
 
 export const LoginView: React.FC = () => {
     const {t, language} = useTranslation();
@@ -48,8 +49,7 @@ export const LoginView: React.FC = () => {
                 setErrorMessage(result.message);
             }
         } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : String(error);
-            setErrorMessage(message);
+            setErrorMessage(getErrorMessage(error, t('auth_error')));
         } finally {
             setLoading(false);
         }
@@ -67,6 +67,8 @@ export const LoginView: React.FC = () => {
         try {
             const result = await loginAsOperator(identifier);
             if (!result.status) setErrorMessage(result.message);
+        } catch (error: unknown) {
+            setErrorMessage(getErrorMessage(error, t('auth_error')));
         } finally {
             setLoading(false);
         }

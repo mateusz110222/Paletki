@@ -1,10 +1,10 @@
 import React, {useMemo, useState} from 'react';
+import {getErrorMessage} from '../lib/errors';
 import {Pallet, PalletStatus, Project} from '@backend/shared/types';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
 import {useGlobalErrorModal} from "./useGlobalErrorModal.ts";
 import {useAuth} from "../auth/AuthContext.tsx";
 import {useQueryClient} from '@tanstack/react-query';
-
 interface UseAdminPanelProps {
     pallets: Pallet[];
     projects: Project[];
@@ -110,7 +110,7 @@ export const useAdminPanel = ({
             await queryClient.invalidateQueries({queryKey: ['pallets']});
         } catch (error) {
             console.error("Failed to fetch pallets:", error);
-            showGlobalError(t('error_fetching_pallets_title'), t('error_connecting_to_encore'));
+            showGlobalError(t('error_fetching_pallets_title'), getErrorMessage(error, t('error_connecting_to_encore')));
         }
     };
 
@@ -171,7 +171,7 @@ export const useAdminPanel = ({
             setIsAddOpen(false);
         } catch (error) {
             console.error('Error adding pallet:', error);
-            setValidationError(t('error_connecting_to_encore'));
+            setValidationError(getErrorMessage(error, t('error_connecting_to_encore')));
         } finally {
             setIsSubmitting(false);
         }
@@ -198,7 +198,7 @@ export const useAdminPanel = ({
             setIsAddProjectOpen(false);
         } catch (error) {
             console.error('Error adding project:', error);
-            setValidationError(t('error_connecting_to_encore'));
+            setValidationError(getErrorMessage(error, t('error_connecting_to_encore')));
         } finally {
             setIsSubmitting(false);
         }
@@ -236,7 +236,7 @@ export const useAdminPanel = ({
             setBlockReason("");
         } catch (err) {
             console.error('Error blocking pallet:', err);
-            setBlockError(t('error_connecting_to_encore'));
+            setBlockError(getErrorMessage(err, t('error_connecting_to_encore')));
         } finally {
             setIsSubmitting(false);
         }
@@ -254,7 +254,7 @@ export const useAdminPanel = ({
             await fetchPallets();
         } catch (err) {
             console.error('Error unblocking pallet:', err);
-            showGlobalError(t('error_unblocking_pallet_title'), t('error_connecting_to_encore'));
+            showGlobalError(t('error_unblocking_pallet_title'), getErrorMessage(err, t('error_connecting_to_encore')));
         }
     };
 
@@ -270,7 +270,7 @@ export const useAdminPanel = ({
             setSelectedPalletForDelete(null);
         } catch (err) {
             console.error('Error deleting pallet:', err);
-            showGlobalError(t('error_deleting_pallet_title'), t('error_connecting_to_encore'));
+            showGlobalError(t('error_deleting_pallet_title'), getErrorMessage(err, t('error_connecting_to_encore')));
         } finally {
             setIsSubmitting(false);
         }
@@ -340,7 +340,7 @@ export const useAdminPanel = ({
             setSelectedPalletForEdit(null);
         } catch (err) {
             console.error('Error updating pallet:', err);
-            setEditError(t('error_connecting_to_encore'));
+            setEditError(getErrorMessage(err, t('error_connecting_to_encore')));
         } finally {
             setIsSubmitting(false);
         }
@@ -373,7 +373,7 @@ export const useAdminPanel = ({
             downloadAnchor.remove();
         } catch (error) {
             console.error('Error exporting audit trail:', error);
-            showGlobalError(t('error_fetching_audit_history_title'), t('error_connecting_to_encore'));
+            showGlobalError(t('error_fetching_audit_history_title'), getErrorMessage(error, t('error_connecting_to_encore')));
         }
     };
 

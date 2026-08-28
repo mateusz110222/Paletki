@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "tsc -p tsconfig.json --noEmit && vite build",
-    "test": "tsx --test tests/*.test.tsx",
+    "test": "tsx --test tests/*.test.*",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",

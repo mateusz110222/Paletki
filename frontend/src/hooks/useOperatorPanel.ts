@@ -7,6 +7,7 @@ import {useAuth} from "../auth/AuthContext.tsx";
 import {asPallet} from "../lib/api.ts";
 import {useQueryClient} from '@tanstack/react-query';
 import {playScanErrorSound, playScanSuccessSound} from '../lib/audio.ts';
+import {getErrorMessage} from '../lib/errors.ts';
 
 export const useOperatorPanel = () => {
     const {t, language} = useTranslation();
@@ -104,7 +105,7 @@ export const useOperatorPanel = () => {
             playScanErrorSound();
             setScanStatus('ERROR');
             setActivePallet(null);
-            triggerToast(t('error_connecting_to_encore'));
+            triggerToast(getErrorMessage(error, t('error_connecting_to_encore')));
 
             setTimeout(() => setScanStatus('IDLE'), 1500);
         } finally {
@@ -153,7 +154,7 @@ export const useOperatorPanel = () => {
             setScannedId('');
         } catch (error: unknown) {
             console.error('Błąd zgłaszania usterki:', error);
-            triggerToast(t('error_connecting_to_encore'));
+            triggerToast(getErrorMessage(error, t('error_connecting_to_encore')));
         } finally {
             setIsSubmitting(false);
         }

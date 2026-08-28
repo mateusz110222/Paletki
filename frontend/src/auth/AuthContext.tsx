@@ -1,9 +1,10 @@
-import React, {createContext, ReactNode, use, useCallback, useEffect, useMemo, useState} from "react";
-import {LoginResponse, UserData} from "@backend/shared/types";
-import {useTranslation} from "../i18n/LanguageContext.tsx";
-import {getViewAccess} from './view-access';
-import {asLoginResponse, authenticatedApi, publicApi} from '../lib/api.ts';
+import React, { createContext, ReactNode, use, useCallback, useEffect, useMemo, useState } from "react";
+import { LoginResponse, UserData } from "@backend/shared/types";
+import { useTranslation } from "../i18n/LanguageContext.tsx";
+import { getViewAccess } from './view-access';
+import { asLoginResponse, authenticatedApi, publicApi } from '../lib/api.ts';
 import type Client from '../lib/client.ts';
+import { getErrorMessage } from '../lib/errors.ts';
 
 interface StoredSession {
     user: UserData;
@@ -11,7 +12,7 @@ interface StoredSession {
     expiresAt: string;
 }
 
-export type LoginResult = LoginResponse | {status: false; message: string};
+export type LoginResult = LoginResponse | { status: false; message: string };
 
 interface AuthContextType {
     user: UserData | null;
@@ -78,11 +79,11 @@ function sessionFromResponse(response: LoginResult): StoredSession | null {
     if (!response.status) return null;
     const expiresAt = Date.parse(response.expires_at);
     if (!response.token || !Number.isFinite(expiresAt)) return null;
-    return {user: response.data, token: response.token, expiresAt: response.expires_at};
+    return { user: response.data, token: response.token, expiresAt: response.expires_at };
 }
 
-export const AuthProvider: React.FC<{children: ReactNode}> = ({children}) => {
-    const {language, t} = useTranslation();
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    const { language, t } = useTranslation();
     const [session, setSession] = useState<StoredSession | null>(() => {
         const storedSession = parseStoredSession(localStorage.getItem(AUTH_STORAGE_KEY));
         if (!storedSession) localStorage.removeItem(AUTH_STORAGE_KEY);
@@ -97,9 +98,6 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({children}) => {
 
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
         const remainingMs = Date.parse(session.expiresAt) - Date.now();
-        // The backend is authoritative for session expiry. If the browser clock
-        // is ahead of the server clock, wait for a protected request to return
-        // 401 instead of immediately discarding a newly issued valid session.
         if (remainingMs <= 0) return;
         const expirationTimer = window.setTimeout(() => setSession(null), Math.max(0, remainingMs));
         return () => window.clearTimeout(expirationTimer);
@@ -107,7 +105,7 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({children}) => {
 
     const applyLoginResponse = useCallback((response: LoginResult): LoginResult => {
         const nextSession = sessionFromResponse(response);
-        if (!nextSession) return {status: false, message: response.message};
+        if (!nextSession) return { status: false, message: response.message };
         setSession(nextSession);
         return response;
     }, []);
@@ -121,7 +119,7 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({children}) => {
             }));
             return applyLoginResponse(responseData);
         } catch (error) {
-            return {status: false, message: error instanceof Error ? error.message : t("auth_error")};
+            return { status: false, message: getErrorMessage(error, t("auth_error")) };
         }
     };
 
@@ -133,7 +131,7 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({children}) => {
             }));
             return applyLoginResponse(responseData);
         } catch (error) {
-            return {status: false, message: error instanceof Error ? error.message : t("auth_error")};
+            return { status: false, message: getErrorMessage(error, t("auth_error")) };
         }
     };
 
@@ -143,7 +141,7 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({children}) => {
         if (!token) return;
 
         try {
-            await authenticatedApi(token, language).auth.Logout({acceptLanguage: language});
+            await authenticatedApi(token, language).auth.Logout({ acceptLanguage: language });
         } catch {
             // Local logout still succeeds if the backend is temporarily unavailable.
         }
