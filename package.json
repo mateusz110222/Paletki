@@ -10,6 +10,9 @@
     "build": "pnpm --filter @paletki/frontend run build",
     "build:docker": "pnpm --filter @paletki/backend run build:docker",
     "lint": "pnpm --recursive run lint",
-    "test": "pnpm --filter @paletki/backend run test"
+    "typecheck": "pnpm --recursive run typecheck",
+    "test": "pnpm --recursive run test",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "gen:client": "pnpm --filter @paletki/backend run gen:client"
   }
 }

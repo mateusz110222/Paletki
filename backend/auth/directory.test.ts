@@ -1,5 +1,6 @@
-import {beforeEach, describe, expect, it, vi} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {APIError} from 'encore.dev/api';
+import {InvalidCredentialsError} from 'ldapts';
 
 vi.mock('encore.dev/api', () => {
     class TestAPIError extends Error {
@@ -24,15 +25,21 @@ const mocks = vi.hoisted(() => ({
 vi.mock('./authorization', () => ({requireITDepartmentUser: mocks.requireIT}));
 vi.mock('./ldap-client', () => ({createLdapClient: mocks.createClient}));
 vi.mock('../config', () => ({config: {ldap: mocks.ldap}}));
+vi.mock('./secrets', () => ({ldapLookupBindPassword: () => mocks.ldap.lookupBindPassword}));
 import {LookupDirectoryUser} from './directory';
 
 beforeEach(() => {
     vi.resetAllMocks();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
     mocks.ldap.lookupBindPassword = 'test-only';
     mocks.createClient.mockReturnValue({bind: mocks.bind, search: mocks.search, unbind: mocks.unbind});
     mocks.bind.mockResolvedValue(undefined);
     mocks.unbind.mockResolvedValue(undefined);
     mocks.search.mockResolvedValue({searchEntries: [{dn: 'CN=Test', sAMAccountName: 'test', department: 'UR'}]});
+});
+
+afterEach(() => {
+    vi.restoreAllMocks();
 });
 
 describe('IT-only directory endpoint', () => {
@@ -65,6 +72,7 @@ describe('IT-only directory endpoint', () => {
         expect(JSON.stringify(result)).not.toContain('test-only');
         expect(mocks.bind).toHaveBeenCalledWith('reader@example.test', 'test-only');
         expect(mocks.unbind).toHaveBeenCalledOnce();
+        expect(console.error).not.toHaveBeenCalled();
     });
 
     it('returns a localized not-found error and closes the client', async () => {
@@ -77,6 +85,21 @@ describe('IT-only directory endpoint', () => {
         mocks.bind.mockRejectedValue(new Error('sensitive directory details'));
         await expect(LookupDirectoryUser({net_id: 'test', acceptLanguage: 'en'})).rejects.toMatchObject({code: 'unavailable', message: expect.not.stringContaining('sensitive')});
         expect(mocks.search).not.toHaveBeenCalled();
+        expect(mocks.unbind).toHaveBeenCalledOnce();
+        expect(vi.mocked(console.error).mock.calls).toEqual([['LDAP directory lookup failed', {stage: 'bind', kind: 'unknown'}]]);
+    });
+
+    it('logs a safe category for invalid configured credentials', async () => {
+        mocks.bind.mockRejectedValue(new InvalidCredentialsError('sensitive directory details'));
+        await expect(LookupDirectoryUser({net_id: 'test'})).rejects.toMatchObject({code: 'unavailable'});
+        expect(vi.mocked(console.error).mock.calls).toEqual([['LDAP directory lookup failed', {stage: 'bind', kind: 'invalid_credentials'}]]);
+        expect(mocks.search).not.toHaveBeenCalled();
+    });
+
+    it('distinguishes a search timeout from a bind failure without logging raw details', async () => {
+        mocks.search.mockRejectedValue(Object.assign(new Error('sensitive directory details'), {code: 'ETIMEDOUT'}));
+        await expect(LookupDirectoryUser({net_id: 'test'})).rejects.toMatchObject({code: 'unavailable'});
+        expect(vi.mocked(console.error).mock.calls).toEqual([['LDAP directory lookup failed', {stage: 'search', kind: 'timeout'}]]);
         expect(mocks.unbind).toHaveBeenCalledOnce();
     });
 });

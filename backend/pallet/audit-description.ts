@@ -1,5 +1,7 @@
 import {AuditLog} from "../shared/types";
-import {SupportedLanguage, t, TranslationKey} from "./i18n";
+import type {AuditLogRecord} from "./models";
+import {toAuditLogDTO} from "./models";
+import {SupportedLanguage, t, TranslationKey} from "../shared/i18n";
 
 const PREFIX = "i18n:";
 
@@ -46,7 +48,7 @@ export function localizeAuditDescription(description: string, lang?: SupportedLa
     }
 }
 
-export function localizeAuditLog(log: AuditLog, lang?: SupportedLanguage | string | null): AuditLog {
+export function localizeAuditLog(log: AuditLogRecord, lang?: SupportedLanguage | string | null): AuditLog {
     const operatorId = log.operator_id === "System_AutoBlock"
         ? t("system_auto_block_operator", lang)
         : log.operator_id === "System"
@@ -54,7 +56,7 @@ export function localizeAuditLog(log: AuditLog, lang?: SupportedLanguage | strin
             : log.operator_id;
 
     return {
-        ...log,
+        ...toAuditLogDTO(log),
         operator_id: operatorId,
         description: localizeAuditDescription(log.description, lang),
     };

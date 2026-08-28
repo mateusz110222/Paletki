@@ -33,6 +33,8 @@ export const dictionaries = {
         nav_operator: 'Skaner (Operator)',
         nav_maintenance: 'Utrzymanie Ruchu (UR)',
         nav_live: 'Monitor Live (Dashboard)',
+        nav_open: 'Otwórz nawigację',
+        nav_close: 'Zamknij nawigację',
         app_name: 'PALLETX',
         app_product_name: 'PALLETX',
         app_meta_description: 'System ewidencji, obiegu i historii paletek lutowniczych.',
@@ -238,8 +240,7 @@ export const dictionaries = {
 
         // Auth & User
         login_title: 'System Obiegu Palet Lutowniczych',
-        login_subtitle: 'Uwierzytelnianie Active Directory (BorgWarner LDAP)',
-        login_username_label: 'Identyfikator AD / Email / sAMAccountName',
+        login_username_label: 'netID / Email',
         login_username_placeholder: 'np. jkowalski lub domain\\jkowalski',
         login_password_label: 'Hasło Active Directory',
         login_password_placeholder: '••••••••••••',
@@ -304,6 +305,8 @@ export const dictionaries = {
         nav_operator: 'Scanner (Operator)',
         nav_maintenance: 'Maintenance (UR)',
         nav_live: 'Live Monitor (Dashboard)',
+        nav_open: 'Open navigation',
+        nav_close: 'Close navigation',
         app_name: 'PALLETX',
         app_product_name: 'PALLETX',
         app_meta_description: 'Soldering pallet inventory, circulation, and history system.',

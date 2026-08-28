@@ -5,7 +5,7 @@ export type PalletStatus =
     | 'Damaged'
     | 'Blocked';
 
-export const PALLET_STATUSES: PalletStatus[] = [
+export const PALLET_STATUSES: readonly PalletStatus[] = [
     'Active',
     'Washing_Required',
     'Damaged',
@@ -15,10 +15,10 @@ export const PALLET_STATUSES: PalletStatus[] = [
 export interface AuditLog {
     id: number;
     pallet_id: string;
-    timestamp: Date | string;
+    timestamp: string;
     operator_id: string;
-    previous_status: PalletStatus | 'NEW' | string;
-    new_status: PalletStatus | string;
+    previous_status: PalletStatus | 'NEW';
+    new_status: PalletStatus | 'DELETED';
     description: string;
 }
 
@@ -31,13 +31,12 @@ export interface Pallet {
     current_cycles: number;
     total_cycles: number;
     nests: number;
-    status: PalletStatus | null;
+    status: PalletStatus;
     block_reason?: string | null;
-    fis?: number | null;
-    created_at: Date | string;
+    fis: 1 | 2;
+    created_at: string;
     created_by: string;
-    updated_at: Date | string;
-    history?: AuditLog[];
+    updated_at: string;
 }
 
 export interface Project {
@@ -59,11 +58,11 @@ export interface UserData {
 }
 
 export interface LoginResponse {
-    status: boolean;
+    status: true;
     message: string;
-    data?: UserData;
-    token?: string;
-    expires_at?: string;
+    data: UserData;
+    token: string;
+    expires_at: string;
 }
 
 export interface DirectoryUser {

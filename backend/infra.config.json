@@ -4,6 +4,11 @@
     "app_id": "paletki",
     "env_type": "production"
   },
+  "secrets": {
+    "LDAPLookupBindPassword": {
+      "$env": "LDAP_LOOKUP_BIND_PASSWORD"
+    }
+  },
   "sql_servers": [
     {
       "host": "postgres-db:5432",

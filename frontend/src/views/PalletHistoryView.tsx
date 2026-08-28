@@ -15,16 +15,16 @@ import {
 } from 'lucide-react';
 import {useNavigate, useParams} from 'react-router-dom';
 import {AuditLog, Pallet, PALLET_STATUSES, PalletStatus} from '@backend/shared/types';
-import {API_BASE_URL} from '@backend/shared/API_BASE_URL.ts';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
 import {useAuth} from '../auth/AuthContext.tsx';
 import {getFisUnitHistoryUrl} from '../config/fis.ts';
 import {PalletStatusSpan} from '../components/PalletStatusSpan.tsx';
+import {asPallet} from '../lib/api.ts';
 
 type SortOrder = 'newest' | 'oldest';
 type EventType = 'all' | 'status' | 'update';
 
-function timestampValue(timestamp: Date | string): number {
+function timestampValue(timestamp: string): number {
     const value = new Date(timestamp).getTime();
     return Number.isNaN(value) ? 0 : value;
 }
@@ -33,8 +33,9 @@ export const PalletHistoryView: React.FC = () => {
     const {palletId = ''} = useParams();
     const navigate = useNavigate();
     const {t, language} = useTranslation();
-    const {authenticatedFetch} = useAuth();
+    const {apiClient} = useAuth();
     const [pallet, setPallet] = useState<Pallet | null>(null);
+    const [history, setHistory] = useState<AuditLog[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
     const [query, setQuery] = useState('');
@@ -51,20 +52,28 @@ export const PalletHistoryView: React.FC = () => {
         const fetchPalletHistory = async () => {
             setIsLoading(true);
             setError('');
+            setHistory([]);
             try {
-                const response = await authenticatedFetch(
-                    `${API_BASE_URL}/pallets/${encodeURIComponent(palletId)}`,
-                    {
-                        headers: {'Accept-Language': language},
-                        signal: controller.signal,
-                    },
-                );
-                const responseData = await response.json();
-                if (!response.ok) {
-                    setError(responseData.message || t('history_load_error'));
-                    return;
+                const requestApi = apiClient.with({
+                    fetcher: (input, init) => fetch(input, {...init, signal: controller.signal}),
+                });
+                const palletResponse = await requestApi.pallet.GetPallet(palletId, {acceptLanguage: language});
+                const palletData = asPallet(palletResponse.pallet);
+                const fullHistory: AuditLog[] = [];
+                let beforeId: number | undefined;
+                do {
+                    const pageData = await requestApi.pallet.GetPalletHistory(palletId, {
+                        history_limit: 200,
+                        history_before_id: beforeId,
+                        acceptLanguage: language,
+                    });
+                    fullHistory.push(...(pageData.history as AuditLog[]));
+                    beforeId = pageData.next_cursor;
+                } while (beforeId !== undefined);
+                if (!controller.signal.aborted) {
+                    setPallet(palletData);
+                    setHistory(fullHistory);
                 }
-                setPallet(responseData as Pallet);
             } catch (fetchError) {
                 if (fetchError instanceof DOMException && fetchError.name === 'AbortError') return;
                 console.error('Failed to fetch pallet history:', fetchError);
@@ -76,9 +85,8 @@ export const PalletHistoryView: React.FC = () => {
 
         void fetchPalletHistory();
         return () => controller.abort();
-    }, [authenticatedFetch, language, palletId, t]);
+    }, [apiClient, language, palletId, t]);
 
-    const history = useMemo(() => pallet?.history ?? [], [pallet?.history]);
     const localizedStatusLabels = useMemo<Record<string, string>>(() => ({
         Active: t('status_active'),
         Damaged: t('status_damaged'),

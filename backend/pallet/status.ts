@@ -1,24 +1,39 @@
 import {api, APIError, Header} from "encore.dev/api";
 import {db} from "./db";
-import {PALLET_STATUSES, PalletStatus} from "../shared/types";
-import {t} from "./i18n";
+import {PalletStatus} from "../shared/types";
+import {t} from "../shared/i18n";
 import {encodeAuditDescription} from "./audit-description";
-import {requireAuthenticatedUser, requirePalletManagementUser} from "../auth/authorization";
-import {canChangePalletStatus} from "../auth/permissions";
+import {requireAuthenticatedUser, requirePalletManagementUser} from "../shared/authorization";
+import {canChangePalletStatus} from "../shared/permissions";
+import {
+    type AuditReason,
+    type PalletID,
+    normalizePalletId,
+    normalizePalletStatus,
+} from "../shared/validation";
 
 interface LocalizedAuthorizedRequest {
     acceptLanguage?: Header<"Accept-Language">;
 }
 
-interface UpdateStatusParams extends LocalizedAuthorizedRequest {
-    pallet_id: string;
-    block_reason?: string | null;
-    new_status?: string | null;
+interface ChangeStatusParams extends LocalizedAuthorizedRequest {
+    pallet_id: PalletID;
+    block_reason: AuditReason;
+    new_status: PalletStatus;
     reset_cycles?: boolean | null;
 }
 
+interface BlockPalletParams extends LocalizedAuthorizedRequest {
+    pallet_id: PalletID;
+    block_reason: AuditReason;
+}
+
+interface PalletActionParams extends LocalizedAuthorizedRequest {
+    pallet_id: PalletID;
+}
+
 interface ResetCyclesParams extends LocalizedAuthorizedRequest {
-    pallet_id: string;
+    pallet_id: PalletID;
     block_reason?: string | null;
 }
 
@@ -27,10 +42,6 @@ interface ResetCyclesResponse {
     pallet_id: string;
     new_status: PalletStatus;
     current_cycles: number;
-}
-
-function isPalletStatus(status: string): status is PalletStatus {
-    return PALLET_STATUSES.includes(status as PalletStatus);
 }
 
 async function changePalletStatus(
@@ -45,7 +56,11 @@ async function changePalletStatus(
 ): Promise<void> {
     try {
         await using tx = await db.begin();
-        const row = await tx.queryRow<{id: number; status: PalletStatus}>`SELECT id, status FROM pallets WHERE pallet_id = ${palletId} FOR UPDATE`;
+        const row = await tx.queryRow<{id: number; status: PalletStatus}>`
+            SELECT id, status FROM pallets
+            WHERE pallet_id = ${palletId} AND deleted_at IS NULL
+            FOR UPDATE
+        `;
         if (!row) throw APIError.notFound(t("pallet_not_found", lang));
         if (maintenanceOnly && row.status !== 'Damaged' && row.status !== 'Washing_Required') {
             throw APIError.permissionDenied(t('auth_maintenance_required', lang));
@@ -56,7 +71,7 @@ async function changePalletStatus(
             SET status = ${newStatus}, block_reason = ${blockReason}, updated_by = ${operator},
                 updated_at = NOW(), current_cycles = CASE WHEN ${resetCycles} THEN 0 ELSE current_cycles END,
                 last_operation_description = ${description}
-            WHERE pallet_id = ${palletId}
+            WHERE pallet_id = ${palletId} AND deleted_at IS NULL
         `;
         await tx.commit();
     } catch (error) {
@@ -67,15 +82,14 @@ async function changePalletStatus(
 
 export const ChangePalletStatus = api(
     {method: "POST", path: "/pallets/change-status", expose: true, auth: true},
-    async (params: UpdateStatusParams): Promise<void> => {
-        const palletId = params.pallet_id?.trim();
-        const requestedStatus = params.new_status?.trim();
+    async (params: ChangeStatusParams): Promise<void> => {
+        const palletId = normalizePalletId(params.pallet_id);
+        const requestedStatus = normalizePalletStatus(params.new_status);
         const auth = requireAuthenticatedUser();
 
         if (!palletId) throw APIError.invalidArgument(t("pallet_id_empty", params.acceptLanguage));
-        if (!requestedStatus) throw APIError.invalidArgument(t("new_status_required", params.acceptLanguage));
-        if (!isPalletStatus(requestedStatus)) {
-            throw APIError.invalidArgument(t("status_invalid", params.acceptLanguage, {status: requestedStatus}));
+        if (!requestedStatus) {
+            throw APIError.invalidArgument(t("status_invalid", params.acceptLanguage, {status: params.new_status}));
         }
         if (!params.block_reason?.trim()) {
             throw APIError.invalidArgument(t("block_reason_required", params.acceptLanguage));
@@ -98,8 +112,8 @@ export const ChangePalletStatus = api(
 
 export const BlockPallet = api(
     {method: "POST", path: "/pallets/block", expose: true, auth: true},
-    async (params: UpdateStatusParams): Promise<void> => {
-        const palletId = params.pallet_id?.trim();
+    async (params: BlockPalletParams): Promise<void> => {
+        const palletId = normalizePalletId(params.pallet_id);
         const operator = requirePalletManagementUser().fullName;
         const reason = params.block_reason?.trim();
         if (!palletId) throw APIError.invalidArgument(t("pallet_id_empty", params.acceptLanguage));
@@ -119,8 +133,8 @@ export const BlockPallet = api(
 
 export const UnblockPallet = api(
     {method: "POST", path: "/pallets/unblock", expose: true, auth: true},
-    async (params: UpdateStatusParams): Promise<void> => {
-        const palletId = params.pallet_id?.trim();
+    async (params: PalletActionParams): Promise<void> => {
+        const palletId = normalizePalletId(params.pallet_id);
         const operator = requirePalletManagementUser().fullName;
         if (!palletId) throw APIError.invalidArgument(t("pallet_id_empty", params.acceptLanguage));
 
@@ -139,7 +153,7 @@ export const UnblockPallet = api(
 export const ResetPalletCycles = api(
     {method: "POST", path: "/pallets/reset-cycles", expose: true, auth: true},
     async (params: ResetCyclesParams): Promise<ResetCyclesResponse> => {
-        const palletId = params.pallet_id?.trim();
+        const palletId = normalizePalletId(params.pallet_id);
         const operator = requirePalletManagementUser().fullName;
         if (!palletId) throw APIError.invalidArgument(t("pallet_id_empty", params.acceptLanguage));
 

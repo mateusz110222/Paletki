@@ -1,15 +1,18 @@
-import React from 'react';
+import React, {useState} from 'react';
 import {Outlet, useLocation} from 'react-router-dom';
 import {useAuth} from '../auth/AuthContext.tsx';
 import {LanguageSwitcher, useTranslation} from '../i18n/LanguageContext.tsx';
 import {Sidebar} from './Sidebar.tsx';
-import {UserCheck} from 'lucide-react';
+import {Menu, UserCheck} from 'lucide-react';
 import {useDocumentMetadata} from '../hooks/useDocumentMetadata.ts';
+import {useEscapeKey} from '../hooks/useEscapeKey.ts';
 
 export const MainLayout: React.FC = () => {
     const {user, isGuest, hasITDepartmentAccess, canManagePallets, isMaintenanceOnly, canAccessMaintenance, logout} = useAuth();
     const {t, language} = useTranslation();
     const location = useLocation();
+    const [mobileNavOpen, setMobileNavOpen] = useState(false);
+    useEscapeKey(mobileNavOpen, () => setMobileNavOpen(false));
 
     const getPageTitle = (pathname: string) => {
         if (pathname.startsWith('/admin/pallets/') && pathname.endsWith('/history')) {
@@ -42,15 +45,28 @@ export const MainLayout: React.FC = () => {
         <div
             className="flex flex-col md:flex-row min-h-screen bg-brand-bg text-brand-text font-sans selection:bg-brand-accent selection:text-brand-bg">
             <Sidebar hasITDepartmentAccess={hasITDepartmentAccess} canManagePallets={canManagePallets} isMaintenanceOnly={isMaintenanceOnly}
-                     canAccessMaintenance={canAccessMaintenance} onLogout={logout}/>
+                     canAccessMaintenance={canAccessMaintenance} onLogout={logout}
+                     mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)}/>
 
             <main className="flex-1 p-6 md:p-8 space-y-6 overflow-y-auto max-w-[1600px] mx-auto w-full">
                 {/* Top Header */}
                 <div
                     className="flex flex-col md:flex-row justify-between md:items-center gap-4 pb-4 border-b border-brand-border/50">
-                    <div>
-                        <h2 className="text-2xl font-extrabold text-brand-text">{title}</h2>
-                        <p className="text-xs text-brand-text-muted mt-1 font-medium">{sub}</p>
+                    <div className="flex items-start gap-3">
+                        <button
+                            type="button"
+                            onClick={() => setMobileNavOpen(true)}
+                            className="md:hidden mt-0.5 flex size-11 shrink-0 items-center justify-center rounded-xl border border-brand-border bg-brand-surface text-brand-accent transition-colors hover:bg-brand-surface-high"
+                            aria-label={t('nav_open')}
+                            aria-controls="mobile-navigation"
+                            aria-expanded={mobileNavOpen}
+                        >
+                            <Menu size={22}/>
+                        </button>
+                        <div>
+                            <h2 className="text-2xl font-extrabold text-brand-text">{title}</h2>
+                            <p className="text-xs text-brand-text-muted mt-1 font-medium">{sub}</p>
+                        </div>
                     </div>
 
                     <div className="flex items-center gap-4 shrink-0">

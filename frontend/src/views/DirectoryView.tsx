@@ -1,13 +1,12 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {AlertCircle, Building2, Loader2, Search, ShieldCheck, UserRound, UsersRound} from 'lucide-react';
 import type {DirectoryUser} from '@backend/shared/types';
-import {API_BASE_URL} from '@backend/shared/API_BASE_URL';
 import {useAuth} from '../auth/AuthContext';
 import {useTranslation} from '../i18n/LanguageContext';
 import {InputField} from '../components/FormFields';
 
 export function DirectoryView() {
-    const {authenticatedFetch} = useAuth();
+    const {apiClient} = useAuth();
     const {t, language} = useTranslation();
     const [netId, setNetId] = useState('');
     const [result, setResult] = useState<DirectoryUser | null>(null);
@@ -25,18 +24,14 @@ export function DirectoryView() {
         setResult(null);
         setError('');
         try {
-            const response = await authenticatedFetch(`${API_BASE_URL}/auth/directory/lookup`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json', 'Accept-Language': language},
-                body: JSON.stringify({net_id: netId.trim()}),
-                signal: controller.signal,
+            const requestApi = apiClient.with({
+                fetcher: (input, init) => fetch(input, {...init, signal: controller.signal}),
             });
-            const data = await response.json();
+            const data = await requestApi.auth.LookupDirectoryUser({
+                net_id: netId.trim(),
+                acceptLanguage: language,
+            });
             if (controller.signal.aborted) return;
-            if (!response.ok) {
-                setError(typeof data.message === 'string' ? data.message : t('directory_error'));
-                return;
-            }
             setResult(data as DirectoryUser);
         } catch {
             if (!controller.signal.aborted) setError(t('directory_error'));

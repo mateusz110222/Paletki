@@ -1,9 +1,8 @@
 import {api, APIError, Gateway, Header} from "encore.dev/api";
 import {authHandler} from "encore.dev/auth";
-import {SQLDatabase} from "encore.dev/storage/sqldb";
 import {getAuthData} from "~encore/auth";
 import {LoginResponse, UserData} from "../shared/types";
-import {t} from "../pallet/i18n";
+import {t} from "../shared/i18n";
 import {config} from "../config";
 import {
     authenticateLdapUser,
@@ -16,8 +15,8 @@ import type {LdapUserProfile} from "./ldap";
 import {createSessionToken, extractBearerToken, hashSessionToken} from "./session-token";
 import {departmentAccess} from "./permissions";
 import {createLdapClient} from "./ldap-client";
-
-const db = SQLDatabase.named("pallets");
+import type {AuthData} from "../shared/auth-data";
+import {palletsDatabase as db} from "../shared/persistence";
 
 interface LoginRequest {
     login: string;
@@ -43,17 +42,6 @@ interface SessionRow {
     department: string;
     title: string;
     expires_at: Date;
-}
-
-export interface AuthData {
-    userID: string;
-    fullName: string;
-    department: string;
-    title: string;
-    hasITDepartmentAccess: boolean;
-    hasURDepartmentAccess: boolean;
-    hasMEDepartmentAccess: boolean;
-    sessionHash: string;
 }
 
 interface CreatedSession {

@@ -1,9 +1,9 @@
-import React, {useState} from 'react';
+import React, {useMemo, useState} from 'react';
 import {Pallet, PalletStatus, Project} from '@backend/shared/types';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
 import {useGlobalErrorModal} from "./useGlobalErrorModal.ts";
-import {API_BASE_URL} from "@backend/shared/API_BASE_URL.ts";
 import {useAuth} from "../auth/AuthContext.tsx";
+import {useQueryClient} from '@tanstack/react-query';
 
 interface UseAdminPanelProps {
     pallets: Pallet[];
@@ -15,11 +15,10 @@ interface UseAdminPanelProps {
 export const useAdminPanel = ({
                                   pallets,
                                   projects,
-                                  setPallets,
-                                  setProjects,
                               }: UseAdminPanelProps) => {
     const {t, language} = useTranslation();
-    const {authenticatedFetch} = useAuth();
+    const {apiClient} = useAuth();
+    const queryClient = useQueryClient();
     const {errorModalState, showGlobalError, hideGlobalError} = useGlobalErrorModal();
 
     const [searchTerm, setSearchTerm] = useState('');
@@ -62,7 +61,7 @@ export const useAdminPanel = ({
 
     const [pageSize, setPageSize] = useState(50);
 
-    const filteredPallets = (pallets || []).filter((p) => {
+    const filteredPallets = useMemo(() => (pallets || []).filter((p) => {
         const palletId = p.pallet_id || '';
         const project = p.project || '';
         const createdBy = p.created_by || '';
@@ -75,27 +74,24 @@ export const useAdminPanel = ({
         const matchesStatus = selectedStatus === 'ALL' || p.status === selectedStatus;
 
         return matchesSearch && matchesProject && matchesModel && matchesStatus;
-    });
+    }), [pallets, searchTerm, selectedModel, selectedProject, selectedStatus]);
 
     const paginatedPallets = filteredPallets.slice(0, pageSize);
 
-    const totalPallets = pallets.length;
-    const availableStock = pallets.filter((p) => p.status === 'Active').length;
-    const blockedOrMaint = pallets.filter((p) => ['Blocked', 'Washing_Required', 'Damaged'].includes(p.status as PalletStatus)).length;
+    const {totalPallets, availableStock, blockedOrMaint} = useMemo(() => pallets.reduce(
+        (totals, pallet) => {
+            totals.totalPallets += 1;
+            if (pallet.status === 'Active') totals.availableStock += 1;
+            else totals.blockedOrMaint += 1;
+            return totals;
+        },
+        {totalPallets: 0, availableStock: 0, blockedOrMaint: 0},
+    ), [pallets]);
     const avaliblePalletes_Percenetege = Math.min(100, Math.round((availableStock / totalPallets) * 100)) || 0;
 
     const fetchPallets = async () => {
         try {
-            const res = await fetch(`${API_BASE_URL}/pallets`, {
-                headers: {"Accept-Language": language},
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setPallets(data.pallets || []);
-            } else {
-                const errData = await res.json();
-                showGlobalError(t('error_fetching_pallets_title'), errData.message);
-            }
+            await queryClient.invalidateQueries({queryKey: ['pallets']});
         } catch (error) {
             console.error("Failed to fetch pallets:", error);
             showGlobalError(t('error_fetching_pallets_title'), t('error_connecting_to_encore'));
@@ -138,27 +134,21 @@ export const useAdminPanel = ({
         try {
             setIsSubmitting(true);
 
-            const payload = {
+            const fis = Number(newFis);
+            if (fis !== 1 && fis !== 2) {
+                setValidationError(t('fis_invalid'));
+                return;
+            }
+            await apiClient.pallet.AddPallet({
                 pallet_id: palletId,
                 project: newProject,
                 model: newModel,
                 max_cycles: parseInt(newMaxCycles) || 200,
                 nests: parseInt(newNests) || 1,
-                fis: parseInt(newFis) || 1,
+                fis,
                 status: "Active",
-            };
-
-            const response = await authenticatedFetch(`${API_BASE_URL}/pallets`, {
-                method: "POST",
-                headers: {"Content-Type": "application/json", "Accept-Language": language},
-                body: JSON.stringify(payload)
+                acceptLanguage: language,
             });
-
-            if (!response.ok) {
-                const errData = await response.json();
-                setValidationError(errData.message);
-                return;
-            }
 
             await fetchPallets();
             resetAddPalletForm();
@@ -185,30 +175,8 @@ export const useAdminPanel = ({
         try {
             setIsSubmitting(true);
 
-            const payload = {name: projectName};
-
-            const response = await authenticatedFetch(`${API_BASE_URL}/projects`, {
-                method: "POST",
-                headers: {"Content-Type": "application/json", "Accept-Language": language},
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) {
-                const errData = await response.json();
-                setValidationError(errData.message);
-                return;
-            }
-
-            const res = await fetch(`${API_BASE_URL}/projects`, {
-                headers: {"Accept-Language": language},
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setProjects(data.projects || []);
-            } else {
-                const errData = await res.json();
-                showGlobalError(t('error_fetching_projects_title'), errData.message);
-            }
+            await apiClient.pallet.AddProject({name: projectName, acceptLanguage: language});
+            await queryClient.invalidateQueries({queryKey: ['projects']});
 
             setNewProjectName('');
             setIsAddProjectOpen(false);
@@ -240,20 +208,11 @@ export const useAdminPanel = ({
             setIsSubmitting(true);
             setBlockError('');
 
-            const response = await authenticatedFetch(`${API_BASE_URL}/pallets/block`, {
-                method: "POST",
-                headers: {"Content-Type": "application/json", "Accept-Language": language},
-                body: JSON.stringify({
-                    pallet_id: selectedPalletForBlock.pallet_id,
-                    block_reason: blockReason.trim()
-                })
+            await apiClient.pallet.BlockPallet({
+                pallet_id: selectedPalletForBlock.pallet_id,
+                block_reason: blockReason.trim(),
+                acceptLanguage: language,
             });
-
-            if (!response.ok) {
-                const errData = await response.json();
-                setBlockError(errData.message);
-                return;
-            }
 
             await fetchPallets();
             setIsBlockOpen(false);
@@ -271,22 +230,10 @@ export const useAdminPanel = ({
         if (!window.confirm(t('confirm_unblock_message'))) return;
 
         try {
-            const response = await authenticatedFetch(`${API_BASE_URL}/pallets/unblock`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Accept-Language": language
-                },
-                body: JSON.stringify({
-                    pallet_id: pallet.pallet_id
-                })
+            await apiClient.pallet.UnblockPallet({
+                pallet_id: pallet.pallet_id,
+                acceptLanguage: language,
             });
-
-            if (!response.ok) {
-                const errData = await response.json();
-                showGlobalError(t('error_unblocking_pallet_title'), errData.message);
-                return;
-            }
 
             await fetchPallets();
         } catch (err) {
@@ -301,16 +248,7 @@ export const useAdminPanel = ({
 
         try {
             setIsSubmitting(true);
-            const response = await authenticatedFetch(`${API_BASE_URL}/pallets/${encodeURIComponent(palletId)}`, {
-                method: "DELETE",
-                headers: {"Accept-Language": language},
-            });
-
-            if (!response.ok) {
-                const errData = await response.json();
-                showGlobalError(t('error_deleting_pallet_title'), errData.message);
-                return;
-            }
+            await apiClient.pallet.DeletePallet(palletId, {acceptLanguage: language});
 
             await fetchPallets();
             setSelectedPalletForDelete(null);
@@ -368,29 +306,18 @@ export const useAdminPanel = ({
             setIsSubmitting(true);
             setEditError('');
 
-            const payload = {
-                pallet_id: selectedPalletForEdit.pallet_id,
+            if (fisVal !== 1 && fisVal !== 2) {
+                setEditError(t('fis_invalid'));
+                return;
+            }
+            await apiClient.pallet.UpdatePallet(selectedPalletForEdit.pallet_id, {
                 fis: fisVal,
                 nests: nestsVal,
                 max_cycles: maxCyclesVal,
                 status: editStatus,
-                block_reason: editStatus === 'Blocked' ? editBlockReason.trim() : null
-            };
-
-            const response = await authenticatedFetch(`${API_BASE_URL}/pallets/${encodeURIComponent(selectedPalletForEdit.pallet_id)}`, {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Accept-Language": language
-                },
-                body: JSON.stringify(payload)
+                block_reason: editStatus === 'Blocked' ? editBlockReason.trim() : null,
+                acceptLanguage: language,
             });
-
-            if (!response.ok) {
-                const errData = await response.json();
-                setEditError(errData.message);
-                return;
-            }
 
             await fetchPallets();
             setIsEditOpen(false);
@@ -405,17 +332,20 @@ export const useAdminPanel = ({
 
     const handleExportAuditTrail = async () => {
         try {
-            const response = await authenticatedFetch(`${API_BASE_URL}/pallets/audit-history`, {
-                headers: {"Accept-Language": language},
-            });
-            const responseData = await response.json();
-            if (!response.ok) {
-                showGlobalError(t('error_fetching_audit_history_title'), responseData.message);
-                return;
-            }
+            const history = [];
+            let beforeId: number | undefined;
+            do {
+                const page = await apiClient.pallet.GetAllPalletHistory({
+                    limit: 500,
+                    before_id: beforeId,
+                    acceptLanguage: language,
+                });
+                history.push(...page.history);
+                beforeId = page.next_cursor;
+            } while (beforeId !== undefined);
 
             const dataStr = 'data:text/json;charset=utf-8,' +
-                encodeURIComponent(JSON.stringify(responseData.history || [], null, 2));
+                encodeURIComponent(JSON.stringify(history, null, 2));
             const downloadAnchor = document.createElement('a');
             downloadAnchor.setAttribute('href', dataStr);
             downloadAnchor.setAttribute(

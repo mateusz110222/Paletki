@@ -9,6 +9,9 @@ CREATE INDEX IF NOT EXISTS idx_pallets_maintenance_required
     WHERE status IN ('Washing_Required', 'Damaged', 'Blocked');
 
 CREATE INDEX IF NOT EXISTS idx_pallets_cycles ON pallets (current_cycles DESC, max_cycles);
+CREATE INDEX IF NOT EXISTS idx_pallets_active_id
+    ON pallets (id)
+    WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_audit_logs_pallet_timestamp ON pallet_audit_logs (pallet_id, timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON pallet_audit_logs (timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_operator ON pallet_audit_logs (operator_id);

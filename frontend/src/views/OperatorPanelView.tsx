@@ -2,7 +2,7 @@ import React from 'react';
 import {createPortal} from 'react-dom';
 import { AlertTriangle, Box, ChevronRight, Edit3, Layers, Scan, WashingMachine, X } from 'lucide-react';
 import { useTranslation } from '../i18n/LanguageContext.tsx';
-import { Pallet, PalletStatus } from '@backend/shared/types';
+import { PalletStatus } from '@backend/shared/types';
 import { useOperatorPanel } from '../hooks/useOperatorPanel.ts';
 import { PalletStatusSpan } from "../components/PalletStatusSpan.tsx";
 import { GlobalErrorModal } from "../components/GlobalErrorModal.tsx";
@@ -10,12 +10,8 @@ import { useEscapeKey } from "../hooks/useEscapeKey.ts";
 import { ModalFormActions } from "../components/ModalFormActions.tsx";
 import {ModalPresence, ModalTransition} from '../components/ModalTransition.tsx';
 
-interface OperatorPanelViewProps {
-    setPallets: React.Dispatch<React.SetStateAction<Pallet[]>>;
-}
-
-export const OperatorPanelView: React.FC<OperatorPanelViewProps> = (props) => {
-    const { data, actions } = useOperatorPanel(props);
+export const OperatorPanelView: React.FC = () => {
+    const { data, actions } = useOperatorPanel();
     const { t } = useTranslation();
 
     const currentCycles = data.activePallet?.current_cycles ?? 0;
@@ -79,9 +75,10 @@ export const OperatorPanelView: React.FC<OperatorPanelViewProps> = (props) => {
                                     className="w-full bg-brand-bg/80 border-2 border-brand-border rounded-xl py-4 px-6 text-2xl font-mono font-black text-brand-accent focus:ring-4 focus:ring-brand-accent/10 outline-none transition-all text-center tracking-widest uppercase shadow-inner"
                                     placeholder={t('op_scan_placeholder')}
                                     autoComplete="off"
+                                    disabled={data.isScanning || data.isSubmitting}
                                 />
                             </div>
-                            <button type="submit" className="hidden">{t('btn_scan')}</button>
+                            <button type="submit" className="hidden" disabled={data.isScanning || data.isSubmitting}>{t('btn_scan')}</button>
 
                             <div
                                 className="flex items-center justify-center gap-2 text-xs font-bold text-brand-text-muted uppercase tracking-wider pt-1">

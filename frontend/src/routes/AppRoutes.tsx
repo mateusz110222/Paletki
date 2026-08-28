@@ -1,8 +1,9 @@
-import React, {useEffect, useState} from 'react';
+import React, {useCallback, useMemo} from 'react';
 import {Navigate, Route, Routes} from 'react-router-dom';
 import {Pallet, Project} from '@backend/shared/types';
-import {API_BASE_URL} from '@backend/shared/API_BASE_URL.ts';
 import {useAuth} from '../auth/AuthContext.tsx';
+import {useQuery, useQueryClient} from '@tanstack/react-query';
+import {asPallet, publicApi} from '../lib/api.ts';
 
 import {MainLayout} from '../layout/MainLayout.tsx'
 import {AdminPanelView as AdminPanel} from '../views/AdminPanelView.tsx';
@@ -14,57 +15,59 @@ import {PalletHistoryView} from '../views/PalletHistoryView.tsx';
 import {DirectoryView} from '../views/DirectoryView.tsx';
 
 export const AppRoutes: React.FC = () => {
-    const {hasITDepartmentAccess, canManagePallets, isMaintenanceOnly, canAccessMaintenance, defaultPath} = useAuth();
+    const {apiClient, hasITDepartmentAccess, canManagePallets, isMaintenanceOnly, canAccessMaintenance, defaultPath} = useAuth();
     const {language} = useTranslation();
-    const [pallets, setPallets] = useState<Pallet[]>([]);
-    const [projects, setProjects] = useState<Project[]>([]);
+    const queryClient = useQueryClient();
+    const palletsKey = useMemo(() => ['pallets', language] as const, [language]);
+    const projectsKey = useMemo(() => ['projects', language] as const, [language]);
 
-    useEffect(() => {
-        let isMounted = true;
-        const fetchPallets = async () => {
-            try {
-                const response = await fetch(`${API_BASE_URL}/pallets`, {
-                    headers: {"Accept-Language": language},
+    const palletsQuery = useQuery({
+        queryKey: palletsKey,
+        queryFn: async () => {
+            const pallets: Pallet[] = [];
+            let afterId: number | undefined;
+            do {
+                const page = await apiClient.pallet.GetAllPallets({
+                    limit: 200,
+                    after_id: afterId,
+                    acceptLanguage: language,
                 });
-                if (!response.ok) throw new Error('Network error');
-                const data = await response.json();
-                if (isMounted) setPallets(data.pallets || []);
-            } catch {
-                if (isMounted) setPallets([]);
-            }
-        };
+                pallets.push(...page.pallets.map(asPallet));
+                afterId = page.next_cursor;
+            } while (afterId !== undefined);
+            return {pallets};
+        },
+        refetchInterval: 100_000,
+    });
 
-        void fetchPallets();
-        const interval = setInterval(fetchPallets, 100000);
-        return () => {
-            isMounted = false;
-            clearInterval(interval);
-        };
-    }, [language]);
+    const projectsQuery = useQuery({
+        queryKey: projectsKey,
+        queryFn: () => publicApi.pallet.GetAllProjects(),
+    });
 
-    useEffect(() => {
-        let isMounted = true;
-        const fetchProjects = async () => {
-            try {
-                const response = await fetch(`${API_BASE_URL}/projects`, {
-                    headers: {"Accept-Language": language},
-                });
-                if (!response.ok) throw new Error('Network error');
-                const data = await response.json();
-                if (isMounted) setProjects(data.projects || []);
-            } catch {
-                if (isMounted) setProjects([]);
-            }
-        };
-
-        void fetchProjects();
-        return () => {
-            isMounted = false;
-        };
-    }, [language]);
+    const pallets = palletsQuery.data?.pallets ?? [];
+    const projects = projectsQuery.data?.projects ?? [];
+    const setPallets = useCallback<React.Dispatch<React.SetStateAction<Pallet[]>>>((update) => {
+        queryClient.setQueryData<{pallets: Pallet[]}>(palletsKey, (current) => {
+            const currentPallets = current?.pallets ?? [];
+            return {pallets: typeof update === 'function' ? update(currentPallets) : update};
+        });
+    }, [palletsKey, queryClient]);
+    const setProjects = useCallback<React.Dispatch<React.SetStateAction<Project[]>>>((update) => {
+        queryClient.setQueryData<{projects: Project[]}>(projectsKey, (current) => {
+            const currentProjects = current?.projects ?? [];
+            return {projects: typeof update === 'function' ? update(currentProjects) : update};
+        });
+    }, [projectsKey, queryClient]);
 
     return (
-        <Routes>
+        <>
+            {(palletsQuery.isError || projectsQuery.isError) && (
+                <div role="alert" className="fixed top-3 left-1/2 z-[100] -translate-x-1/2 rounded-lg border border-red-500/50 bg-red-950 px-4 py-2 text-sm text-red-100 shadow-xl">
+                    Nie udało się odświeżyć danych. Wyświetlane są ostatnie poprawnie pobrane wartości.
+                </div>
+            )}
+            <Routes>
             <Route element={<MainLayout/>}>
                 <Route path="/" element={<Navigate to={defaultPath} replace/>}/>
 
@@ -84,16 +87,17 @@ export const AppRoutes: React.FC = () => {
                     </>
                 )}
 
-                {!isMaintenanceOnly && <Route path="/operator" element={<OperatorPanel setPallets={setPallets}/>}/>}
+                {!isMaintenanceOnly && <Route path="/operator" element={<OperatorPanel/>}/>}
 
                 {canAccessMaintenance && (
-                    <Route path="/maintenance" element={<MaintenancePanel pallets={pallets} setPallets={setPallets}/>}/>
+                    <Route path="/maintenance" element={<MaintenancePanel pallets={pallets}/>}/>
                 )}
 
                 {!isMaintenanceOnly && <Route path="/live" element={<LiveMonitor pallets={pallets}/>}/>}
             </Route>
 
             <Route path="*" element={<Navigate to={defaultPath} replace/>}/>
-        </Routes>
+            </Routes>
+        </>
     );
 };

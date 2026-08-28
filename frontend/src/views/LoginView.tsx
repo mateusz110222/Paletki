@@ -73,7 +73,7 @@ export const LoginView: React.FC = () => {
     };
 
     return (
-        <div className="min-h-dvh box-border w-full bg-brand-bg grid place-items-center px-4 py-6 relative overflow-x-clip font-sans">
+        <div className="min-h-dvh box-border w-full bg-brand-bg flex justify-center px-4 py-2 sm:py-4 relative overflow-x-clip font-sans">
             {/* Dynamic visual background elements */}
             <div className="fixed inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
             <div
@@ -85,22 +85,19 @@ export const LoginView: React.FC = () => {
             </div>
 
             <div
-                className="login-card-enter w-full max-w-md bg-brand-surface border border-brand-border rounded-3xl p-8 md:p-10 shadow-2xl relative z-10 space-y-8"
+                className="login-card-enter my-auto w-full max-w-md bg-brand-surface border border-brand-border rounded-3xl p-5 sm:p-6 md:p-8 shadow-2xl relative z-10 space-y-5"
             >
                 {/* Header / Logo */}
-                <div className="flex flex-col items-center text-center space-y-3">
-                    <div className="w-16 h-16 rounded-2xl bg-brand-accent/10 border border-brand-accent/20 flex items-center justify-center text-brand-accent mb-2 shadow-inner">
-                        <ShieldCheck size={36} />
+                <div className="flex flex-col items-center text-center space-y-2">
+                    <div className="w-14 h-14 rounded-2xl bg-brand-accent/10 border border-brand-accent/20 flex items-center justify-center text-brand-accent mb-1 shadow-inner">
+                        <ShieldCheck size={30} />
                     </div>
                     <span className="text-xs font-black tracking-[0.25em] text-brand-accent uppercase">
                         {t('app_product_name')}
                     </span>
-                    <h1 className="text-2xl font-black text-brand-text tracking-tight uppercase">
+                    <h1 className="text-xl sm:text-2xl font-black text-brand-text tracking-tight uppercase">
                         {t('login_title')}
                     </h1>
-                    <p className="text-xs font-medium text-brand-text-muted">
-                        {t('login_subtitle')}
-                    </p>
                 </div>
 
                 {/* Error Banner */}
@@ -118,11 +115,11 @@ export const LoginView: React.FC = () => {
                 )}
 
                 {/* Login Form */}
-                <form onSubmit={handleSubmit} className="space-y-5">
+                <form onSubmit={handleSubmit} className="space-y-4">
                     {!showOperatorSession && (
                     <div
                         key="ldap-login"
-                        className="login-fields-enter space-y-5"
+                        className="login-fields-enter space-y-4"
                     >
                     <div className="space-y-2">
                         <label className="text-[11px] font-bold text-brand-text-muted uppercase tracking-wider block">
@@ -173,7 +170,7 @@ export const LoginView: React.FC = () => {
                     <button
                         type="submit"
                         disabled={loading || !username.trim() || !password}
-                        className="w-full py-4 bg-brand-accent hover:bg-brand-accent/90 text-brand-bg font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-[0_10px_20px_rgba(59,130,246,0.2)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-4 active:scale-[0.98]"
+                        className="w-full py-3.5 bg-brand-accent hover:bg-brand-accent/90 text-brand-bg font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-[0_10px_20px_rgba(59,130,246,0.2)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-3 active:scale-[0.98]"
                     >
                         {loading ? (
                             <>
@@ -188,7 +185,7 @@ export const LoginView: React.FC = () => {
                         )}
                     </button>
 
-                    <div className="relative flex py-2 items-center">
+                    <div className="relative flex py-1 items-center">
                         <div className="grow border-t border-brand-border/60"></div>
                         <span className="shrink mx-4 text-[10px] font-bold text-brand-text-muted/60 uppercase tracking-widest">{t('login_or_divider')}</span>
                         <div className="grow border-t border-brand-border/60"></div>
@@ -205,7 +202,7 @@ export const LoginView: React.FC = () => {
                         disabled={loading}
                         aria-expanded={showOperatorSession}
                         aria-controls="operator-session-panel"
-                        className={`w-full py-3.5 border font-bold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-between px-4 hover:-translate-y-px active:translate-y-0 active:scale-[0.98] disabled:transform-none ${showOperatorSession
+                        className={`w-full py-3 border font-bold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-between px-4 hover:-translate-y-px active:translate-y-0 active:scale-[0.98] disabled:transform-none ${showOperatorSession
                             ? 'bg-brand-accent/10 border-brand-accent/50 text-brand-accent'
                             : 'bg-brand-bg border-brand-border hover:bg-brand-surface-high hover:border-brand-accent/40 text-brand-text'
                         }`}
@@ -286,7 +283,7 @@ export const LoginView: React.FC = () => {
                 </form>
 
                 {/* Footer security note */}
-                <div className="pt-4 border-t border-brand-border/60 text-center">
+                <div className="pt-3 border-t border-brand-border/60 text-center">
                     <p className="text-[10px] font-bold text-brand-text-muted/60 uppercase tracking-widest">
                         {t('login_security_note')}
                     </p>

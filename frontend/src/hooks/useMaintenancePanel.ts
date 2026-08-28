@@ -2,16 +2,16 @@ import React, {useCallback, useState} from 'react';
 import {Pallet, PalletStatus} from '@backend/shared/types';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
 import {useAuth} from '../auth/AuthContext.tsx';
-import {API_BASE_URL} from "@backend/shared/API_BASE_URL.ts";
+import {useQueryClient} from '@tanstack/react-query';
 
 interface UseMaintenancePanelProps {
     pallets: Pallet[];
-    setPallets: React.Dispatch<React.SetStateAction<Pallet[]>>;
 }
 
-export function useMaintenancePanel({pallets, setPallets}: UseMaintenancePanelProps) {
+export function useMaintenancePanel({pallets}: UseMaintenancePanelProps) {
     const {t, language} = useTranslation();
-    const {user, authenticatedFetch} = useAuth();
+    const {user, apiClient} = useAuth();
+    const queryClient = useQueryClient();
 
     const Operator = user?.FullName ?? "";
     const [activeTab, setActiveTab] = useState<'repairs' | 'routine'>('repairs');
@@ -21,18 +21,8 @@ export function useMaintenancePanel({pallets, setPallets}: UseMaintenancePanelPr
     const [searchTerm, setSearchTerm] = useState('');
 
     const fetchPallets = useCallback(async () => {
-        try {
-            const res = await fetch(`${API_BASE_URL}/pallets`, {
-                headers: {"Accept-Language": language},
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setPallets(data.pallets || []);
-            }
-        } catch (error) {
-            console.error("Error fetching pallets:", error);
-        }
-    }, [language, setPallets]);
+        await queryClient.invalidateQueries({queryKey: ['pallets']});
+    }, [queryClient]);
 
     if (!user) {
         window.location.href = "/login";
@@ -78,25 +68,13 @@ export function useMaintenancePanel({pallets, setPallets}: UseMaintenancePanelPr
         }
 
         try {
-            const response = await authenticatedFetch(`${API_BASE_URL}/pallets/change-status`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Accept-Language": language,
-                },
-                body: JSON.stringify({
-                    pallet_id: selectedPallet.pallet_id,
-                    new_status: newStatus,
-                    block_reason: repairDescription.trim(),
-                    reset_cycles: resetCycles,
-                })
+            await apiClient.pallet.ChangePalletStatus({
+                pallet_id: selectedPallet.pallet_id,
+                new_status: newStatus,
+                block_reason: repairDescription.trim(),
+                reset_cycles: resetCycles,
+                acceptLanguage: language,
             });
-
-            if (!response.ok) {
-                const errData = await response.json();
-                setModalError(errData.message);
-                return;
-            }
 
             await fetchPallets();
             setSelectedPallet(null);

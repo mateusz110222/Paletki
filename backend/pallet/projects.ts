@@ -1,8 +1,9 @@
 import {api, APIError, Header} from "encore.dev/api";
 import {db} from "./db";
 import {Project} from "../shared/types";
-import {t} from "./i18n";
-import {requirePalletManagementUser} from "../auth/authorization";
+import {t} from "../shared/i18n";
+import {requirePalletManagementUser} from "../shared/authorization";
+import type {ShortText} from "../shared/validation";
 
 interface LocalizedRequest {
     acceptLanguage?: Header<"Accept-Language">;
@@ -13,13 +14,13 @@ export interface GetAllProjectsResponse {
 }
 
 export interface AddProjectParams extends LocalizedRequest {
-    name: string;
+    name: ShortText;
 }
 
 export const GetAllProjects = api(
     {method: "GET", path: "/projects", expose: true},
     async (): Promise<GetAllProjectsResponse> => {
-        return {projects: await db.queryAll<Project>`SELECT * FROM projects ORDER BY name`};
+        return {projects: await db.queryAll<Project>`SELECT name FROM projects ORDER BY name`};
     },
 );
 

@@ -8,7 +8,9 @@
   "scripts": {
     "dev": "encore run",
     "build:docker": "encore build docker --config infra.config.json paletki-dev:latest",
+    "gen:client": "encore gen client --output=../frontend/src/lib/client.ts --env=local",
     "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint ."
   },
   "devDependencies": {

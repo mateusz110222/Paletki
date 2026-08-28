@@ -74,6 +74,15 @@ function booleanEnv(name: string): boolean {
     return value === "true";
 }
 
+function optionalBooleanEnv(name: string, defaultValue: boolean): boolean {
+    const value = process.env[name]?.trim();
+    if (!value) return defaultValue;
+    if (value !== "true" && value !== "false") {
+        throw new Error(`${name} must be either true or false`);
+    }
+    return value === "true";
+}
+
 function optionalFileEnv(name: string): Buffer | undefined {
     const path = process.env[name]?.trim();
     if (!path) return undefined;
@@ -143,11 +152,11 @@ export const config = Object.freeze({
         urDepartments: Object.freeze((process.env.LDAP_UR_DEPARTMENTS ?? "").split(";").map(value => value.trim()).filter(Boolean)),
         meDepartments: Object.freeze((process.env.LDAP_ME_DEPARTMENTS ?? "").split(";").map(value => value.trim()).filter(Boolean)),
         lookupBindUser: process.env.LDAP_LOOKUP_BIND_USER?.trim() ?? "",
-        lookupBindPassword: process.env.LDAP_LOOKUP_BIND_PASSWORD ?? "",
         timeoutMs: positiveIntegerEnv("LDAP_TIMEOUT_MS"),
         connectTimeoutMs: positiveIntegerEnv("LDAP_CONNECT_TIMEOUT_MS"),
         rejectUnauthorized: ldapRejectUnauthorized,
         allowLegacyServerCertificate: booleanEnv("LDAP_TLS_ALLOW_LEGACY_SERVER_CERT"),
+        skipHostnameVerification: optionalBooleanEnv("LDAP_TLS_SKIP_HOSTNAME_VERIFICATION", true),
         ca: ldapCertificateAuthorities(),
     }),
     fis: Object.freeze({

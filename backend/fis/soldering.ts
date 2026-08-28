@@ -1,8 +1,7 @@
 import {api, APIError} from "encore.dev/api";
-import {SQLDatabase} from "encore.dev/storage/sqldb";
 import {PalletStatus} from "../shared/types";
-
-const db = SQLDatabase.named("pallets");
+import {normalizePalletId} from "../shared/validation";
+import {palletsDatabase as db} from "../shared/persistence";
 
 interface PalletPathParams {
     pallet_id: string;
@@ -20,7 +19,7 @@ export interface SolderingPallet {
     block_reason: string | null;
     project: string;
     model: string;
-    fis: number;
+    fis: 1 | 2;
 }
 
 export interface RegisterCycleResponse {
@@ -37,16 +36,14 @@ interface PalletAvailability {
     max_cycles: number;
 }
 
-function normalizePalletId(value: string): string {
-    const palletId = value?.trim().toUpperCase();
-    if (!palletId) throw APIError.invalidArgument("Pallet ID is required.");
-    return palletId;
-}
-
 export const GetSolderingPallet = api(
     {method: "GET", path: "/fis/soldering/pallets/:pallet_id", expose: true},
     async (params: PalletPathParams): Promise<SolderingPallet> => {
         const palletId = normalizePalletId(params.pallet_id);
+
+        if (!palletId) {
+            throw APIError.invalidArgument("Pallet ID is required.");
+        }
 
         try {
             const pallet = await db.queryRow<SolderingPallet>`
@@ -61,7 +58,7 @@ export const GetSolderingPallet = api(
                        COALESCE(model, '') AS model,
                        fis
                 FROM pallets
-                WHERE pallet_id = ${palletId}
+                WHERE pallet_id = ${palletId} AND deleted_at IS NULL
             `;
 
             if (!pallet) throw APIError.notFound(`Pallet ${palletId} was not found.`);
@@ -98,6 +95,7 @@ export const RegisterSolderingCycle = api(
                     updated_at = NOW(),
                     updated_by = 'FIS'
                 WHERE pallet_id = ${palletId}
+                  AND deleted_at IS NULL
                   AND status = 'Active'
                   AND current_cycles < max_cycles
                 RETURNING current_cycles, total_cycles, status
@@ -116,7 +114,7 @@ export const RegisterSolderingCycle = api(
             const pallet = await db.queryRow<PalletAvailability>`
                 SELECT status, current_cycles, max_cycles
                 FROM pallets
-                WHERE pallet_id = ${palletId}
+                WHERE pallet_id = ${palletId} AND deleted_at IS NULL
             `;
 
             if (!pallet) throw APIError.notFound(`Pallet ${palletId} was not found.`);

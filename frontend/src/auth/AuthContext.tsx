@@ -1,14 +1,17 @@
-import React, {createContext, ReactNode, use, useCallback, useEffect, useState} from "react";
+import React, {createContext, ReactNode, use, useCallback, useEffect, useMemo, useState} from "react";
 import {LoginResponse, UserData} from "@backend/shared/types";
-import {API_BASE_URL} from "@backend/shared/API_BASE_URL.ts";
 import {useTranslation} from "../i18n/LanguageContext.tsx";
 import {getViewAccess} from './view-access';
+import {asLoginResponse, authenticatedApi, publicApi} from '../lib/api.ts';
+import type Client from '../lib/client.ts';
 
 interface StoredSession {
     user: UserData;
     token: string;
     expiresAt: string;
 }
+
+export type LoginResult = LoginResponse | {status: false; message: string};
 
 interface AuthContextType {
     user: UserData | null;
@@ -21,10 +24,10 @@ interface AuthContextType {
     isMaintenanceOnly: boolean;
     canAccessMaintenance: boolean;
     defaultPath: string;
-    login: (username: string, password: string) => Promise<LoginResponse>;
-    loginAsOperator: (identifier: string) => Promise<LoginResponse>;
+    login: (username: string, password: string) => Promise<LoginResult>;
+    loginAsOperator: (identifier: string) => Promise<LoginResult>;
     logout: () => Promise<void>;
-    authenticatedFetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+    apiClient: Client;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,9 +38,12 @@ function parseStoredSession(value: string | null): StoredSession | null {
 
     try {
         const parsed: unknown = JSON.parse(value);
+        if (typeof parsed !== "object" || parsed === null) return null;
+
+        const expiresAt = (
+            "expiresAt" in parsed && typeof parsed.expiresAt === "string"
+        ) ? Date.parse(parsed.expiresAt) : Number.NaN;
         if (
-            typeof parsed !== "object" ||
-            parsed === null ||
             !("user" in parsed) ||
             typeof parsed.user !== "object" ||
             parsed.user === null ||
@@ -57,9 +63,7 @@ function parseStoredSession(value: string | null): StoredSession | null {
             typeof parsed.user.is_guest !== "boolean" ||
             !("token" in parsed) ||
             typeof parsed.token !== "string" ||
-            !("expiresAt" in parsed) ||
-            typeof parsed.expiresAt !== "string" ||
-            Date.parse(parsed.expiresAt) <= Date.now()
+            !Number.isFinite(expiresAt)
         ) {
             return null;
         }
@@ -70,8 +74,10 @@ function parseStoredSession(value: string | null): StoredSession | null {
     }
 }
 
-function sessionFromResponse(response: LoginResponse): StoredSession | null {
-    if (!response.status || !response.data || !response.token || !response.expires_at) return null;
+function sessionFromResponse(response: LoginResult): StoredSession | null {
+    if (!response.status) return null;
+    const expiresAt = Date.parse(response.expires_at);
+    if (!response.token || !Number.isFinite(expiresAt)) return null;
     return {user: response.data, token: response.token, expiresAt: response.expires_at};
 }
 
@@ -91,58 +97,45 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({children}) => {
 
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
         const remainingMs = Date.parse(session.expiresAt) - Date.now();
+        // The backend is authoritative for session expiry. If the browser clock
+        // is ahead of the server clock, wait for a protected request to return
+        // 401 instead of immediately discarding a newly issued valid session.
+        if (remainingMs <= 0) return;
         const expirationTimer = window.setTimeout(() => setSession(null), Math.max(0, remainingMs));
         return () => window.clearTimeout(expirationTimer);
     }, [session]);
 
-    const applyLoginResponse = useCallback((response: LoginResponse): LoginResponse => {
+    const applyLoginResponse = useCallback((response: LoginResult): LoginResult => {
         const nextSession = sessionFromResponse(response);
         if (!nextSession) return {status: false, message: response.message};
         setSession(nextSession);
         return response;
     }, []);
 
-    const login = async (username: string, password: string): Promise<LoginResponse> => {
+    const login = async (username: string, password: string): Promise<LoginResult> => {
         try {
-            const response = await fetch(`${API_BASE_URL}/auth/login`, {
-                method: "POST",
-                headers: {"Content-Type": "application/json", "Accept-Language": language},
-                body: JSON.stringify({login: username, password}),
-            });
-            const responseData = await response.json() as LoginResponse;
-            if (!response.ok) return {status: false, message: responseData.message};
+            const responseData = asLoginResponse(await publicApi.auth.Login({
+                login: username,
+                password,
+                acceptLanguage: language,
+            }));
             return applyLoginResponse(responseData);
-        } catch {
-            return {status: false, message: t("auth_error")};
+        } catch (error) {
+            return {status: false, message: error instanceof Error ? error.message : t("auth_error")};
         }
     };
 
-    const loginAsOperator = async (identifier: string): Promise<LoginResponse> => {
+    const loginAsOperator = async (identifier: string): Promise<LoginResult> => {
         try {
-            const response = await fetch(`${API_BASE_URL}/auth/operator-session`, {
-                method: "POST",
-                headers: {"Content-Type": "application/json", "Accept-Language": language},
-                body: JSON.stringify({identifier}),
-            });
-            const responseData = await response.json() as LoginResponse;
-            if (!response.ok) return {status: false, message: responseData.message};
+            const responseData = asLoginResponse(await publicApi.auth.OperatorSessionLogin({
+                identifier,
+                acceptLanguage: language,
+            }));
             return applyLoginResponse(responseData);
-        } catch {
-            return {status: false, message: t("auth_error")};
+        } catch (error) {
+            return {status: false, message: error instanceof Error ? error.message : t("auth_error")};
         }
     };
-
-    const authenticatedFetch = useCallback(async (
-        input: RequestInfo | URL,
-        init: RequestInit = {},
-    ): Promise<Response> => {
-        const headers = new Headers(init.headers);
-        if (session?.token) headers.set("Authorization", `Bearer ${session.token}`);
-
-        const response = await fetch(input, {...init, headers});
-        if (response.status === 401) setSession(null);
-        return response;
-    }, [session?.token]);
 
     const logout = async (): Promise<void> => {
         const token = session?.token;
@@ -150,19 +143,17 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({children}) => {
         if (!token) return;
 
         try {
-            await fetch(`${API_BASE_URL}/auth/logout`, {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "Accept-Language": language,
-                },
-            });
+            await authenticatedApi(token, language).auth.Logout({acceptLanguage: language});
         } catch {
             // Local logout still succeeds if the backend is temporarily unavailable.
         }
     };
 
     const user = session?.user ?? null;
+    const apiClient = useMemo(
+        () => authenticatedApi(session?.token, language, () => setSession(null)),
+        [language, session?.token],
+    );
     return (
         <AuthContext value={{
             user,
@@ -172,7 +163,7 @@ export const AuthProvider: React.FC<{children: ReactNode}> = ({children}) => {
             login,
             loginAsOperator,
             logout,
-            authenticatedFetch,
+            apiClient,
         }}>
             {children}
         </AuthContext>

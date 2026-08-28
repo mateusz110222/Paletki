@@ -1,6 +1,5 @@
 import {APIError} from "encore.dev/api";
-import {Pallet} from "../shared/types";
-import {t} from "./i18n";
+import {t} from "../shared/i18n";
 
 interface FisResponse {
     status: boolean;
@@ -12,8 +11,6 @@ export interface FisUnitDetails {
     project: string;
     model: string;
 }
-
-export type FisRouterResolver = (fis: number) => string;
 
 export class FisClient {
     constructor(
@@ -90,9 +87,13 @@ export class FisClient {
         this.assertSuccess(result, "Unit_Delete", lang);
     }
 
+    async unitExists(router: string, palletId: string, lang?: string): Promise<boolean> {
+        const result = await this.call(router, "Unit_Find", {Unit: palletId}, lang);
+        return result.status;
+    }
+
     async deleteUnitIfPresent(router: string, palletId: string, lang?: string): Promise<boolean> {
-        const findResult = await this.call(router, "Unit_Find", {Unit: palletId}, lang);
-        if (!findResult.status) return false;
+        if (!await this.unitExists(router, palletId, lang)) return false;
 
         await this.deleteUnit(router, palletId, lang);
         return true;
@@ -105,6 +106,26 @@ export class FisClient {
         lang?: string,
     ): Promise<void> {
         await this.deleteUnitIfPresent(router, details.pallet_id, lang);
+
+        await this.createUnit(router, details, operator, lang);
+    }
+
+    async ensureUnitPresent(
+        router: string,
+        details: FisUnitDetails,
+        operator: string,
+        lang?: string,
+    ): Promise<void> {
+        if (await this.unitExists(router, details.pallet_id, lang)) return;
+        await this.createUnit(router, details, operator, lang);
+    }
+
+    private async createUnit(
+        router: string,
+        details: FisUnitDetails,
+        operator: string,
+        lang?: string,
+    ): Promise<void> {
 
         try {
             const createResult = await this.call(router, "Unit_DataEntry", {
@@ -124,59 +145,4 @@ export class FisClient {
             throw error;
         }
     }
-}
-
-export async function migrateFisUnit(
-    client: FisClient,
-    routerForFis: FisRouterResolver,
-    existing: Pallet,
-    newFis: number,
-    operator: string,
-    lang?: string,
-): Promise<boolean> {
-    const oldFis = existing.fis ?? 0;
-    if (oldFis === newFis) return false;
-
-    const details: FisUnitDetails = {
-        pallet_id: existing.pallet_id,
-        project: existing.project,
-        model: existing.model,
-    };
-    const newRouter = routerForFis(newFis);
-
-    await client.synchronizeUnit(newRouter, details, operator, lang);
-
-    try {
-        if (oldFis > 0) {
-            await client.deleteUnitIfPresent(routerForFis(oldFis), existing.pallet_id, lang);
-        }
-        return true;
-    } catch (error) {
-        try {
-            await client.deleteUnitIfPresent(newRouter, existing.pallet_id, lang);
-        } catch (cleanupError) {
-            console.error("Could not clean the new FIS route after migration failure", cleanupError);
-        }
-        throw error;
-    }
-}
-
-export async function compensateFisMigration(
-    client: FisClient,
-    routerForFis: FisRouterResolver,
-    existing: Pallet,
-    newFis: number,
-    operator: string,
-    lang?: string,
-): Promise<void> {
-    const oldFis = existing.fis ?? 0;
-    if (oldFis > 0) {
-        await client.synchronizeUnit(routerForFis(oldFis), {
-            pallet_id: existing.pallet_id,
-            project: existing.project,
-            model: existing.model,
-        }, operator, lang);
-    }
-
-    await client.deleteUnitIfPresent(routerForFis(newFis), existing.pallet_id, lang);
 }

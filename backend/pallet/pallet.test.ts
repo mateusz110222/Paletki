@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest";
-import {parseLanguage, t, translations} from "./i18n";
+import {parseLanguage, t, translations} from "../shared/i18n";
 import {
     encodeAuditChanges,
     encodeAuditDescription,

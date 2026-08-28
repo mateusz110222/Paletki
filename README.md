@@ -10,13 +10,15 @@ The application is built on a modern, decoupled architecture that separates the 
 The frontend is a single-page application (SPA) responsible for rendering the user interface and interacting with the backend via a REST API. It provides a user-friendly experience for viewing pallet data, registering new pallets, and managing their status.
 
 ### Backend
-The backend is developed using the **Encore** framework, which simplifies the creation of scalable, cloud-native services. It is structured as a set of microservices, each responsible for a distinct domain of the application:
+The Encore backend is a modular monolith built and deployed as one application.
+The `auth`, `pallet`, and `fis` folders define API/domain modules, while one
+PostgreSQL database provides the required transaction boundary. Dependency and
+ownership rules are documented in `backend/ARCHITECTURE.md`.
 
-- **`pallet` Service**: The core service that handles all CRUD (Create, Read, Update, Delete) operations for pallets. It manages pallet data, including unique IDs, project associations, model types, cycle counts, and status (e.g., Active, Blocked). It also maintains a detailed audit log for each pallet's history.
-- **`dashboard` Service**: Provides aggregated data and analytics for visualization on the frontend dashboard. This service might calculate statistics like the number of active pallets, maintenance needs, or overall usage trends.
-- **`maintenance` Service**: Manages the maintenance lifecycle of pallets. It can be used to schedule maintenance tasks, record completed work, and update a pallet's status based on its condition.
-
-This microservices architecture ensures that the system is resilient and that individual components can be updated or scaled without impacting the entire application.
+Pallet changes enqueue durable FIS synchronization jobs in the same SQL
+transaction. Separate Compose workers process these jobs after commit with
+leases, retries, exponential backoff, and daily reconciliation. A temporary FIS
+outage therefore no longer rolls back or leaves an open pallet transaction.
 
 ---
 
@@ -106,11 +108,16 @@ Access is based on the LDAP `department` attribute, not AD `memberOf` groups or 
 | `LDAP_UR_DEPARTMENTS` only | Maintenance only (also the landing page) |
 | Neither list / operator session | Operator scanner and live monitor |
 
-Set `LDAP_UR_DEPARTMENTS` and `LDAP_ME_DEPARTMENTS` to the exact department names from your directory, separated by semicolons. Whitespace and letter case are normalized. Empty lists grant no access. Overlapping matches use this precedence: IT → ME → UR; only IT can access the directory endpoint. UR can service damaged pallets or pallets requiring washing, including reporting damage and returning serviced pallets to production. Administrative mutations and audit exports require IT or ME. Existing public pallet reads and the FIS integration are unchanged; these view restrictions are not a data-isolation boundary.
+Set `LDAP_UR_DEPARTMENTS` and `LDAP_ME_DEPARTMENTS` to the exact department names from your directory, separated by semicolons. Whitespace and letter case are normalized. Empty lists grant no access. Overlapping matches use this precedence: IT → ME → UR; only IT can access the directory endpoint. UR can service damaged pallets or pallets requiring washing, including reporting damage and returning serviced pallets to production. Administrative mutations and audit exports require IT or ME. Pallet reads require a valid application session, and per-pallet history additionally requires IT or ME. The machine-facing `/fis` integration remains unauthenticated and must be restricted to the trusted factory network.
 
-The directory screen (`/directory`) uses the IT-protected `POST /auth/directory/lookup` endpoint. Configure `LDAP_LOOKUP_BIND_USER` (UPN or full DN) and `LDAP_LOOKUP_BIND_PASSWORD` for a least-privilege directory **read-only** account on the backend. It reuses `LDAP_URL`, `LDAP_SEARCH_BASE`, certificate verification and timeouts. No user login passwords are saved. Do not put these credentials in frontend/VITE variables or commit them to Git; provide them through your deployment's secret configuration.
+The directory screen (`/directory`) uses the IT-protected `POST /auth/directory/lookup` endpoint. Configure `LDAP_LOOKUP_BIND_USER` (UPN or full DN) and a least-privilege directory **read-only** account password. An app linked to Encore can use `encore secret set --type local LDAPLookupBindPassword`. For an unlinked local app, the backend falls back to `LDAP_LOOKUP_BIND_PASSWORD` from the ignored root `.env` file. The self-hosted `infra.config.json` maps the same environment variable to the Encore secret in Docker. No user login passwords are saved. Do not put these credentials in frontend/VITE variables or commit them to Git.
 
 Lookup returns the department, job title and direct AD groups (`memberOf`, full distinguished names). Nested memberships and the primary group are not included; server-truncated results are marked incomplete. These groups are informational — access uses the department lists.
+
+The factory LDAP servers present certificates with inconsistent SAN/CN aliases,
+so `LDAP_TLS_SKIP_HOSTNAME_VERIFICATION=true` disables hostname matching. TLS
+encryption and CA-chain verification remain enabled through
+`LDAP_TLS_REJECT_UNAUTHORIZED=true` and `LDAP_CA_CERT_PATH`.
 
 Restart/redeploy the backend after changing environment variables and sign in again to refresh the frontend's access flags. This update requires rebuilding both backend and frontend; sessions saved by older frontends require signing in again. No database migration is needed.
 
@@ -138,14 +145,28 @@ This command will typically create a `build` or `dist` directory with the compil
 With the backend and frontend built, you can run the entire application stack using Docker Compose.
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
-The frontend is exposed on HTTP port 80. To use a hostname such as
+The Compose stack exposes nginx over HTTP on `${FRONTEND_HTTP_PORT}` (default
+`8082`). With the current server address, open `http://10.142.11.66:8082`.
+PostgreSQL and Encore are reachable only inside the Compose network. nginx
+publishes a dedicated `${FIS_INGRESS_PORT}` (default `4000`) integration port
+for production machines. This listener proxies only `/fis` and `/fis/*`; every
+other path returns `404`. Machines can therefore call
+`http://<server>:4000/fis/...` without exposing `/auth`, `/pallets` or
+`/projects` on that port. Browser and user traffic should continue to use nginx
+on the configured frontend HTTP port.
+
+To use a hostname such as
 `plblo-paletki.borgwarner.net`, create a DNS `A` record pointing that hostname
 to the IPv4 address of the machine running Docker. For testing on one computer,
 the same mapping can be added to the local Windows `hosts` file instead.
 
-This command starts all the services defined in your `docker-compose.yml` file (e.g., your backend service, a web server for the frontend, databases, etc.).
+This command starts all services from `docker-compose.yml`, including
+`fis-outbox-worker` and `fis-reconciler`. Their internal
+`/internal/fis-outbox/*` routes are not proxied by nginx and are reachable only
+inside the Compose network. Keep these two containers running; inspect their
+logs together with the backend when diagnosing delayed FIS synchronization.
 
-You should now be able to access the application in your browser at the configured address (e.g., `http://localhost:8080`).
+You should now be able to access the application at `http://10.142.11.66:8082`.

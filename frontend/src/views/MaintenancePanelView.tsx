@@ -22,7 +22,6 @@ import {ModalPresence, ModalTransition} from '../components/ModalTransition.tsx'
 
 interface MaintenancePanelViewProps {
     pallets: Pallet[];
-    setPallets: React.Dispatch<React.SetStateAction<Pallet[]>>;
 }
 
 export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props) => {

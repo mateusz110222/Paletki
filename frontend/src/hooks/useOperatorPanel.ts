@@ -2,18 +2,16 @@ import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Pallet, PalletStatus} from '@backend/shared/types';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
 import {useGlobalErrorModal} from "../hooks/useGlobalErrorModal.ts";
-import {API_BASE_URL} from "@backend/shared/API_BASE_URL.ts";
 import {useSearchParams} from "react-router-dom";
 import {useAuth} from "../auth/AuthContext.tsx";
+import {asPallet} from "../lib/api.ts";
+import {useQueryClient} from '@tanstack/react-query';
 
-interface UseOperatorPanelProps {
-    setPallets: React.Dispatch<React.SetStateAction<Pallet[]>>;
-}
-
-export const useOperatorPanel = ({setPallets}: UseOperatorPanelProps) => {
+export const useOperatorPanel = () => {
     const {t, language} = useTranslation();
-    const {authenticatedFetch} = useAuth();
-    const {errorModalState, showGlobalError, hideGlobalError} = useGlobalErrorModal();
+    const {apiClient} = useAuth();
+    const queryClient = useQueryClient();
+    const {errorModalState, hideGlobalError} = useGlobalErrorModal();
 
     const [scannedId, setScannedId] = useState('');
     const [activePallet, setActivePallet] = useState<Pallet | null>(null);
@@ -25,9 +23,12 @@ export const useOperatorPanel = ({setPallets}: UseOperatorPanelProps) => {
     const [isToastOpen, setIsToastOpen] = useState(false);
     const [toastMsg, setToastMsg] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isScanning, setIsScanning] = useState(false);
 
     const barcodeInputRef = useRef<HTMLInputElement>(null);
     const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const scanAbortRef = useRef<AbortController | null>(null);
+    const scanRequestRef = useRef(0);
 
     const [searchParams, setSearchParams] = useSearchParams();
     const palletIDFromUrl = searchParams.get('palletID') || '';
@@ -49,6 +50,7 @@ export const useOperatorPanel = ({setPallets}: UseOperatorPanelProps) => {
         return () => {
             document.body.removeEventListener('click', handleBodyClick);
             if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+            scanAbortRef.current?.abort();
         };
     }, []);
 
@@ -70,21 +72,19 @@ export const useOperatorPanel = ({setPallets}: UseOperatorPanelProps) => {
 
         if (!palletUpper) return;
 
+        scanAbortRef.current?.abort();
+        const controller = new AbortController();
+        scanAbortRef.current = controller;
+        const requestId = ++scanRequestRef.current;
+        setIsScanning(true);
+
         try {
-            const response = await fetch(`${API_BASE_URL}/pallets/${encodeURIComponent(palletUpper)}`, {
-                headers: {"Accept-Language": language},
+            const scanApi = apiClient.with({
+                fetcher: (input, init) => fetch(input, {...init, signal: controller.signal}),
             });
-
-            if (!response.ok) {
-                const errData = await response.json();
-                setScanStatus('ERROR');
-                setActivePallet(null);
-                triggerToast(errData.message);
-                setTimeout(() => setScanStatus('IDLE'), 1500);
-                return;
-            }
-
-            const pallet: Pallet = await response.json();
+            const response = await scanApi.pallet.GetPallet(palletUpper, {acceptLanguage: language});
+            const pallet = asPallet(response.pallet);
+            if (requestId !== scanRequestRef.current) return;
 
             setActivePallet(pallet);
             setScanStatus('SUCCESS');
@@ -95,14 +95,17 @@ export const useOperatorPanel = ({setPallets}: UseOperatorPanelProps) => {
             setSearchParams(newParams);
             setTimeout(() => setScanStatus('IDLE'), 1000);
         } catch (error: unknown) {
+            if (controller.signal.aborted || requestId !== scanRequestRef.current) return;
             console.error('Błąd skanowania:', error);
             setScanStatus('ERROR');
             setActivePallet(null);
             triggerToast(t('error_connecting_to_encore'));
 
             setTimeout(() => setScanStatus('IDLE'), 1500);
+        } finally {
+            if (requestId === scanRequestRef.current) setIsScanning(false);
         }
-    }, [language, scannedId, searchParams, setSearchParams, t, triggerToast]);
+    }, [apiClient, language, scannedId, searchParams, setSearchParams, t, triggerToast]);
 
     useEffect(() => {
         const upperUrlId = palletIDFromUrl.trim().toUpperCase();
@@ -127,43 +130,17 @@ export const useOperatorPanel = ({setPallets}: UseOperatorPanelProps) => {
         const description = t('op_fault_audit_description', {faultName});
 
         try {
-            const response = await authenticatedFetch(`${API_BASE_URL}/pallets/change-status`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Accept-Language": language,
-                },
-                body: JSON.stringify({
-                    pallet_id: activePallet.pallet_id,
-                    new_status: newStatus,
-                    block_reason: description,
-                    reset_cycles: false,
-                })
+            await apiClient.pallet.ChangePalletStatus({
+                pallet_id: activePallet.pallet_id,
+                new_status: newStatus,
+                block_reason: description,
+                reset_cycles: false,
+                acceptLanguage: language,
             });
-
-            if (!response.ok) {
-                const errData = await response.json();
-                triggerToast(errData.message);
-                return;
-            }
 
             triggerToast(t('op_fault_reported_with_name', {faultName}));
 
-            try {
-                const res = await fetch(`${API_BASE_URL}/pallets`, {
-                    headers: {"Accept-Language": language},
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    setPallets(data.pallets || []);
-                } else {
-                    const errData = await res.json();
-                    showGlobalError(t('error_fetching_pallets_title'), errData.message);
-                }
-            } catch (error: unknown) {
-                console.error("Failed to fetch pallets:", error);
-                showGlobalError(t('error_fetching_pallets_title'), t('error_connecting_to_encore'));
-            }
+            await queryClient.invalidateQueries({queryKey: ['pallets']});
 
             setActivePallet(null);
             setIsOtherFaultOpen(false);
@@ -195,6 +172,7 @@ export const useOperatorPanel = ({setPallets}: UseOperatorPanelProps) => {
             isToastOpen,
             toastMsg,
             isSubmitting,
+            isScanning,
             errorModalState,
         },
         actions: {
