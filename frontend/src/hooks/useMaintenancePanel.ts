@@ -1,4 +1,4 @@
-import React, {useCallback, useState} from 'react';
+import React, {useCallback, useMemo, useState} from 'react';
 import {Pallet, PalletStatus} from '@backend/shared/types';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
 import {useAuth} from '../auth/AuthContext.tsx';
@@ -28,28 +28,41 @@ export function useMaintenancePanel({pallets}: UseMaintenancePanelProps) {
         window.location.href = "/login";
     }
 
-    const repairPallets = pallets.filter(p => p.status === 'Damaged');
-    const routinePallets = pallets.filter(p => p.status === 'Washing_Required');
+    const repairPallets = useMemo(() => {
+        return (pallets || []).filter(p => p.status === 'Damaged');
+    }, [pallets]);
 
-    const filteredRepairPallets = (repairPallets || []).filter((p: Pallet) => {
-        const palletId = p.pallet_id || '';
-        const project = p.project || '';
-        const createdBy = p.created_by || '';
+    const routinePallets = useMemo(() => {
+        return (pallets || []).filter(p => p.status === 'Washing_Required');
+    }, [pallets]);
 
-        return palletId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            project.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            createdBy.toLowerCase().includes(searchTerm.toLowerCase());
-    });
+    const filteredRepairPallets = useMemo(() => {
+        const query = searchTerm.trim().toLowerCase();
+        if (!query) return repairPallets;
+        return repairPallets.filter((p: Pallet) => {
+            const palletId = (p.pallet_id || '').toLowerCase();
+            const project = (p.project || '').toLowerCase();
+            const createdBy = (p.created_by || '').toLowerCase();
 
-    const filteredRoutinePallets = (routinePallets || []).filter((p) => {
-        const palletId = p.pallet_id || '';
-        const project = p.project || '';
-        const createdBy = p.created_by || '';
+            return palletId.includes(query) ||
+                project.includes(query) ||
+                createdBy.includes(query);
+        });
+    }, [repairPallets, searchTerm]);
 
-        return palletId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            project.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            createdBy.toLowerCase().includes(searchTerm.toLowerCase());
-    });
+    const filteredRoutinePallets = useMemo(() => {
+        const query = searchTerm.trim().toLowerCase();
+        if (!query) return routinePallets;
+        return routinePallets.filter((p: Pallet) => {
+            const palletId = (p.pallet_id || '').toLowerCase();
+            const project = (p.project || '').toLowerCase();
+            const createdBy = (p.created_by || '').toLowerCase();
+
+            return palletId.includes(query) ||
+                project.includes(query) ||
+                createdBy.includes(query);
+        });
+    }, [routinePallets, searchTerm]);
 
     const handleOpenServiceLog = (pallet: Pallet) => {
         setSelectedPallet(pallet);
@@ -100,6 +113,7 @@ export function useMaintenancePanel({pallets}: UseMaintenancePanelProps) {
             repairDescription,
             Operator,
             modalError,
+            searchTerm,
             repairPallets,
             routinePallets,
             filteredRepairPallets,

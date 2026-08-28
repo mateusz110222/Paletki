@@ -15,3 +15,19 @@ CREATE INDEX IF NOT EXISTS idx_pallets_active_id
 CREATE INDEX IF NOT EXISTS idx_audit_logs_pallet_timestamp ON pallet_audit_logs (pallet_id, timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON pallet_audit_logs (timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_operator ON pallet_audit_logs (operator_id);
+
+CREATE INDEX IF NOT EXISTS idx_pallets_project_model
+    ON pallets (project, model)
+    WHERE deleted_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_pallets_upper_pallet_id
+    ON pallets (UPPER(pallet_id))
+    WHERE deleted_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_pallets_upper_model
+    ON pallets (UPPER(model))
+    WHERE deleted_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_pallets_upper_created_by
+    ON pallets (UPPER(created_by))
+    WHERE deleted_at IS NULL;

@@ -48,6 +48,10 @@ export interface GetPalletResponse {
 interface PalletPageParams extends LocalizedRequest {
     limit?: Query<number & Min<1> & Max<200>>;
     after_id?: Query<number & Min<0>>;
+    query?: Query<string>;
+    project?: Query<string>;
+    model?: Query<string>;
+    status?: Query<string>;
 }
 
 interface AuditPageParams extends LocalizedRequest {
@@ -108,15 +112,27 @@ export const GetAllPallets = api(
     {method: "GET", path: "/pallets", expose: true, auth: true},
     async (params: PalletPageParams): Promise<GetAllPalletsResponse> => {
         const limit = params.limit ?? 200;
-        const rows = params.after_id === undefined
-            ? await db.queryAll<PalletRecord>`
-                SELECT * FROM pallets WHERE deleted_at IS NULL ORDER BY id LIMIT ${limit + 1}
-            `
-            : await db.queryAll<PalletRecord>`
-                SELECT * FROM pallets
-                WHERE deleted_at IS NULL AND id > ${params.after_id}
-                ORDER BY id LIMIT ${limit + 1}
-            `;
+        const afterId = params.after_id ?? null;
+        const searchPattern = params.query ? `%${params.query.trim().toUpperCase()}%` : null;
+        const project = params.project && params.project !== "ALL" ? params.project : null;
+        const model = params.model && params.model !== "ALL" ? params.model : null;
+        const status = params.status && params.status !== "ALL" ? params.status : null;
+
+        const rows = await db.queryAll<PalletRecord>`
+            SELECT * FROM pallets
+            WHERE deleted_at IS NULL
+              AND (${afterId}::bigint IS NULL OR id > ${afterId})
+              AND (${project}::text IS NULL OR project = ${project})
+              AND (${model}::text IS NULL OR model = ${model})
+              AND (${status}::text IS NULL OR status = ${status})
+              AND (${searchPattern}::text IS NULL OR (
+                  UPPER(pallet_id) LIKE ${searchPattern} OR
+                  UPPER(model) LIKE ${searchPattern} OR
+                  UPPER(created_by) LIKE ${searchPattern}
+              ))
+            ORDER BY id
+            LIMIT ${limit + 1}
+        `;
         const hasMore = rows.length > limit;
         return {
             pallets: rows.slice(0, limit).map(toPalletDTO),

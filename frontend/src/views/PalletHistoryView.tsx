@@ -3,8 +3,9 @@ import {
     ArrowLeft,
     ArrowRight,
     CalendarClock,
-    ChevronLeft,
-    ChevronRight,
+    Check,
+    Copy,
+    Download,
     ExternalLink,
     FileClock,
     Filter,
@@ -20,6 +21,8 @@ import {useAuth} from '../auth/AuthContext.tsx';
 import {getFisUnitHistoryUrl} from '../config/fis.ts';
 import {PalletStatusSpan} from '../components/PalletStatusSpan.tsx';
 import {asPallet} from '../lib/api.ts';
+import {Pagination} from '../components/Pagination.tsx';
+import {formatHistoryEntries, formatOperatorsCount} from '../i18n/pluralization.ts';
 
 type SortOrder = 'newest' | 'oldest';
 type EventType = 'all' | 'status' | 'update';
@@ -45,6 +48,7 @@ export const PalletHistoryView: React.FC = () => {
     const [operator, setOperator] = useState('ALL');
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(25);
+    const [isCopied, setIsCopied] = useState(false);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -93,6 +97,7 @@ export const PalletHistoryView: React.FC = () => {
         Washing_Required: t('status_washing_required'),
         Blocked: t('status_blocked'),
     }), [t]);
+
     const operators = useMemo(() => Array.from(new Set(
         history.map((entry) => entry.operator_id).filter(Boolean),
     )).sort((a, b) => a.localeCompare(b, language)), [history, language]);
@@ -130,9 +135,6 @@ export const PalletHistoryView: React.FC = () => {
     const safePage = Math.min(page, totalPages);
     const visibleHistory = filteredHistory.slice((safePage - 1) * pageSize, safePage * pageSize);
     const fisHistoryUrl = pallet ? getFisUnitHistoryUrl(Number(pallet.fis), pallet.pallet_id) : null;
-    const latestEntry = useMemo(() => [...history].sort(
-        (a, b) => timestampValue(b.timestamp) - timestampValue(a.timestamp),
-    )[0], [history]);
     const hasFilters = Boolean(query || eventType !== 'all' || statusFilter !== 'ALL' || operator !== 'ALL');
 
     const clearFilters = () => {
@@ -141,6 +143,70 @@ export const PalletHistoryView: React.FC = () => {
         setStatusFilter('ALL');
         setOperator('ALL');
         setPage(1);
+    };
+
+    const handleCopyPalletId = async () => {
+        if (!pallet) return;
+        try {
+            await navigator.clipboard.writeText(pallet.pallet_id);
+            setIsCopied(true);
+            setTimeout(() => setIsCopied(false), 2000);
+        } catch {
+            // fallback
+            const input = document.createElement('input');
+            input.value = pallet.pallet_id;
+            document.body.appendChild(input);
+            input.select();
+            document.execCommand('copy');
+            document.body.removeChild(input);
+            setIsCopied(true);
+            setTimeout(() => setIsCopied(false), 2000);
+        }
+    };
+
+    const handleExportCSV = () => {
+        if (!pallet || filteredHistory.length === 0) return;
+
+        const headers = [
+            'ID Wpisu',
+            'Data i Czas',
+            'ID Palety',
+            'Projekt',
+            'Model',
+            'Poprzedni Status',
+            'Nowy Status',
+            'Operator',
+            'Opis / Powód'
+        ];
+
+        const escapeCSV = (val: string | number | undefined | null) => {
+            if (val === undefined || val === null) return '""';
+            const str = String(val).replace(/"/g, '""');
+            return `"${str}"`;
+        };
+
+        const rows = filteredHistory.map(entry => [
+            escapeCSV(entry.id),
+            escapeCSV(new Date(entry.timestamp).toISOString()),
+            escapeCSV(entry.pallet_id || pallet.pallet_id),
+            escapeCSV(pallet.project),
+            escapeCSV(pallet.model),
+            escapeCSV(entry.previous_status),
+            escapeCSV(entry.new_status),
+            escapeCSV(entry.operator_id),
+            escapeCSV(entry.description)
+        ].join(';'));
+
+        const csvContent = '\uFEFF' + [headers.join(';'), ...rows].join('\r\n');
+        const blob = new Blob([csvContent], {type: 'text/csv;charset=utf-8;'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Historia_Palety_${pallet.pallet_id}_${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     };
 
     const renderStatus = (status: string, description?: string) => {
@@ -184,14 +250,26 @@ export const PalletHistoryView: React.FC = () => {
     }
 
     return (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-            <button
-                type="button"
-                onClick={() => navigate('/admin')}
-                className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-brand-text-muted transition-colors hover:text-brand-accent"
-            >
-                <ArrowLeft size={16}/> {t('history_back_to_admin')}
-            </button>
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300" id="pallet-history-container">
+            <div className="flex items-center justify-between">
+                <button
+                    type="button"
+                    onClick={() => navigate('/admin')}
+                    className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-brand-text-muted transition-colors hover:text-brand-accent"
+                >
+                    <ArrowLeft size={16}/> {t('history_back_to_admin')}
+                </button>
+
+                <button
+                    type="button"
+                    onClick={handleExportCSV}
+                    disabled={filteredHistory.length === 0}
+                    className="inline-flex items-center gap-2 rounded-lg border border-brand-border bg-brand-surface px-3 py-2 text-xs font-bold uppercase text-brand-text transition-all hover:border-brand-accent hover:bg-brand-surface-high disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <Download size={15} className="text-brand-accent"/>
+                    <span>{t('btn_export_pallet_csv')}</span>
+                </button>
+            </div>
 
             <section className="relative overflow-hidden rounded-2xl border border-brand-border bg-brand-surface p-6">
                 <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-brand-accent/10 blur-3xl"/>
@@ -216,6 +294,18 @@ export const PalletHistoryView: React.FC = () => {
                                 ) : (
                                     <h3 className="font-mono text-3xl font-black text-brand-accent">{pallet.pallet_id}</h3>
                                 )}
+
+                                <button
+                                    type="button"
+                                    onClick={handleCopyPalletId}
+                                    title={isCopied ? t('pallet_id_copied') : t('copy_pallet_id')}
+                                    aria-label={isCopied ? t('pallet_id_copied') : t('copy_pallet_id')}
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-brand-border bg-brand-bg px-2.5 py-1 text-xs font-semibold text-brand-text-muted transition-colors hover:border-brand-accent hover:text-brand-accent"
+                                >
+                                    {isCopied ? <Check size={14} className="text-green-400"/> : <Copy size={14}/>}
+                                    <span className="text-[10px]">{isCopied ? t('pallet_id_copied') : t('copy_pallet_id')}</span>
+                                </button>
+
                                 {pallet.status && <PalletStatusSpan status={pallet.status}/>}
                             </div>
                             <p className="mt-2 text-sm font-semibold text-brand-text">
@@ -238,19 +328,20 @@ export const PalletHistoryView: React.FC = () => {
                         <div className="rounded-xl border border-brand-border bg-brand-bg/70 p-4">
                             <p className="text-[9px] font-bold uppercase tracking-wider text-brand-text-muted">{t('history_entries')}</p>
                             <p className="mt-1 font-mono text-lg font-black text-brand-text">{history.length}</p>
-                            <p className="text-[10px] text-brand-text-muted">{t('history_events')}</p>
+                            <p className="text-[10px] text-brand-text-muted">{formatHistoryEntries(history.length, language, false)}</p>
                         </div>
                         <div className="rounded-xl border border-brand-border bg-brand-bg/70 p-4">
                             <p className="text-[9px] font-bold uppercase tracking-wider text-brand-text-muted">{t('history_operators')}</p>
                             <p className="mt-1 font-mono text-lg font-black text-brand-text">{operators.length}</p>
                             <p className="truncate text-[10px] text-brand-text-muted">
-                                {latestEntry ? new Date(latestEntry.timestamp).toLocaleDateString(language) : '—'}
+                                {formatOperatorsCount(operators.length, language, false)}
                             </p>
                         </div>
                     </div>
                 </div>
             </section>
 
+            {/* Filters bar */}
             <section className="rounded-2xl border border-brand-border bg-brand-surface p-4">
                 <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-[minmax(240px,1fr)_180px_180px_210px_170px_auto]">
                     <label className="relative block">
@@ -418,29 +509,16 @@ export const PalletHistoryView: React.FC = () => {
                 </div>
             )}
 
-            {totalPages > 1 && (
-                <nav className="flex items-center justify-center gap-3 rounded-xl border border-brand-border bg-brand-surface p-3" aria-label={t('history_pagination')}>
-                    <button
-                        type="button"
-                        onClick={() => setPage((current) => Math.max(1, current - 1))}
-                        disabled={safePage === 1}
-                        className="inline-flex h-9 items-center gap-2 rounded-lg border border-brand-border px-3 text-[10px] font-bold uppercase text-brand-text transition-colors hover:border-brand-accent disabled:opacity-30"
-                    >
-                        <ChevronLeft size={15}/> {t('history_previous_page')}
-                    </button>
-                    <span className="min-w-24 text-center text-xs font-bold text-brand-text">
-                        {t('history_page_of', {page: safePage, total: totalPages})}
-                    </span>
-                    <button
-                        type="button"
-                        onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-                        disabled={safePage === totalPages}
-                        className="inline-flex h-9 items-center gap-2 rounded-lg border border-brand-border px-3 text-[10px] font-bold uppercase text-brand-text transition-colors hover:border-brand-accent disabled:opacity-30"
-                    >
-                        {t('history_next_page')} <ChevronRight size={15}/>
-                    </button>
-                </nav>
-            )}
+            {/* Pagination Component */}
+            <div className="bg-brand-surface rounded-xl border border-brand-border overflow-hidden">
+                <Pagination
+                    currentPage={safePage}
+                    totalPages={totalPages}
+                    totalItems={filteredHistory.length}
+                    pageSize={pageSize}
+                    onPageChange={setPage}
+                />
+            </div>
         </div>
     );
 };

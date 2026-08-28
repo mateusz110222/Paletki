@@ -21,6 +21,7 @@ import {useEscapeKey} from "../hooks/useEscapeKey.ts";
 import {ModalFormActions} from "../components/ModalFormActions.tsx";
 import {ModalPresence, ModalTransition} from '../components/ModalTransition.tsx';
 import {InputField, SelectField, TextareaField} from '../components/FormFields.tsx';
+import {Pagination} from '../components/Pagination.tsx';
 
 interface AdminPanelViewProps {
     pallets: Pallet[];
@@ -87,7 +88,6 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
             actions.setIsAddOpen(false);
         }
     });
-
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300" id="admin-panel-container">
@@ -203,8 +203,8 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                             className="bg-brand-bg border border-brand-border text-xs rounded p-2 text-brand-text font-medium focus:ring-1 focus:ring-brand-accent disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <option value="ALL">{t('all_models')}</option>
-                            {Array.from(new Set(data.pallets.map((p: Pallet) => p.model))).map((projectName) => (
-                                <option key={projectName} value={projectName}>{projectName}</option>
+                            {data.availableModels.map((modelName: string) => (
+                                <option key={modelName} value={modelName}>{modelName}</option>
                             ))}
                         </select>
                     </div>
@@ -270,6 +270,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                         onClick={actions.handleRefreshPallets}
                         disabled={status.isRefreshing}
                         title={t('btn_refresh_pallets')}
+                        aria-label={t('btn_refresh_pallets')}
                         className="border border-brand-border text-brand-text font-bold uppercase text-xs h-9 px-3 flex items-center justify-center gap-2 hover:bg-brand-surface-high hover:border-brand-accent/40 active:scale-[0.98] transition-all rounded disabled:opacity-50"
                     >
                         <RefreshCw size={14} className={status.isRefreshing ? "animate-spin text-brand-accent" : ""}/>
@@ -293,7 +294,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                         <tbody className="divide-y divide-brand-border">
                         {data.paginatedPallets.length === 0 ? (
                             <tr>
-                                <td colSpan={7} className="px-6 py-10 text-center text-brand-text-muted">
+                                <td colSpan={8} className="px-6 py-10 text-center text-brand-text-muted">
                                     {t('no_pallets_found')}
                                 </td>
                             </tr>
@@ -311,6 +312,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                                 type="button"
                                                 onClick={() => openPalletHistory(p)}
                                                 title={t('audit_trail_title')}
+                                                aria-label={`${t('audit_trail_title')}: ${p.pallet_id}`}
                                                 className="text-brand-accent hover:text-brand-text hover:underline underline-offset-2 cursor-pointer transition-colors focus:outline-none focus:ring-1 focus:ring-brand-accent rounded px-1 -mx-1"
                                             >
                                                 {p.pallet_id}
@@ -367,6 +369,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                                 <button
                                                     onClick={() => openPalletHistory(p)}
                                                     title={t('audit_trail_title')}
+                                                    aria-label={`${t('audit_trail_title')}: ${p.pallet_id}`}
                                                     className="p-1 text-brand-text-muted hover:text-brand-accent transition-colors"
                                                 >
                                                     <History size={16}/>
@@ -375,6 +378,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                                 <button
                                                     onClick={() => actions.handleOpenEditModal(p)}
                                                     title={t('btn_edit')}
+                                                    aria-label={`${t('btn_edit')}: ${p.pallet_id}`}
                                                     className="p-1 text-brand-text-muted hover:text-brand-accent transition-colors"
                                                 >
                                                     <Edit size={16}/>
@@ -384,6 +388,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                                     <button
                                                         onClick={() => actions.handleUnblock(p)}
                                                         title={t('btn_unblock')}
+                                                        aria-label={`${t('btn_unblock')}: ${p.pallet_id}`}
                                                         className="text-xs font-bold text-green-400 hover:underline px-1"
                                                     >
                                                         {t('btn_unblock')}
@@ -392,6 +397,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                                     <button
                                                         onClick={() => actions.handleBlockClick(p)}
                                                         title={t('btn_block')}
+                                                        aria-label={`${t('btn_block')}: ${p.pallet_id}`}
                                                         className="p-1 text-brand-text-muted hover:text-red-400 transition-colors"
                                                     >
                                                         <ShieldAlert size={16}/>
@@ -401,6 +407,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                                 <button
                                                     onClick={() => actions.setSelectedPalletForDelete(p)}
                                                     title={t('btn_delete')}
+                                                    aria-label={`${t('btn_delete')}: ${p.pallet_id}`}
                                                     className="p-1 text-brand-text-muted hover:text-red-500 transition-colors"
                                                 >
                                                     <Trash2 size={16}/>
@@ -414,6 +421,15 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                         </tbody>
                     </table>
                 </div>
+
+                {/* Paginacja */}
+                <Pagination
+                    currentPage={data.currentPage}
+                    totalPages={data.totalPages}
+                    totalItems={data.filteredPallets.length}
+                    pageSize={data.pageSize}
+                    onPageChange={actions.setCurrentPage}
+                />
             </div>
 
             {/* MODAL 1: DODAWANIE NOWEJ PALETY */}
@@ -440,6 +456,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 className="w-8 h-8 rounded-xl flex items-center justify-center text-brand-text-muted hover:text-red-400 hover:bg-red-500/10 transition-all"
                                 onClick={() => actions.setIsAddOpen(false)}
                                 type="button"
+                                aria-label={t('btn_cancel')}
                             >
                                 <X size={18}/>
                             </button>
@@ -550,6 +567,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 {t('modal_add_project_title')}
                             </h3>
                             <button className="text-brand-text-muted hover:text-red-400 transition-colors"
+                                    aria-label={t('btn_cancel')}
                                     onClick={() => actions.setIsAddProjectOpen(false)}>
                                 <X size={18}/>
                             </button>
@@ -610,6 +628,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 className="w-8 h-8 rounded-xl flex items-center justify-center text-brand-text-muted hover:text-red-400 hover:bg-red-500/10 transition-all"
                                 onClick={() => actions.setIsEditOpen(false)}
                                 type="button"
+                                aria-label={t('btn_cancel')}
                             >
                                 <X size={18}/>
                             </button>
@@ -732,6 +751,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 {t('btn_block')} {data.selectedPalletForBlock.pallet_id}
                             </h3>
                             <button onClick={() => actions.setIsBlockOpen(false)}
+                                    aria-label={t('btn_cancel')}
                                     className="text-brand-text-muted hover:text-brand-text">
                                 <X size={20}/>
                             </button>

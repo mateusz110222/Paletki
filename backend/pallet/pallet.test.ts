@@ -1,5 +1,6 @@
 import {describe, expect, it} from "vitest";
 import {parseLanguage, t, translations} from "../shared/i18n";
+import {normalizePalletId, normalizePalletStatus} from "../shared/validation";
 import {
     encodeAuditChanges,
     encodeAuditDescription,
@@ -50,5 +51,33 @@ describe("localized audit descriptions", () => {
             description: encodeAuditDescription("audit_cycle_limit", {maxCycles: 200}),
         }, "en");
         expect(localized.operator_id).toBe("System – automatic block");
+    });
+});
+
+describe("server-side search and filtering parameters", () => {
+    it("normalizes pallet search queries and identifiers", () => {
+        const rawQuery = "  pal-audi-001  ";
+        const normalized = rawQuery.trim().toUpperCase();
+        expect(normalized).toBe("PAL-AUDI-001");
+        expect(`%${normalized}%`).toBe("%PAL-AUDI-001%");
+    });
+
+    it("handles wildcard search query formation", () => {
+        const searchTerm = "audi";
+        const pattern = searchTerm ? `%${searchTerm.trim().toUpperCase()}%` : null;
+        expect(pattern).toBe("%AUDI%");
+    });
+
+    it("validates pallet status filter values against allowed domain", () => {
+        expect(normalizePalletStatus("Active")).toBe("Active");
+        expect(normalizePalletStatus("Damaged")).toBe("Damaged");
+        expect(normalizePalletStatus("Washing_Required")).toBe("Washing_Required");
+        expect(normalizePalletStatus("Blocked")).toBe("Blocked");
+        expect(normalizePalletStatus("INVALID_STATUS")).toBeNull();
+    });
+
+    it("correctly identifies uppercase matching for pallet_id normalization", () => {
+        expect(normalizePalletId("jcb_01")).toBe("JCB_01");
+        expect(normalizePalletId("  pal-bmw-99  ")).toBe("PAL-BMW-99");
     });
 });

@@ -33,6 +33,7 @@
     "@types/react-dom": "^19.2.3",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.25.0",
+    "playwright": "^1.62.1",
     "tailwindcss": "^4.1.14",
     "terser": "^5.50.0",
     "tsx": "^4.21.0",

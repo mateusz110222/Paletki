@@ -6,6 +6,7 @@ import {
     CheckSquare,
     FileText,
     RefreshCw,
+    Search,
     ShieldCheck,
     User,
     Wrench,
@@ -225,16 +226,29 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
                         ))}
 
                         {(data.activeTab === 'repairs' ? data.filteredRepairPallets : data.filteredRoutinePallets).length === 0 && (
-                            <div className="col-span-full py-20 text-center flex flex-col items-center gap-4">
-                                <div
-                                    className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center text-green-400">
-                                    <CheckCircle2 size={32}/>
+                            searchTermFromURL.trim() ? (
+                                <div className="col-span-full py-20 text-center flex flex-col items-center gap-4">
+                                    <div
+                                        className="w-16 h-16 rounded-full bg-brand-surface-high border border-brand-border flex items-center justify-center text-brand-text-muted">
+                                        <Search size={32}/>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold text-brand-text">{t('no_pallets_found')}</p>
+                                        <p className="text-xs text-brand-text-muted mt-1">{t('btn_search_placeholder')}: "{searchTermFromURL}"</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-sm font-bold text-brand-text">{t('queue_empty')}</p>
-                                    <p className="text-xs text-brand-text-muted mt-1">{t('all_pallets_ok')}</p>
+                            ) : (
+                                <div className="col-span-full py-20 text-center flex flex-col items-center gap-4">
+                                    <div
+                                        className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center text-green-400">
+                                        <CheckCircle2 size={32}/>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold text-brand-text">{t('queue_empty')}</p>
+                                        <p className="text-xs text-brand-text-muted mt-1">{t('all_pallets_ok')}</p>
+                                    </div>
                                 </div>
-                            </div>
+                            )
                         )}
                     </div>
                 </div>

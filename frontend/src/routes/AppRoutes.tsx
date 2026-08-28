@@ -16,7 +16,7 @@ import {DirectoryView} from '../views/DirectoryView.tsx';
 
 export const AppRoutes: React.FC = () => {
     const {apiClient, hasITDepartmentAccess, canManagePallets, isMaintenanceOnly, canAccessMaintenance, defaultPath} = useAuth();
-    const {language} = useTranslation();
+    const {language, t} = useTranslation();
     const queryClient = useQueryClient();
     const palletsKey = useMemo(() => ['pallets', language] as const, [language]);
     const projectsKey = useMemo(() => ['projects', language] as const, [language]);
@@ -38,11 +38,15 @@ export const AppRoutes: React.FC = () => {
             return {pallets};
         },
         refetchInterval: 100_000,
+        staleTime: 30_000,
+        refetchOnWindowFocus: false,
     });
 
     const projectsQuery = useQuery({
         queryKey: projectsKey,
         queryFn: () => publicApi.pallet.GetAllProjects(),
+        staleTime: 60_000,
+        refetchOnWindowFocus: false,
     });
 
     const pallets = palletsQuery.data?.pallets ?? [];
@@ -64,7 +68,7 @@ export const AppRoutes: React.FC = () => {
         <>
             {(palletsQuery.isError || projectsQuery.isError) && (
                 <div role="alert" className="fixed top-3 left-1/2 z-[100] -translate-x-1/2 rounded-lg border border-red-500/50 bg-red-950 px-4 py-2 text-sm text-red-100 shadow-xl">
-                    Nie udało się odświeżyć danych. Wyświetlane są ostatnie poprawnie pobrane wartości.
+                    {t('fetch_error_banner')}
                 </div>
             )}
             <Routes>
@@ -93,7 +97,7 @@ export const AppRoutes: React.FC = () => {
                     <Route path="/maintenance" element={<MaintenancePanel pallets={pallets}/>}/>
                 )}
 
-                {!isMaintenanceOnly && <Route path="/live" element={<LiveMonitor pallets={pallets}/>}/>}
+                {!isMaintenanceOnly && <Route path="/live" element={<LiveMonitor pallets={pallets} projects={projects}/>}/>}
             </Route>
 
             <Route path="*" element={<Navigate to={defaultPath} replace/>}/>

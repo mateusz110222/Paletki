@@ -6,6 +6,7 @@ import {useSearchParams} from "react-router-dom";
 import {useAuth} from "../auth/AuthContext.tsx";
 import {asPallet} from "../lib/api.ts";
 import {useQueryClient} from '@tanstack/react-query';
+import {playScanErrorSound, playScanSuccessSound} from '../lib/audio.ts';
 
 export const useOperatorPanel = () => {
     const {t, language} = useTranslation();
@@ -33,15 +34,17 @@ export const useOperatorPanel = () => {
     const [searchParams, setSearchParams] = useSearchParams();
     const palletIDFromUrl = searchParams.get('palletID') || '';
 
+    // Handle body click to keep barcode scanner focused without stealing focus from interactive elements
     useEffect(() => {
-        if (barcodeInputRef.current) {
+        if (barcodeInputRef.current && !activePallet && !isOtherFaultOpen) {
             barcodeInputRef.current.focus();
         }
 
         const handleBodyClick = (e: MouseEvent) => {
-            const target = e.target as HTMLElement;
-            const interactiveTags = ['BUTTON', 'A', 'INPUT', 'TEXTAREA', 'SELECT'];
-            if (!interactiveTags.includes(target.tagName) && barcodeInputRef.current) {
+            const target = e.target as HTMLElement | null;
+            if (!target) return;
+            const interactive = target.closest('button, a, input, textarea, select, [role="button"], [tabindex]');
+            if (!interactive && barcodeInputRef.current && !activePallet && !isOtherFaultOpen) {
                 barcodeInputRef.current.focus();
             }
         };
@@ -52,7 +55,7 @@ export const useOperatorPanel = () => {
             if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
             scanAbortRef.current?.abort();
         };
-    }, []);
+    }, [activePallet, isOtherFaultOpen]);
 
     const processedUrlIdRef = useRef<string | null>(null);
 
@@ -86,6 +89,7 @@ export const useOperatorPanel = () => {
             const pallet = asPallet(response.pallet);
             if (requestId !== scanRequestRef.current) return;
 
+            playScanSuccessSound();
             setActivePallet(pallet);
             setScanStatus('SUCCESS');
             triggerToast(t('op_scan_success_with_id', {palletId: pallet.pallet_id}));
@@ -97,6 +101,7 @@ export const useOperatorPanel = () => {
         } catch (error: unknown) {
             if (controller.signal.aborted || requestId !== scanRequestRef.current) return;
             console.error('Błąd skanowania:', error);
+            playScanErrorSound();
             setScanStatus('ERROR');
             setActivePallet(null);
             triggerToast(t('error_connecting_to_encore'));
@@ -120,7 +125,7 @@ export const useOperatorPanel = () => {
         }
     }, [handleScanSubmit, palletIDFromUrl]);
 
-    const handleReportFault = async (faultName: string, newStatus: PalletStatus) => {
+    const handleReportFault = useCallback(async (faultName: string, newStatus: PalletStatus) => {
         if (!activePallet) {
             triggerToast(t('op_no_pallet_scanned'));
             return;
@@ -152,15 +157,44 @@ export const useOperatorPanel = () => {
         } finally {
             setIsSubmitting(false);
         }
-    };
+    }, [activePallet, apiClient, language, queryClient, t, triggerToast]);
 
-    const handleClearActivePallet = () => {
+    const handleClearActivePallet = useCallback(() => {
         setActivePallet(null);
         setScannedId('');
         if (barcodeInputRef.current) {
             barcodeInputRef.current.focus();
         }
-    };
+    }, []);
+
+    // Operator Hotkeys: 1, 2, 3 to report quick faults when active pallet is open
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (!activePallet || isOtherFaultOpen || isSubmitting) return;
+
+            const target = e.target as HTMLElement | null;
+            if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) {
+                return;
+            }
+
+            if (e.key === '1') {
+                e.preventDefault();
+                void handleReportFault(t('op_mechanical_damage'), 'Damaged');
+            } else if (e.key === '2') {
+                e.preventDefault();
+                void handleReportFault(t('op_washing_required'), 'Washing_Required');
+            } else if (e.key === '3') {
+                e.preventDefault();
+                void handleReportFault(t('op_pockets_error'), 'Damaged');
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                handleClearActivePallet();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [activePallet, handleClearActivePallet, handleReportFault, isOtherFaultOpen, isSubmitting, t]);
 
     return {
         data: {

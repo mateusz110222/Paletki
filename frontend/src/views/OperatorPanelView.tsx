@@ -121,11 +121,12 @@ export const OperatorPanelView: React.FC = () => {
                                         block_reason={data.activePallet.block_reason} />
                                     <button
                                         onClick={actions.handleClearActivePallet}
-                                        className="p-2.5 bg-brand-bg border border-brand-border rounded-xl text-brand-text-muted hover:text-white hover:border-red-500/50 hover:bg-red-500/10 transition-all active:scale-95"
-                                        title={t('btn_cancel')}
-                                        aria-label={t('btn_cancel')}
+                                        className="p-2.5 bg-brand-bg border border-brand-border rounded-xl text-brand-text-muted hover:text-white hover:border-red-500/50 hover:bg-red-500/10 transition-all active:scale-95 flex items-center gap-1.5"
+                                        title={`${t('btn_cancel')} [ESC]`}
+                                        aria-label={`${t('btn_cancel')} [ESC]`}
                                     >
-                                        <X size={22} />
+                                        <X size={20} />
+                                        <span className="hidden sm:inline text-[10px] font-mono font-bold bg-brand-surface-high border border-brand-border px-1.5 py-0.5 rounded text-brand-text-muted">ESC</span>
                                     </button>
                                 </div>
                             </div>
@@ -189,27 +190,35 @@ export const OperatorPanelView: React.FC = () => {
                     <div
                         className="bg-brand-surface border border-brand-border/80 rounded-2xl p-6 flex flex-col justify-between shadow-xl space-y-4">
                         <div>
-                            <h4 className="text-xs font-black text-red-400 uppercase tracking-widest flex items-center gap-2 mb-4">
-                                <AlertTriangle size={18} className="text-red-400 animate-pulse" />
-                                {t('op_report_fault')}
-                            </h4>
+                            <div className="flex items-center justify-between mb-4">
+                                <h4 className="text-xs font-black text-red-400 uppercase tracking-widest flex items-center gap-2">
+                                    <AlertTriangle size={18} className="text-red-400 animate-pulse" />
+                                    {t('op_report_fault')}
+                                </h4>
+                                <span className="text-[10px] font-mono font-bold text-brand-text-muted bg-brand-surface-high border border-brand-border px-2 py-0.5 rounded">
+                                    {t('op_hotkeys_hint')}
+                                </span>
+                            </div>
 
                             <div className="space-y-3">
                                 {[
                                     {
                                         id: 'mechanical',
+                                        keyNum: '1',
                                         label: t('op_mechanical_damage'),
                                         status: "Damaged",
                                         icon: <Edit3 size={18} />
                                     },
                                     {
                                         id: 'dirty',
+                                        keyNum: '2',
                                         label: t('op_washing_required'),
                                         status: "Washing_Required",
                                         icon: <WashingMachine size={18} />
                                     },
                                     {
                                         id: 'pockets',
+                                        keyNum: '3',
                                         label: t('op_pockets_error'),
                                         status: "Damaged",
                                         icon: <AlertTriangle size={18} />
@@ -229,8 +238,13 @@ export const OperatorPanelView: React.FC = () => {
                                             <span
                                                 className="text-xs font-bold text-brand-text group-hover:text-white transition-colors">{fault.label}</span>
                                         </div>
-                                        <ChevronRight size={16}
-                                            className="text-brand-text-muted group-hover:text-red-400 group-hover:translate-x-1 transition-all" />
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-brand-surface border border-brand-border text-brand-text-muted group-hover:border-red-500/40 group-hover:text-red-400">
+                                                [{fault.keyNum}]
+                                            </span>
+                                            <ChevronRight size={16}
+                                                className="text-brand-text-muted group-hover:text-red-400 group-hover:translate-x-1 transition-all" />
+                                        </div>
                                     </button>
                                 ))}
                             </div>

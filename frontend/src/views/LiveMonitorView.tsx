@@ -1,18 +1,42 @@
 import React from 'react';
-import {AlertCircle, AlertTriangle, CheckCircle2, Layers, Package} from 'lucide-react';
+import {
+    Activity,
+    AlertCircle,
+    AlertTriangle,
+    CheckCircle2,
+    Package,
+    Search,
+    ShieldAlert,
+    Wrench
+} from 'lucide-react';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
-import {Pallet} from '@backend/shared/types.ts';
-import {useLiveMonitor} from '../hooks/useLiveMonitor.ts';
+import {Pallet, Project} from '@backend/shared/types.ts';
+import {MonitorSortOption, ProjectStats, useLiveMonitor} from '../hooks/useLiveMonitor.ts';
+import {
+    formatAvailablePallets,
+    formatPalletsCount,
+    formatProjectsCount
+} from '../i18n/pluralization.ts';
 
 interface LiveMonitorViewProps {
     pallets: Pallet[];
+    projects?: Project[];
 }
 
 export const LiveMonitorView: React.FC<LiveMonitorViewProps> = (props) => {
     const {data, actions} = useLiveMonitor(props);
-    const {t} = useTranslation();
+    const {t, language} = useTranslation();
 
-    const getStatusTheme = (percentage: number) => {
+    const getStatusTheme = (percentage: number, total: number) => {
+        if (total === 0) {
+            return {
+                badgeBg: 'bg-brand-surface-high text-brand-text-muted border-brand-border',
+                barBg: 'bg-brand-border',
+                textColor: 'text-brand-text-muted',
+                icon: <Package size={16} className="text-brand-text-muted"/>,
+                borderAccent: 'hover:border-brand-border/80',
+            };
+        }
         if (percentage >= 80) {
             return {
                 badgeBg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
@@ -40,38 +64,150 @@ export const LiveMonitorView: React.FC<LiveMonitorViewProps> = (props) => {
         };
     };
 
+    const overallTheme = getStatusTheme(data.fleetSummary.availabilityPercentage, data.fleetSummary.total);
+
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300" id="live-monitor-container">
-            {/* Header Section */}
-            <div className="bg-brand-surface rounded-xl border border-brand-border p-6 shadow-sm">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div className="flex items-center gap-3">
+            {/* Top Fleet Health Summary Bento */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* 1. Global Health Score */}
+                <div className="bg-brand-surface p-5 rounded-xl border border-brand-border flex flex-col justify-between relative overflow-hidden group hover:border-brand-accent/40 transition-colors">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-brand-text-muted">
+                            {t('fleet_health_score')}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                            <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                            </span>
+                            <span className="text-[9px] font-bold uppercase text-emerald-400">LIVE</span>
+                        </div>
+                    </div>
+                    <div className="flex items-baseline gap-2 mt-3">
+                        <span className={`text-4xl font-black ${overallTheme.textColor}`}>
+                            {data.fleetSummary.availabilityPercentage}%
+                        </span>
+                    </div>
+                    <div className="mt-3 h-1.5 w-full bg-brand-bg rounded-full overflow-hidden border border-brand-border/40">
                         <div
-                            className="p-2.5 bg-brand-accent/10 rounded-lg text-brand-accent border border-brand-accent/20">
-                            <Layers size={20}/>
+                            className={`h-full rounded-full transition-all duration-700 ${overallTheme.barBg}`}
+                            style={{width: `${data.fleetSummary.availabilityPercentage}%`}}
+                        />
+                    </div>
+                </div>
+
+                {/* 2. Total Pallets */}
+                <div className="bg-brand-surface p-5 rounded-xl border border-brand-border flex flex-col justify-between hover:border-brand-accent/40 transition-colors">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-brand-text-muted">
+                            {t('fleet_total_pallets')}
+                        </span>
+                        <Package size={16} className="text-brand-text-muted"/>
+                    </div>
+                    <span className="text-4xl font-extrabold text-brand-text mt-3">
+                        {data.fleetSummary.total}
+                    </span>
+                    <span className="text-[10px] font-semibold text-brand-text-muted mt-2">
+                        {formatProjectsCount(data.totalProjectsCount, language)}
+                    </span>
+                </div>
+
+                {/* 3. Operational in loop */}
+                <div className="bg-brand-surface p-5 rounded-xl border border-brand-border flex flex-col justify-between hover:border-brand-accent/40 transition-colors">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-brand-text-muted">
+                            {t('fleet_operational')}
+                        </span>
+                        <CheckCircle2 size={16} className="text-emerald-400"/>
+                    </div>
+                    <span className="text-4xl font-extrabold text-emerald-400 mt-3">
+                        {data.fleetSummary.active}
+                    </span>
+                    <span className="text-[10px] font-semibold text-emerald-400/90 mt-2">
+                        {formatAvailablePallets(data.fleetSummary.active, language)} ({data.fleetSummary.total > 0
+                            ? Math.round((data.fleetSummary.active / data.fleetSummary.total) * 100)
+                            : 100}%)
+                    </span>
+                </div>
+
+                {/* 4. In Service / Blocked */}
+                <div className="bg-brand-surface p-5 rounded-xl border border-brand-border flex flex-col justify-between hover:border-brand-accent/40 transition-colors">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-brand-text-muted">
+                            {t('fleet_in_service')}
+                        </span>
+                        <Wrench size={16} className="text-amber-400"/>
+                    </div>
+                    <div className="flex items-baseline gap-3 mt-3">
+                        <span className="text-4xl font-extrabold text-amber-400">
+                            {data.fleetSummary.damaged + data.fleetSummary.washing + data.fleetSummary.blocked}
+                        </span>
+                        <div className="flex gap-2 text-[10px] font-mono">
+                            {data.fleetSummary.damaged > 0 && (
+                                <span className="text-rose-400 font-bold">
+                                    {data.fleetSummary.damaged} {t('damaged_status')}
+                                </span>
+                            )}
+                            {data.fleetSummary.blocked > 0 && (
+                                <span className="text-red-400 font-bold">
+                                    {data.fleetSummary.blocked} <ShieldAlert size={10} className="inline"/>
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                    <span className="text-[10px] text-brand-text-muted mt-2">
+                        {data.fleetSummary.washing > 0 ? `${data.fleetSummary.washing} ${t('cyclic_service')}` : t('maintenance_queue')}
+                    </span>
+                </div>
+            </div>
+
+            {/* Header & Filter Controls Section */}
+            <div className="bg-brand-surface rounded-xl border border-brand-border p-4 shadow-sm">
+                <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4">
+                    {/* Title */}
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-brand-accent/10 rounded-lg text-brand-accent border border-brand-accent/20 shrink-0">
+                            <Activity size={20}/>
                         </div>
                         <div>
                             <h3 className="text-base font-bold text-brand-text tracking-wide uppercase">
                                 {t('project_health_monitor')}
                             </h3>
                             <p className="text-xs text-brand-text-muted mt-0.5">
-                                {data.projects.length} {t('active_projects')}
+                                {data.projects.length === data.totalProjectsCount
+                                    ? formatProjectsCount(data.totalProjectsCount, language)
+                                    : `${data.projects.length} z ${formatProjectsCount(data.totalProjectsCount, language)}`}
                             </p>
                         </div>
                     </div>
 
-                    <div
-                        className="flex items-center gap-3 bg-brand-bg/50 px-3 py-1.5 rounded-lg border border-brand-border/40">
-                        <span className="text-[10px] font-bold text-brand-text-muted uppercase tracking-wider">
-                            {t('next_refresh')}
-                        </span>
-                        <div
-                            className="w-20 h-1.5 bg-brand-bg rounded-full overflow-hidden border border-brand-border/30">
-                            <div
-                                className="h-full bg-brand-accent transition-all duration-300 rounded-full"
-                                style={{width: `${data.progress}%`}}
-                            ></div>
+                    {/* Search & Sort Controls */}
+                    <div className="flex flex-wrap items-center gap-3">
+                        {/* Search project */}
+                        <div className="relative flex-1 sm:w-60">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-text-muted" size={14}/>
+                            <input
+                                type="text"
+                                placeholder={t('search_project_placeholder')}
+                                value={data.searchQuery}
+                                onChange={(e) => actions.setSearchQuery(e.target.value)}
+                                className="w-full bg-brand-bg border border-brand-border rounded-lg pl-9 pr-3 py-2 text-xs text-brand-text placeholder:text-brand-text-muted/60 focus:outline-none focus:ring-1 focus:ring-brand-accent"
+                            />
                         </div>
+
+                        {/* Sort Dropdown */}
+                        <select
+                            value={data.sortBy}
+                            onChange={(e) => actions.setSortBy(e.target.value as MonitorSortOption)}
+                            className="bg-brand-bg border border-brand-border text-xs rounded-lg px-3 py-2 text-brand-text font-medium focus:ring-1 focus:ring-brand-accent shrink-0"
+                            aria-label={t('sort_project_name')}
+                        >
+                            <option value="alphabetical">{t('sort_project_name')}</option>
+                            <option value="lowest_health">{t('sort_project_health')}</option>
+                            <option value="highest_health">{t('sort_project_name')} (100% → 0%)</option>
+                            <option value="most_pallets">{t('fleet_total_pallets')}</option>
+                        </select>
                     </div>
                 </div>
             </div>
@@ -86,35 +222,34 @@ export const LiveMonitorView: React.FC<LiveMonitorViewProps> = (props) => {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {data.projects.map((proj) => {
-                        const ready = actions.getProjectReadyCount(proj);
-                        const total = actions.getProjectTotalCount(proj);
+                    {data.projects.map((proj: ProjectStats) => {
+                        const ready = proj.active;
+                        const total = proj.total;
                         const unavailable = total - ready;
-                        const percentage = total > 0 ? (ready / total) * 100 : 0;
-                        const roundedPercentage = Math.round(percentage);
-                        const theme = getStatusTheme(roundedPercentage);
+                        const roundedPercentage = proj.percentage;
+                        const theme = getStatusTheme(roundedPercentage, total);
 
                         return (
                             <div
-                                key={proj}
+                                key={proj.name}
                                 className={`bg-brand-surface rounded-xl border border-brand-border p-5 flex flex-col justify-between transition-all duration-300 hover:shadow-lg ${theme.borderAccent} group`}
                             >
                                 <div>
                                     {/* Card Top: Title & Status Badge */}
                                     <div className="flex items-start justify-between gap-2 mb-4">
-                                        <div className="space-y-1">
+                                        <div className="space-y-1 min-w-0">
                                             <span
                                                 className="text-[10px] font-semibold text-brand-text-muted uppercase tracking-wider">
                                                 {t('project')}
                                             </span>
-                                            <h4 className="text-sm font-bold text-brand-text group-hover:text-brand-accent transition-colors line-clamp-1">
-                                                {proj}
+                                            <h4 className="text-sm font-bold text-brand-text group-hover:text-brand-accent transition-colors truncate">
+                                                {proj.name}
                                             </h4>
                                         </div>
                                         <div
-                                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-bold ${theme.badgeBg}`}>
+                                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-bold shrink-0 ${theme.badgeBg}`}>
                                             {theme.icon}
-                                            <span>{roundedPercentage}%</span>
+                                            <span>{total > 0 ? `${roundedPercentage}%` : '—'}</span>
                                         </div>
                                     </div>
 
@@ -147,10 +282,15 @@ export const LiveMonitorView: React.FC<LiveMonitorViewProps> = (props) => {
                                     <div
                                         className="h-2 w-full bg-brand-bg rounded-full overflow-hidden border border-brand-border/30 p-px">
                                         <div
-                                            className={`h-full rounded-full transition-all duration-1000 ${theme.barBg}`}
-                                            style={{width: `${percentage}%`}}
+                                            className={`h-full rounded-full transition-all duration-700 ${theme.barBg}`}
+                                            style={{width: total > 0 ? `${roundedPercentage}%` : '0%'}}
                                         ></div>
                                     </div>
+                                    {total === 0 && (
+                                        <p className="text-[10px] text-brand-text-muted text-center italic">
+                                            {formatPalletsCount(0, language)}
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         );

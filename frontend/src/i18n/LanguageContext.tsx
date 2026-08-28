@@ -272,8 +272,48 @@ export const dictionaries = {
         error_unblocking_pallet_title: 'Błąd Odblokowania Palety',
         error_deleting_pallet_title: 'Błąd Usuwania Palety',
         error_fetching_audit_history_title: 'Błąd Pobierania Historii Audytu',
+        fetch_error_banner: 'Nie udało się odświeżyć danych. Wyświetlane są ostatnie poprawnie pobrane wartości.',
         btn_edit: 'Edytuj',
         modal_edit_pallet_title: 'Edycja Danych Palety',
+
+        // Pagination
+        pagination_previous: 'Poprzednia',
+        pagination_next: 'Następna',
+        pagination_page: 'Strona',
+        pagination_of: 'z',
+        pagination_showing_range: 'Wyświetlono {{from}}–{{to}} z {{total}}',
+
+        // Fleet summary & Live monitor
+        fleet_summary_title: 'Globalny stan floty palet',
+        fleet_total_pallets: 'Wszystkie palety',
+        fleet_operational: 'Sprawne w obiegu',
+        fleet_in_service: 'Wymaga serwisu / mycia',
+        fleet_health_score: 'Wskaźnik dostępności',
+        filter_all_projects: 'Wszystkie',
+        filter_issues_only: 'Uwagi (<80%)',
+        filter_healthy_only: 'Sprawne (100%)',
+        search_project_placeholder: 'Szukaj projektu...',
+        sort_project_name: 'Nazwa (A-Z)',
+        sort_project_health: 'Najniższa dostępność',
+
+        // Pallet history & export
+        btn_export_pallet_csv: 'Eksportuj do CSV',
+        pallet_id_copied: 'Skopiowano ID do schowka',
+        copy_pallet_id: 'Kopiuj identyfikator',
+        history_timeline: 'Oś czasu operacji',
+        history_no_entries_found: 'Brak wpisów spełniających wybrane kryteria.',
+
+        // Maintenance panel search
+        maint_no_search_results: 'Brak palet pasujących do wyszukiwania "{{query}}"',
+        maint_clear_search: 'Wyczyść filtr wyszukiwania',
+
+        // Operator panel
+        op_hotkey_mechanical: '[Klawisz 1]',
+        op_hotkey_washing: '[Klawisz 2]',
+        op_hotkey_pockets: '[Klawisz 3]',
+        op_hotkey_cancel: '[Esc] wyczyść',
+        op_sound_feedback: 'Sygnał dźwiękowy',
+        op_hotkeys_hint: 'Skróty [1-3, ESC]',
     },
     en: {
         nav_directory: 'LDAP Directory (IT)',
@@ -544,8 +584,48 @@ export const dictionaries = {
         error_unblocking_pallet_title: 'Error Unblocking Pallet',
         error_deleting_pallet_title: 'Error Deleting Pallet',
         error_fetching_audit_history_title: 'Error Fetching Audit History',
+        fetch_error_banner: 'Failed to refresh data. Displaying latest cached values.',
         btn_edit: 'Edit',
         modal_edit_pallet_title: 'Edit Pallet Data',
+
+        // Pagination
+        pagination_previous: 'Previous',
+        pagination_next: 'Next',
+        pagination_page: 'Page',
+        pagination_of: 'of',
+        pagination_showing_range: 'Showing {{from}}–{{to}} of {{total}}',
+
+        // Fleet summary & Live monitor
+        fleet_summary_title: 'Fleet Health Overview',
+        fleet_total_pallets: 'Total Pallets',
+        fleet_operational: 'Operational Pallets',
+        fleet_in_service: 'In Service / Washing',
+        fleet_health_score: 'Fleet Availability',
+        filter_all_projects: 'All',
+        filter_issues_only: 'Needs Attention (<80%)',
+        filter_healthy_only: '100% Operational',
+        search_project_placeholder: 'Search project...',
+        sort_project_name: 'Name (A-Z)',
+        sort_project_health: 'Lowest Availability',
+
+        // Pallet history & export
+        btn_export_pallet_csv: 'Export to CSV',
+        pallet_id_copied: 'Pallet ID copied to clipboard',
+        copy_pallet_id: 'Copy identifier',
+        history_timeline: 'Operation Timeline',
+        history_no_entries_found: 'No entries match the selected criteria.',
+
+        // Maintenance panel search
+        maint_no_search_results: 'No pallets match search criteria "{{query}}"',
+        maint_clear_search: 'Clear search filter',
+
+        // Operator panel
+        op_hotkey_mechanical: '[Key 1]',
+        op_hotkey_washing: '[Key 2]',
+        op_hotkey_pockets: '[Key 3]',
+        op_hotkey_cancel: '[Esc] clear',
+        op_sound_feedback: 'Sound feedback',
+        op_hotkeys_hint: 'Shortcuts [1-3, ESC]',
     }
 };
 

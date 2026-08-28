@@ -60,6 +60,7 @@ export const useAdminPanel = ({
     const [isRefreshing, setIsRefreshing] = useState(false);
 
     const [pageSize, setPageSize] = useState(50);
+    const [currentPage, setCurrentPage] = useState(1);
 
     const filteredPallets = useMemo(() => (pallets || []).filter((p) => {
         const palletId = p.pallet_id || '';
@@ -76,7 +77,22 @@ export const useAdminPanel = ({
         return matchesSearch && matchesProject && matchesModel && matchesStatus;
     }), [pallets, searchTerm, selectedModel, selectedProject, selectedStatus]);
 
-    const paginatedPallets = filteredPallets.slice(0, pageSize);
+    const totalPages = Math.max(1, Math.ceil(filteredPallets.length / pageSize));
+    const safeCurrentPage = Math.min(currentPage, totalPages);
+
+    const paginatedPallets = useMemo(() => {
+        const start = (safeCurrentPage - 1) * pageSize;
+        return filteredPallets.slice(start, start + pageSize);
+    }, [filteredPallets, safeCurrentPage, pageSize]);
+
+    const availableModels = useMemo(() => {
+        const relevantPallets = selectedProject === 'ALL'
+            ? pallets
+            : pallets.filter((p) => p.project === selectedProject);
+        return Array.from(new Set(relevantPallets.map((p) => p.model).filter(Boolean))).sort((a, b) =>
+            a.localeCompare(b),
+        );
+    }, [pallets, selectedProject]);
 
     const {totalPallets, availableStock, blockedOrMaint} = useMemo(() => pallets.reduce(
         (totals, pallet) => {
@@ -396,16 +412,32 @@ export const useAdminPanel = ({
             avaliblePalletes_Percenetege,
             paginatedPallets,
             pageSize,
+            currentPage: safeCurrentPage,
+            totalPages,
+            availableModels,
         },
         status: {
             isSubmitting,
             isRefreshing,
         },
         actions: {
-            setSearchTerm,
-            setSelectedProject,
-            setSelectedModel,
-            setSelectedStatus,
+            setSearchTerm: (term: string) => {
+                setSearchTerm(term);
+                setCurrentPage(1);
+            },
+            setSelectedProject: (proj: string) => {
+                setSelectedProject(proj);
+                setCurrentPage(1);
+            },
+            setSelectedModel: (model: string) => {
+                setSelectedModel(model);
+                setCurrentPage(1);
+            },
+            setSelectedStatus: (status: string) => {
+                setSelectedStatus(status);
+                setCurrentPage(1);
+            },
+            setCurrentPage,
             setIsAddOpen: (open: boolean) => {
                 setValidationError('');
                 setIsAddOpen(open);
@@ -452,7 +484,10 @@ export const useAdminPanel = ({
             handleRefreshPallets,
             showGlobalError,
             hideGlobalError,
-            setPageSize,
+            setPageSize: (size: number) => {
+                setPageSize(size);
+                setCurrentPage(1);
+            },
         },
     };
 };
