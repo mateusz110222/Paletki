@@ -5,12 +5,7 @@ import { getViewAccess } from './view-access';
 import { asLoginResponse, authenticatedApi, publicApi } from '../lib/api.ts';
 import type Client from '../lib/client.ts';
 import { getErrorMessage } from '../lib/errors.ts';
-
-interface StoredSession {
-    user: UserData;
-    token: string;
-    expiresAt: string;
-}
+import {parseStoredSession, type StoredSession} from './session.ts';
 
 export type LoginResult = LoginResponse | { status: false; message: string };
 
@@ -34,51 +29,10 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const AUTH_STORAGE_KEY = "paletki_user_session";
 
-function parseStoredSession(value: string | null): StoredSession | null {
-    if (!value) return null;
-
-    try {
-        const parsed: unknown = JSON.parse(value);
-        if (typeof parsed !== "object" || parsed === null) return null;
-
-        const expiresAt = (
-            "expiresAt" in parsed && typeof parsed.expiresAt === "string"
-        ) ? Date.parse(parsed.expiresAt) : Number.NaN;
-        if (
-            !("user" in parsed) ||
-            typeof parsed.user !== "object" ||
-            parsed.user === null ||
-            !("FullName" in parsed.user) ||
-            typeof parsed.user.FullName !== "string" ||
-            !("username" in parsed.user) ||
-            typeof parsed.user.username !== "string" ||
-            !("role" in parsed.user) ||
-            (parsed.user.role !== "staff" && parsed.user.role !== "operator") ||
-            !("has_it_department_access" in parsed.user) ||
-            typeof parsed.user.has_it_department_access !== "boolean" ||
-            !("has_ur_department_access" in parsed.user) ||
-            typeof parsed.user.has_ur_department_access !== "boolean" ||
-            !("has_me_department_access" in parsed.user) ||
-            typeof parsed.user.has_me_department_access !== "boolean" ||
-            !("is_guest" in parsed.user) ||
-            typeof parsed.user.is_guest !== "boolean" ||
-            !("token" in parsed) ||
-            typeof parsed.token !== "string" ||
-            !Number.isFinite(expiresAt)
-        ) {
-            return null;
-        }
-
-        return parsed as StoredSession;
-    } catch {
-        return null;
-    }
-}
-
 function sessionFromResponse(response: LoginResult): StoredSession | null {
     if (!response.status) return null;
     const expiresAt = Date.parse(response.expires_at);
-    if (!response.token || !Number.isFinite(expiresAt)) return null;
+    if (!response.token || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) return null;
     return { user: response.data, token: response.token, expiresAt: response.expires_at };
 }
 
@@ -98,7 +52,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
         const remainingMs = Date.parse(session.expiresAt) - Date.now();
-        if (remainingMs <= 0) return;
         const expirationTimer = window.setTimeout(() => setSession(null), Math.max(0, remainingMs));
         return () => window.clearTimeout(expirationTimer);
     }, [session]);

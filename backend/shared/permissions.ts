@@ -1,6 +1,11 @@
 import {PalletStatus} from "./types";
 
-const OPERATOR_ALLOWED_STATUSES: PalletStatus[] = ["Damaged", "Washing_Required", "Blocked"];
+const OPERATOR_ALLOWED_STATUSES: PalletStatus[] = ["Damaged", "Washing_Required"];
+export const OPERATOR_OTHER_FAULT_STATUS: PalletStatus = "Damaged";
+
+export function canOpenPalletInOperatorPanel(status: PalletStatus): boolean {
+    return status !== "Blocked";
+}
 
 export function canChangePalletStatus(
     hasITDepartmentAccess: boolean,

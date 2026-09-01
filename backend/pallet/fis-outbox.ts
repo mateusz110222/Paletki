@@ -30,6 +30,7 @@ interface WorkerResponse {
     completed: number;
     retried: number;
     dead: number;
+    pruned: number;
 }
 
 interface ReconcileResponse {
@@ -172,6 +173,26 @@ async function markFailed(job: FisOutboxRecord, error: unknown): Promise<"retrie
     return "retried";
 }
 
+async function pruneCompletedJobs(): Promise<number> {
+    const result = await db.queryRow<{deleted_count: number}>`
+        WITH candidates AS (
+            SELECT id
+            FROM fis_outbox
+            WHERE status = 'completed'
+              AND processed_at < NOW() - (${config.fis.outboxCompletedRetentionDays} * INTERVAL '1 day')
+            ORDER BY processed_at, id
+            LIMIT 1000
+        ), deleted AS (
+            DELETE FROM fis_outbox AS jobs
+            USING candidates
+            WHERE jobs.id = candidates.id
+            RETURNING jobs.id
+        )
+        SELECT COUNT(*)::int AS deleted_count FROM deleted
+    `;
+    return result?.deleted_count ?? 0;
+}
+
 // This route is intentionally absent from nginx.conf. It is reachable only from
 // the Compose network, where the scheduler containers call the Encore gateway.
 export const ProcessFisOutbox = api(
@@ -182,7 +203,7 @@ export const ProcessFisOutbox = api(
             ? Math.max(1, Math.min(requestedLimit, 100))
             : 20;
         const jobs = await claimBatch(limit);
-        const result: WorkerResponse = {claimed: jobs.length, completed: 0, retried: 0, dead: 0};
+        const result: WorkerResponse = {claimed: jobs.length, completed: 0, retried: 0, dead: 0, pruned: 0};
 
         for (const job of jobs) {
             try {
@@ -194,6 +215,11 @@ export const ProcessFisOutbox = api(
                 result[disposition] += 1;
                 console.error(`FIS outbox job ${job.id} failed`, error);
             }
+        }
+        try {
+            result.pruned = await pruneCompletedJobs();
+        } catch (error) {
+            console.error("Could not prune completed FIS outbox jobs", error);
         }
         return result;
     },

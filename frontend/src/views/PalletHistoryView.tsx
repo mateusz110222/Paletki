@@ -23,6 +23,7 @@ import {PalletStatusSpan} from '../components/PalletStatusSpan.tsx';
 import {asPallet} from '../lib/api.ts';
 import {Pagination} from '../components/Pagination.tsx';
 import {formatHistoryEntries, formatOperatorsCount} from '../i18n/pluralization.ts';
+import {escapeCsvCell} from '../lib/csv.ts';
 import {getErrorMessage} from '../lib/errors.ts';
 
 type SortOrder = 'newest' | 'oldest';
@@ -180,22 +181,16 @@ export const PalletHistoryView: React.FC = () => {
             'Opis / Powód'
         ];
 
-        const escapeCSV = (val: string | number | undefined | null) => {
-            if (val === undefined || val === null) return '""';
-            const str = String(val).replace(/"/g, '""');
-            return `"${str}"`;
-        };
-
         const rows = filteredHistory.map(entry => [
-            escapeCSV(entry.id),
-            escapeCSV(new Date(entry.timestamp).toISOString()),
-            escapeCSV(entry.pallet_id || pallet.pallet_id),
-            escapeCSV(pallet.project),
-            escapeCSV(pallet.model),
-            escapeCSV(entry.previous_status),
-            escapeCSV(entry.new_status),
-            escapeCSV(entry.operator_id),
-            escapeCSV(entry.description)
+            escapeCsvCell(entry.id),
+            escapeCsvCell(new Date(entry.timestamp).toISOString()),
+            escapeCsvCell(entry.pallet_id || pallet.pallet_id),
+            escapeCsvCell(pallet.project),
+            escapeCsvCell(pallet.model),
+            escapeCsvCell(entry.previous_status),
+            escapeCsvCell(entry.new_status),
+            escapeCsvCell(entry.operator_id),
+            escapeCsvCell(entry.description)
         ].join(';'));
 
         const csvContent = '\uFEFF' + [headers.join(';'), ...rows].join('\r\n');

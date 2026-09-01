@@ -1,6 +1,6 @@
 import React, {useCallback, useMemo} from 'react';
 import {Navigate, Route, Routes} from 'react-router-dom';
-import {Pallet, Project} from '@backend/shared/types';
+import {Pallet, PalletModel, Project} from '@backend/shared/types';
 import {useAuth} from '../auth/AuthContext.tsx';
 import {useQuery, useQueryClient} from '@tanstack/react-query';
 import {asPallet, publicApi} from '../lib/api.ts';
@@ -20,6 +20,7 @@ export const AppRoutes: React.FC = () => {
     const queryClient = useQueryClient();
     const palletsKey = useMemo(() => ['pallets', language] as const, [language]);
     const projectsKey = useMemo(() => ['projects', language] as const, [language]);
+    const modelsKey = useMemo(() => ['models', language] as const, [language]);
 
     const palletsQuery = useQuery({
         queryKey: palletsKey,
@@ -49,8 +50,16 @@ export const AppRoutes: React.FC = () => {
         refetchOnWindowFocus: false,
     });
 
+    const modelsQuery = useQuery({
+        queryKey: modelsKey,
+        queryFn: () => publicApi.pallet.GetAllModels(),
+        staleTime: 60_000,
+        refetchOnWindowFocus: false,
+    });
+
     const pallets = palletsQuery.data?.pallets ?? [];
     const projects = projectsQuery.data?.projects ?? [];
+    const models: PalletModel[] = modelsQuery.data?.models ?? [];
     const setPallets = useCallback<React.Dispatch<React.SetStateAction<Pallet[]>>>((update) => {
         queryClient.setQueryData<{pallets: Pallet[]}>(palletsKey, (current) => {
             const currentPallets = current?.pallets ?? [];
@@ -66,7 +75,7 @@ export const AppRoutes: React.FC = () => {
 
     return (
         <>
-            {(palletsQuery.isError || projectsQuery.isError) && (
+            {(palletsQuery.isError || projectsQuery.isError || modelsQuery.isError) && (
                 <div role="alert" className="fixed top-3 left-1/2 z-[100] -translate-x-1/2 rounded-lg border border-red-500/50 bg-red-950 px-4 py-2 text-sm text-red-100 shadow-xl">
                     {t('fetch_error_banner')}
                 </div>
@@ -81,7 +90,7 @@ export const AppRoutes: React.FC = () => {
                     <>
                         <Route
                             path="/admin"
-                            element={<AdminPanel pallets={pallets} projects={projects} setPallets={setPallets}
+                            element={<AdminPanel pallets={pallets} projects={projects} models={models} setPallets={setPallets}
                                                  setProjects={setProjects}/>}
                         />
                         <Route

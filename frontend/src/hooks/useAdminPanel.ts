@@ -1,6 +1,6 @@
 import React, {useMemo, useState} from 'react';
 import {getErrorMessage} from '../lib/errors';
-import {Pallet, PalletStatus, Project} from '@backend/shared/types';
+import {Pallet, PalletModel, PalletStatus, Project} from '@backend/shared/types';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
 import {useGlobalErrorModal} from "./useGlobalErrorModal.ts";
 import {useAuth} from "../auth/AuthContext.tsx";
@@ -8,6 +8,7 @@ import {useQueryClient} from '@tanstack/react-query';
 interface UseAdminPanelProps {
     pallets: Pallet[];
     projects: Project[];
+    models: PalletModel[];
     setPallets: React.Dispatch<React.SetStateAction<Pallet[]>>;
     setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
 }
@@ -15,6 +16,7 @@ interface UseAdminPanelProps {
 export const useAdminPanel = ({
                                   pallets,
                                   projects,
+                                  models,
                               }: UseAdminPanelProps) => {
     const {t, language} = useTranslation();
     const {apiClient} = useAuth();
@@ -29,6 +31,7 @@ export const useAdminPanel = ({
     // Modals state
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [isAddProjectOpen, setIsAddProjectOpen] = useState(false);
+    const [isAddModelOpen, setIsAddModelOpen] = useState(false);
     const [isBlockOpen, setIsBlockOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [selectedPalletForBlock, setSelectedPalletForBlock] = useState<Pallet | null>(null);
@@ -37,6 +40,8 @@ export const useAdminPanel = ({
 
     // Form inputs state
     const [newProjectName, setNewProjectName] = useState('');
+    const [newModelName, setNewModelName] = useState('');
+    const [newModelProject, setNewModelProject] = useState('');
     const [blockReason, setBlockReason] = useState('');
     const [newId, setNewId] = useState('');
     const [newModel, setNewModel] = useState('');
@@ -86,13 +91,18 @@ export const useAdminPanel = ({
     }, [filteredPallets, safeCurrentPage, pageSize]);
 
     const availableModels = useMemo(() => {
-        const relevantPallets = selectedProject === 'ALL'
-            ? pallets
-            : pallets.filter((p) => p.project === selectedProject);
-        return Array.from(new Set(relevantPallets.map((p) => p.model).filter(Boolean))).sort((a, b) =>
+        const relevantModels = selectedProject === 'ALL'
+            ? models
+            : models.filter((model) => model.project === selectedProject);
+        return Array.from(new Set(relevantModels.map((model) => model.name).filter(Boolean))).sort((a, b) =>
             a.localeCompare(b),
         );
-    }, [pallets, selectedProject]);
+    }, [models, selectedProject]);
+
+    const newPalletModels = useMemo(() => models
+        .filter((model) => model.project === newProject)
+        .map((model) => model.name)
+        .sort((left, right) => left.localeCompare(right)), [models, newProject]);
 
     const {totalPallets, availableStock, blockedOrMaint} = useMemo(() => pallets.reduce(
         (totals, pallet) => {
@@ -124,6 +134,22 @@ export const useAdminPanel = ({
         setValidationError('');
     };
 
+    const handleOpenAddPallet = () => {
+        resetAddPalletForm();
+        setIsAddOpen(true);
+    };
+
+    const handleCopyPallet = (pallet: Pallet) => {
+        setNewId('');
+        setNewProject(pallet.project);
+        setNewModel(pallet.model);
+        setNewMaxCycles(String(pallet.max_cycles));
+        setNewNests(String(pallet.nests));
+        setNewFis(String(pallet.fis));
+        setValidationError('');
+        setIsAddOpen(true);
+    };
+
     const handleAddPallet = async (e: React.SyntheticEvent<HTMLFormElement>) => {
         e.preventDefault();
         setValidationError('');
@@ -140,6 +166,10 @@ export const useAdminPanel = ({
         }
         if (!newProject) {
             setValidationError(t('project_required'));
+            return;
+        }
+        if (!newModel || !newPalletModels.includes(newModel)) {
+            setValidationError(t('model_required'));
             return;
         }
         if (!newFis || parseInt(newFis) <= 0) {
@@ -198,6 +228,39 @@ export const useAdminPanel = ({
             setIsAddProjectOpen(false);
         } catch (error) {
             console.error('Error adding project:', error);
+            setValidationError(getErrorMessage(error, t('error_connecting_to_encore')));
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleAddModel = async (e: React.SyntheticEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        setValidationError('');
+
+        const modelName = newModelName.trim();
+        if (!newModelProject) {
+            setValidationError(t('project_required'));
+            return;
+        }
+        if (!modelName) {
+            setValidationError(t('model_name_empty'));
+            return;
+        }
+
+        try {
+            setIsSubmitting(true);
+            await apiClient.pallet.AddModel({
+                project: newModelProject,
+                name: modelName,
+                acceptLanguage: language,
+            });
+            await queryClient.invalidateQueries({queryKey: ['models']});
+            setNewModelName('');
+            setNewModelProject('');
+            setIsAddModelOpen(false);
+        } catch (error) {
+            console.error('Error adding model:', error);
             setValidationError(getErrorMessage(error, t('error_connecting_to_encore')));
         } finally {
             setIsSubmitting(false);
@@ -381,9 +444,13 @@ export const useAdminPanel = ({
         data: {
             pallets,
             projects,
+            models,
             isAddOpen,
             isAddProjectOpen,
+            isAddModelOpen,
             newProjectName,
+            newModelName,
+            newModelProject,
             isBlockOpen,
             isEditOpen,
             selectedPalletForBlock,
@@ -415,6 +482,7 @@ export const useAdminPanel = ({
             currentPage: safeCurrentPage,
             totalPages,
             availableModels,
+            newPalletModels,
         },
         status: {
             isSubmitting,
@@ -446,11 +514,17 @@ export const useAdminPanel = ({
                 setValidationError('');
                 setIsAddProjectOpen(open);
             },
+            setIsAddModelOpen: (open: boolean) => {
+                setValidationError('');
+                setIsAddModelOpen(open);
+            },
             setIsEditOpen: (open: boolean) => {
                 setEditError('');
                 setIsEditOpen(open);
             },
             setNewProjectName,
+            setNewModelName,
+            setNewModelProject,
             setIsBlockOpen: (open: boolean) => {
                 setBlockError('');
                 setIsBlockOpen(open);
@@ -467,13 +541,19 @@ export const useAdminPanel = ({
             setEditError,
             setNewId,
             setNewModel,
-            setNewProject,
+            setNewProject: (project: string) => {
+                setNewProject(project);
+                setNewModel('');
+            },
             setNewMaxCycles,
             setNewNests,
             setNewFis,
             setValidationError,
             handleAddPallet,
             handleAddProject,
+            handleAddModel,
+            handleOpenAddPallet,
+            handleCopyPallet,
             handleBlockClick,
             handleConfirmBlock,
             handleUnblock,

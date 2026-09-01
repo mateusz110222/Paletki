@@ -9,6 +9,7 @@ import { GlobalErrorModal } from "../components/GlobalErrorModal.tsx";
 import { useEscapeKey } from "../hooks/useEscapeKey.ts";
 import { ModalFormActions } from "../components/ModalFormActions.tsx";
 import {ModalPresence, ModalTransition} from '../components/ModalTransition.tsx';
+import {OPERATOR_OTHER_FAULT_STATUS} from '@backend/shared/permissions';
 
 export const OperatorPanelView: React.FC = () => {
     const { data, actions } = useOperatorPanel();
@@ -295,7 +296,7 @@ export const OperatorPanelView: React.FC = () => {
                             <ModalFormActions
                                 onCancel={() => actions.setIsOtherFaultOpen(false)}
                                 submitType="button"
-                                onSubmit={() => actions.handleReportFault(data.customFaultText, "Blocked")}
+                                onSubmit={() => actions.handleReportFault(data.customFaultText, OPERATOR_OTHER_FAULT_STATUS)}
                                 submitLabel={t('op_report_damage')}
                                 submittingLabel={t('saving')}
                                 isSubmitting={data.isSubmitting}

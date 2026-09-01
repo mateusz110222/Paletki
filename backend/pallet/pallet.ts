@@ -215,17 +215,17 @@ export const AddPallet = api(
     async (params: AddPalletParams): Promise<AddPalletResponse> => {
         const lang = params.acceptLanguage;
         const palletId = normalizePalletId(params.pallet_id);
-        const project = params.project?.trim();
-        const model = params.model?.trim();
+        const requestedProject = params.project?.trim();
+        const requestedModel = params.model?.trim();
         const fis = params.fis;
         const status = params.status;
         const operator = requirePalletManagementUser().fullName;
 
         if (!palletId) throw APIError.invalidArgument(t("pallet_id_empty", lang));
-        if (!project) throw APIError.invalidArgument(t("project_required", lang));
-        if (!model) throw APIError.invalidArgument(t("model_required", lang));
+        if (!requestedProject) throw APIError.invalidArgument(t("project_required", lang));
+        if (!requestedModel) throw APIError.invalidArgument(t("model_required", lang));
         if (fis !== 1 && fis !== 2) throw APIError.invalidArgument(t("fis_unsupported", lang));
-        if (!isFisSafeText(project) || !isFisSafeText(model)) {
+        if (!isFisSafeText(requestedProject) || !isFisSafeText(requestedModel)) {
             throw APIError.invalidArgument(t("fis_text_invalid", lang));
         }
         if (!isPalletStatus(status)) throw APIError.invalidArgument(t("status_invalid", lang, {status}));
@@ -236,10 +236,15 @@ export const AddPallet = api(
             throw APIError.invalidArgument(t("integer_required", lang));
         }
 
-        const projectExists = await db.queryRow<{exists: boolean}>`
-            SELECT EXISTS(SELECT 1 FROM projects WHERE LOWER(name) = LOWER(${project})) AS exists
+        const catalogEntry = await db.queryRow<{project: string; model: string}>`
+            SELECT projects.name AS project, pallet_models.name AS model
+            FROM pallet_models
+            JOIN projects ON projects.id = pallet_models.project_id
+            WHERE LOWER(TRIM(projects.name)) = LOWER(TRIM(${requestedProject}))
+              AND LOWER(TRIM(pallet_models.name)) = LOWER(TRIM(${requestedModel}))
         `;
-        if (!projectExists?.exists) throw APIError.invalidArgument(t("project_required", lang));
+        if (!catalogEntry) throw APIError.invalidArgument(t("model_not_registered", lang));
+        const {project, model} = catalogEntry;
 
         try {
             await using tx = await db.begin();

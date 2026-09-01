@@ -1,172 +1,267 @@
-# Paletki Project
+# Paletki — Pallet Management & Lifecycle Tracking System
 
-"Paletki" is a comprehensive web application designed to streamline the management and tracking of physical pallets within a production or logistics environment. The system allows users to register new pallets, monitor their lifecycle, track usage cycles, and manage maintenance schedules. By providing a centralized database and an intuitive user interface, the project aims to reduce manual errors, improve operational efficiency, and provide clear visibility into the status and history of each pallet.
+[![Node.js](https://img.shields.io/badge/Node.js-22+-green.svg)](https://nodejs.org/)
+[![pnpm](https://img.shields.io/badge/pnpm-11.24.0-orange.svg)](https://pnpm.io/)
+[![Encore.dev](https://img.shields.io/badge/Backend-Encore.dev-blue.svg)](https://encore.dev/)
+[![React](https://img.shields.io/badge/Frontend-React%2019-61dafb.svg)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue.svg)](https://www.typescriptlang.org/)
 
-## Architecture Overview
+**Paletki** is a production-grade web application and integration platform designed to streamline the management, tracking, and servicing of physical pallets across factory production and wave/selective soldering lines.
 
-The application is built on a modern, decoupled architecture that separates the frontend user interface from the backend business logic. This design enhances scalability, maintainability, and allows for independent development and deployment of each component.
-
-### Frontend
-The frontend is a single-page application (SPA) responsible for rendering the user interface and interacting with the backend via a REST API. It provides a user-friendly experience for viewing pallet data, registering new pallets, and managing their status.
-
-### Backend
-The Encore backend is a modular monolith built and deployed as one application.
-The `auth`, `pallet`, and `fis` folders define API/domain modules, while one
-PostgreSQL database provides the required transaction boundary. Dependency and
-ownership rules are documented in `backend/ARCHITECTURE.md`.
-
-Pallet changes enqueue durable FIS synchronization jobs in the same SQL
-transaction. Separate Compose workers process these jobs after commit with
-leases, retries, exponential backoff, and daily reconciliation. A temporary FIS
-outage therefore no longer rolls back or leaves an open pallet transaction.
+The system enforces automated lifecycle workflows, cycle limit tracking, role-based departmental access (Active Directory / LDAP), barcode scanning, and reliable asynchronous synchronization with industrial **FIS (Factory Information System)** routers.
 
 ---
 
-This document provides instructions on how to set up, build, and run the "paletki" project for local development and deployment.
+## Key Features
 
-## Prerequisites
+### 1. Pallet Lifecycle & Inventory Tracking
+* **Real-Time Statuses**: `Active`, `Washing_Required`, `Damaged`, and `Blocked`.
+* **Automatic Washing Trigger**: Database triggers automatically transition pallets to `Washing_Required` when `current_cycles >= max_cycles`.
+* **Soft Deletion & Reactivation**: Pallets can be safely deleted (soft-delete). Re-registering an existing deleted pallet ID reactivates it cleanly without unique constraint collisions.
+* **Audit Trail**: Every change (creation, status update, parameter edit, blocking, deletion, reactivation) is immutably logged with localized change descriptions and operator attribution.
+* **Audit Trail Export**: Full export of audit logs to JSON/CSV for compliance and analysis.
+* **Project Model Catalog**: Pallet models are registered once per project. The pallet form first selects a project and then exposes only models assigned to that project.
+* **Copy Pallet Data**: An inventory action pre-fills a new-pallet form from an existing pallet while requiring a new pallet ID.
 
-Before you begin, ensure you have the following tools installed on your system:
-- [Docker](https://www.docker.com/get-started) & Docker Compose
-- [Node.js](https://nodejs.org/) 22 or newer
-- [pnpm](https://pnpm.io/installation) 11.21.0
-- [Encore CLI](https://encore.dev/docs/install)
+### 2. Role-Based Access Control (LDAP / AD Departments)
+Permissions are derived dynamically from the Active Directory `department` attribute:
+* **IT Department (`LDAP_IT_DEPARTMENTS`)**: Full access to all panels, pallet management, audit exports, and the IT LDAP Directory User Lookup tool (`/directory`).
+* **Manufacturing Engineering (`LDAP_ME_DEPARTMENTS`)**: Full access to admin panels, pallet registry, project management, and maintenance views (excluding LDAP directory lookup).
+* **Maintenance / UR (`LDAP_UR_DEPARTMENTS`)**: Access to the Maintenance Panel to repair damaged pallets, service pallets requiring washing, log service notes, and reset cycle counters.
+* **Operator Session**: Fast-access barcode scanner interface for line operators to scan pallets and report quick defects.
+
+### 3. Industrial FIS Integration & Transactional Outbox
+* **Dual FIS Support**: Full compatibility with both **FIS 1** and **FIS 2** routers.
+* **Transactional Outbox Pattern**: Pallet updates enqueue durable FIS sync events inside the same PostgreSQL transaction.
+* **Resilient Worker & Reconciler**: Dedicated background containers (`fis-outbox-worker` and `fis-reconciler`) consume jobs with lease locking, exponential backoff retries, and daily consistency audits. A temporary FIS router outage never rolls back pallet operations.
+* **Bounded Outbox Retention**: Completed jobs are removed in batches after the configured retention period; pending, processing, and dead jobs are preserved.
+* **Dedicated Machine Ingress Port**: Separate network port (`FIS_INGRESS_PORT`, default `4000`) for soldering machines calling `/fis/*`, isolating factory equipment from management UI endpoints.
+
+### 4. Operator Barcode Scanner UI & Maintenance Suite
+* **Fast Barcode Workflow**: Instant barcode input handling with custom audio cues (success/error chimes) and hotkeys (`1`, `2`, `3`) for reporting common faults in seconds.
+* **Transparent Error Handling**: Direct presentation of backend validation and business rule messages (e.g. duplicate IDs, invalid status transitions) instead of generic placeholders.
+* **Bilingual Localization**: Full Polish (PL) and English (EN) support across all views, audit records, and server messages.
+* **Safe Session & Export Handling**: Expired browser sessions are rejected during restoration, and CSV exports neutralize spreadsheet formulas in user-controlled fields.
+
+### 5. Administrative Workflow
+1. Register a project with **Add New Project**.
+2. Register one or more project-specific models with **Add New Model**.
+3. Add a pallet by entering its ID, selecting the project, and then choosing a model from the filtered list.
+4. To create a similar pallet, use the **Copy** action in the inventory table. Project, model, cycle limit, nests, and FIS are copied, while the new pallet ID remains empty and must be unique.
+
+Migration `7_create_pallet_models.up.sql` automatically imports distinct project/model pairs already used by existing pallets, so upgrading an existing installation does not require manual catalog reconstruction.
+
+---
+
+## Architecture Overview
+
+```mermaid
+flowchart TD
+    subgraph Clients["Clients & Production Equipment"]
+        Browser["Web Browser (Operators / Staff / Admins)"]
+        Machine["Soldering Machines (FIS Clients)"]
+    end
+
+    subgraph Ingress["Nginx Reverse Proxy"]
+        NginxWeb["Frontend Port (:8082)"]
+        NginxMachine["Machine Port (:4000)"]
+    end
+
+    subgraph App["Application Stack"]
+        Frontend["Vite + React 19 SPA"]
+        Backend["Encore.dev Modular Monolith"]
+        Postgres[(PostgreSQL Database)]
+        OutboxWorker["FIS Outbox Worker"]
+        Reconciler["FIS Reconciler"]
+    end
+
+    subgraph External["External Infrastructure"]
+        LDAP["Active Directory / LDAP"]
+        FIS1["FIS 1 Router"]
+        FIS2["FIS 2 Router"]
+    end
+
+    Browser -->|HTTP| NginxWeb -->|Static Files| Frontend
+    NginxWeb -->|API Proxy /auth, /pallets, /projects, /models| Backend
+    Machine -->|HTTP /fis/*| NginxMachine -->|Proxy /fis| Backend
+
+    Backend --> Postgres
+    Backend -->|Auth Bind & Search| LDAP
+    Postgres --> OutboxWorker
+    Postgres --> Reconciler
+    OutboxWorker -->|Sync| FIS1
+    OutboxWorker -->|Sync| FIS2
+    Reconciler -->|Audit Check| FIS1
+    Reconciler -->|Audit Check| FIS2
+```
+
+---
+
+## Technology Stack
+
+| Layer | Technology |
+|---|---|
+| **Frontend** | React 19, TypeScript, Vite, Tailwind CSS, TanStack Query, Lucide Icons, React Router |
+| **Backend** | Encore.dev, Node.js 22+, TypeScript, PostgreSQL |
+| **Authentication** | Active Directory / LDAP over TLS (LDAPS), Token Authentication |
+| **Background Processing** | PostgreSQL Transactional Outbox, Lease Locking, Docker Compose Workers |
+| **Proxy & Ingress** | Nginx (multi-port segregation) |
+
+---
+
+## Project Structure
+
+```text
+paletki/
+├── backend/                  # Encore.dev backend service
+│   ├── auth/                 # LDAP authentication & user directory lookup
+│   ├── fis/                  # Soldering machine API endpoints
+│   ├── pallet/               # Pallets, project/model catalogs, status and audit trail
+│   │   ├── migrations/       # PostgreSQL schema & trigger migrations
+│   │   ├── model-catalog.ts  # Project-scoped model catalog endpoints
+│   │   ├── database.integration.test.ts # PostgreSQL integration coverage
+│   │   └── fis-outbox.ts     # Outbox queue implementation
+│   ├── shared/               # Shared types, permissions, i18n, validation
+│   └── ARCHITECTURE.md       # Detailed backend domain and architecture rules
+├── frontend/                 # React 19 SPA frontend
+│   ├── src/
+│   │   ├── auth/             # Session management & department access control
+│   │   ├── components/       # UI components (modals, forms, tables, pagination)
+│   │   ├── hooks/            # Admin, Operator, Maintenance hooks
+│   │   ├── i18n/             # Localization dictionary (PL & EN)
+│   │   ├── lib/              # API client, audio synthesizer, error extractors
+│   │   └── views/            # Admin, Operator, Maintenance, History, Directory views
+│   └── tests/                # Frontend unit tests
+├── docker-compose.yml        # Multi-container production deployment definition
+├── .env.example              # Template configuration for local & production runs
+└── package.json              # Monorepo pnpm workspace scripts
+```
+
+---
 
 ## Getting Started
 
-### 1. Clone the Repository
-First, clone the project repository to your local machine.
+### Prerequisites
+* [Node.js](https://nodejs.org/) 22 or newer
+* [pnpm](https://pnpm.io/) 11.24.0
+* [Docker](https://www.docker.com/get-started) & Docker Compose
+* [Encore CLI](https://encore.dev/docs/install)
+
+### 1. Clone & Install Dependencies
 ```bash
-# Replace with your actual repository URL
-git clone https://github.com/your-username/paletki.git
-cd paletki
-```
+git clone https://github.com/your-username/Paletki.git
+cd Paletki
 
-### 2. Install Dependencies
+# Install pnpm 11.24.0 globally if not already installed
+npm install --global pnpm@11.24.0
 
-On Windows, install the version of pnpm used by this repository:
-
-```powershell
-npm install --global pnpm@11.21.0
-pnpm --version
-```
-
-The version command should print `11.21.0`. Then install all frontend and backend
-dependencies from the project root:
-
-```powershell
+# Install dependencies for both frontend and backend
 pnpm install
 ```
 
-If PowerShell blocks `npm.ps1` or `pnpm.ps1` because script execution is disabled,
-use their `.cmd` launchers instead:
+> **Windows PowerShell Note:** If script execution is restricted, run using `.cmd` extensions:
+> ```powershell
+> npm.cmd install --global pnpm@11.24.0
+> pnpm.cmd install
+> ```
 
-```powershell
-npm.cmd install --global pnpm@11.21.0
-pnpm.cmd install
-pnpm.cmd dev
-```
-
-## Local Development
-
-Create your local environment file before starting the application:
-
+### 2. Configure Environment Variables
+Copy `.env.example` to `.env` and fill in the required parameters:
 ```bash
+# Linux / macOS
 cp .env.example .env
+
+# Windows PowerShell
+Copy-Item .env.example .env
 ```
 
-On Windows PowerShell, use `Copy-Item .env.example .env`. Fill in the LDAP,
-FIS and database values in `.env`; this file is ignored by Git.
+Key configuration variables:
 
-Start the frontend and backend together from the project root:
+| Variable | Description | Default / Example |
+|---|---|---|
+| `VITE_DEV_API_BASE_URL` | Backend URL for frontend Vite dev mode | `http://localhost:4000` |
+| `LDAP_URL` | LDAPS server connection string | `ldaps://ldap.example.com:636` |
+| `LDAP_IT_DEPARTMENTS` | Semicolon-separated list of IT department names | `'BLN - PDS IT Service Delivery;IT'` |
+| `LDAP_ME_DEPARTMENTS` | Semicolon-separated list of ME department names | `'Manufacturing Engineering;ME'` |
+| `LDAP_UR_DEPARTMENTS` | Semicolon-separated list of Maintenance department names | `'Maintenance;UR'` |
+| `LDAP_LOOKUP_BIND_USER` | Directory service account for user lookup | `svc_lookup@example.com` |
+| `LDAP_LOOKUP_BIND_PASSWORD` | Password for directory service account | `secret` |
+| `FIS1_ROUTER_URL` | URL to FIS 1 router endpoint | `http://fis-router-1.local/router.php` |
+| `FIS2_ROUTER_URL` | URL to FIS 2 router endpoint | `http://fis-router-2.local/router.php` |
+| `FIS_OUTBOX_COMPLETED_RETENTION_DAYS` | Retention period for completed FIS outbox jobs | `30` |
+| `FRONTEND_HTTP_PORT` | Port exposed by Nginx for the Web App | `8082` |
+| `FIS_INGRESS_PORT` | Dedicated port for machine soldering calls (`/fis/*`) | `4000` |
 
+### 3. Running in Development Mode
+Start both frontend and backend in parallel with a single command:
 ```bash
 pnpm dev
 ```
 
-The frontend is available at `http://localhost:3000` and the backend at
-`http://localhost:4000`. Both processes run in the same terminal. Press
-`Ctrl+C` once to stop them.
+* **Frontend UI**: `http://localhost:3000`
+* **Backend API & Encore Dashboard**: `http://localhost:4000`
 
-To run only one part of the application, use:
-
+To run individual workspaces separately:
 ```bash
 pnpm --filter @paletki/frontend dev
 pnpm --filter @paletki/backend dev
 ```
 
-## Building the Application
+---
 
-### LDAP departments and directory lookup
+## Testing & Quality Assurance
 
-Access is based on the LDAP `department` attribute, not AD `memberOf` groups or the legacy role field:
+Run the automated test suites across all workspaces:
 
-| Department matches | Available views |
-| --- | --- |
-| `LDAP_IT_DEPARTMENTS` | All views, including the IT-only LDAP directory |
-| `LDAP_ME_DEPARTMENTS` (without IT) | All views and pallet/project management, except the LDAP directory |
-| `LDAP_UR_DEPARTMENTS` only | Maintenance only (also the landing page) |
-| Neither list / operator session | Operator scanner and live monitor |
-
-Set `LDAP_UR_DEPARTMENTS` and `LDAP_ME_DEPARTMENTS` to the exact department names from your directory, separated by semicolons. Whitespace and letter case are normalized. Empty lists grant no access. Overlapping matches use this precedence: IT → ME → UR; only IT can access the directory endpoint. UR can service damaged pallets or pallets requiring washing, including reporting damage and returning serviced pallets to production. Administrative mutations and audit exports require IT or ME. Pallet reads require a valid application session, and per-pallet history additionally requires IT or ME. The machine-facing `/fis` integration remains unauthenticated and must be restricted to the trusted factory network.
-
-The directory screen (`/directory`) uses the IT-protected `POST /auth/directory/lookup` endpoint. Configure `LDAP_LOOKUP_BIND_USER` (UPN or full DN) and a least-privilege directory **read-only** account password. An app linked to Encore can use `encore secret set --type local LDAPLookupBindPassword`. For an unlinked local app, the backend falls back to `LDAP_LOOKUP_BIND_PASSWORD` from the ignored root `.env` file. The self-hosted `infra.config.json` maps the same environment variable to the Encore secret in Docker. No user login passwords are saved. Do not put these credentials in frontend/VITE variables or commit them to Git.
-
-Lookup returns the department, job title and direct AD groups (`memberOf`, full distinguished names). Nested memberships and the primary group are not included; server-truncated results are marked incomplete. These groups are informational — access uses the department lists.
-
-The factory LDAP servers present certificates with inconsistent SAN/CN aliases,
-so `LDAP_TLS_SKIP_HOSTNAME_VERIFICATION=true` disables hostname matching. TLS
-encryption and CA-chain verification remain enabled through
-`LDAP_TLS_REJECT_UNAUTHORIZED=true` and `LDAP_CA_CERT_PATH`.
-
-Restart/redeploy the backend after changing environment variables and sign in again to refresh the frontend's access flags. This update requires rebuilding both backend and frontend; sessions saved by older frontends require signing in again. No database migration is needed.
-
-To prepare the application for deployment, you need to build both the backend and frontend components.
-
-### 1. Build Backend Service
-The backend is built using Encore, which packages it into a Docker image. Run the following command from the project root:
 ```bash
-pnpm install
-pnpm build:docker
+# Run all unit tests (Frontend node:test & Backend Vitest)
+pnpm test
+
+# Run PostgreSQL endpoint, transaction, migration/trigger, and outbox integration tests
+# Requires Docker because Encore provisions an isolated test database.
+pnpm test:integration
+
+# Run TypeScript typechecks
+pnpm typecheck
+
+# Run ESLint across packages
+pnpm lint
+
+# Run all verification steps together
+pnpm check
 ```
-This command creates a Docker image named `paletki-dev` with the tag `latest`.
 
-The workspace uses pnpm's hoisted linker because Encore's Docker builder cannot copy Windows junction points. If dependencies were previously installed with the default isolated linker, run `pnpm install --force` once before building the image.
+---
 
-### 2. Build Frontend Assets
-Build the static assets for the frontend application:
+## Production Deployment (Docker Compose)
+
+### 1. Build Docker Images & Frontend Bundle
 ```bash
+# Build the Encore backend image (creates paletki-dev:latest)
+pnpm build:docker
+
+# Build the frontend production bundle
 pnpm build
 ```
-This command will typically create a `build` or `dist` directory with the compiled frontend code.
 
-## Running the Application
-
-With the backend and frontend built, you can run the entire application stack using Docker Compose.
-
+### 2. Start the Production Stack
 ```bash
 docker compose up -d
 ```
 
-The Compose stack exposes nginx over HTTP on `${FRONTEND_HTTP_PORT}` (default
-`8082`). With the current server address, open `http://10.142.11.66:8082`.
-PostgreSQL and Encore are reachable only inside the Compose network. nginx
-publishes a dedicated `${FIS_INGRESS_PORT}` (default `4000`) integration port
-for production machines. This listener proxies only `/fis` and `/fis/*`; every
-other path returns `404`. Machines can therefore call
-`http://<server>:4000/fis/...` without exposing `/auth`, `/pallets` or
-`/projects` on that port. Browser and user traffic should continue to use nginx
-on the configured frontend HTTP port.
+This launches:
+1. `postgres-db` — Dedicated PostgreSQL database.
+2. `db-migrations` — Applies all schema, catalog, index, function, and trigger migrations before the backend starts.
+3. `backend` — Encore application running the core API services.
+4. `frontend` — Nginx serving the SPA on `FRONTEND_HTTP_PORT` (`8082`) and proxying `/fis/*` machine traffic on `FIS_INGRESS_PORT` (`4000`).
+5. `fis-outbox-worker` — Reliable worker synchronizing pallet changes with FIS 1 and FIS 2 routers and pruning completed jobs after their retention period.
+6. `fis-reconciler` — Background worker running periodic consistency audits between local pallets and FIS routers.
 
-To use a hostname such as
-`plblo-paletki.borgwarner.net`, create a DNS `A` record pointing that hostname
-to the IPv4 address of the machine running Docker. For testing on one computer,
-the same mapping can be added to the local Windows `hosts` file instead.
+### 3. Check Service Health & Logs
+```bash
+docker compose ps
+docker compose logs -f backend fis-outbox-worker
+```
 
-This command starts all services from `docker-compose.yml`, including
-`fis-outbox-worker` and `fis-reconciler`. Their internal
-`/internal/fis-outbox/*` routes are not proxied by nginx and are reachable only
-inside the Compose network. Keep these two containers running; inspect their
-logs together with the backend when diagnosing delayed FIS synchronization.
-
-You should now be able to access the application at `http://10.142.11.66:8082`.
+Open the web interface at `http://<SERVER_IP>:8082`.
+Soldering machines communicate directly via `http://<SERVER_IP>:4000/fis/...`.

@@ -1,6 +1,7 @@
 import React, {useEffect} from 'react';
 import {
     AlertCircle,
+    Copy,
     Download,
     Edit,
     History,
@@ -11,7 +12,7 @@ import {
     X
 } from 'lucide-react';
 import {TranslationKey, useTranslation} from '../i18n/LanguageContext.tsx';
-import {Pallet, PALLET_STATUSES, PalletStatus, Project} from '@backend/shared/types';
+import {Pallet, PalletModel, PALLET_STATUSES, PalletStatus, Project} from '@backend/shared/types';
 import {useAdminPanel} from '../hooks/useAdminPanel.ts';
 import {PalletStatusSpan} from "../components/PalletStatusSpan.tsx";
 import {GlobalErrorModal} from "../components/GlobalErrorModal.tsx";
@@ -26,6 +27,7 @@ import {Pagination} from '../components/Pagination.tsx';
 interface AdminPanelViewProps {
     pallets: Pallet[];
     projects: Project[];
+    models: PalletModel[];
     setPallets: React.Dispatch<React.SetStateAction<Pallet[]>>;
     setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
 }
@@ -71,7 +73,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
     }, [actions, searchTermFromURL]);
 
     const hasOpenModal = data.errorModalState.isOpen || data.selectedPalletForDelete !== null ||
-        data.isBlockOpen || data.isEditOpen || data.isAddProjectOpen || data.isAddOpen;
+        data.isBlockOpen || data.isEditOpen || data.isAddProjectOpen || data.isAddModelOpen || data.isAddOpen;
 
     useEscapeKey(hasOpenModal, () => {
         if (data.errorModalState.isOpen) {
@@ -84,6 +86,8 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
             actions.setIsEditOpen(false);
         } else if (!status.isSubmitting && data.isAddProjectOpen) {
             actions.setIsAddProjectOpen(false);
+        } else if (!status.isSubmitting && data.isAddModelOpen) {
+            actions.setIsAddModelOpen(false);
         } else if (!status.isSubmitting && data.isAddOpen) {
             actions.setIsAddOpen(false);
         }
@@ -118,9 +122,9 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
 
                 {/* Action Buttons */}
                 <div className="md:col-span-2 flex flex-col gap-3 justify-center">
-                    <div className="flex gap-4">
+                    <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
                         <button
-                            onClick={() => actions.setIsAddOpen(true)}
+                            onClick={actions.handleOpenAddPallet}
                             className="flex-1 bg-brand-accent text-brand-bg font-bold uppercase text-xs h-14 px-6 flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.98] transition-all rounded"
                         >
                             <PlusCircle size={18}/>
@@ -132,6 +136,13 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                         >
                             <PlusCircle size={18}/>
                             {t('btn_add_project')}
+                        </button>
+                        <button
+                            onClick={() => actions.setIsAddModelOpen(true)}
+                            className="flex-1 bg-brand-accent text-brand-bg font-bold uppercase text-xs h-14 px-6 flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.98] transition-all rounded"
+                        >
+                            <PlusCircle size={18}/>
+                            {t('btn_add_model')}
                         </button>
                         <button
                             onClick={actions.handleExportAuditTrail}
@@ -384,6 +395,15 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                                     <Edit size={16}/>
                                                 </button>
 
+                                                <button
+                                                    onClick={() => actions.handleCopyPallet(p)}
+                                                    title={t('btn_copy_pallet')}
+                                                    aria-label={`${t('btn_copy_pallet')}: ${p.pallet_id}`}
+                                                    className="p-1 text-brand-text-muted hover:text-brand-accent transition-colors"
+                                                >
+                                                    <Copy size={16}/>
+                                                </button>
+
                                                 {p.status === 'Blocked' ? (
                                                     <button
                                                         onClick={() => actions.handleUnblock(p)}
@@ -467,7 +487,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                         {/* Formularz */}
                         <form onSubmit={actions.handleAddPallet} className="p-6 space-y-6">
 
-                            {/* Sekcja główna: ID, Model, Projekt (Siatka 2-kolumnowa) */}
+                            {/* Sekcja główna: ID i Projekt, zależny Model poniżej na całą szerokość */}
                             <div className="grid grid-cols-2 gap-4">
                                 <InputField
                                     label={t('label_pallet_id')}
@@ -479,18 +499,8 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                     required
                                 />
 
-                                <InputField
-                                    label={t('label_model')}
-                                    type="text"
-                                    placeholder={t('placeholder_model')}
-                                    value={data.newModel.toUpperCase()}
-                                    onChange={(e) => actions.setNewModel(e.target.value.toUpperCase())}
-                                    required
-                                />
-
                                 <SelectField
                                     label={t('label_project')}
-                                    fieldClassName="flex flex-col gap-1.5 col-span-2"
                                     value={data.newProject}
                                     onChange={(e) => actions.setNewProject(e.target.value)}
                                     required
@@ -500,6 +510,20 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                         const name = proj.name
                                         return <option key={name} value={name}>{name}</option>
                                     })}
+                                </SelectField>
+
+                                <SelectField
+                                    label={t('label_model')}
+                                    fieldClassName="flex flex-col gap-1.5 col-span-2"
+                                    value={data.newModel}
+                                    onChange={(e) => actions.setNewModel(e.target.value)}
+                                    disabled={!data.newProject}
+                                    required
+                                >
+                                    <option value="">{t('placeholder_select_model')}</option>
+                                    {data.newPalletModels.map((modelName: string) => (
+                                        <option key={modelName} value={modelName}>{modelName}</option>
+                                    ))}
                                 </SelectField>
                             </div>
 
@@ -595,6 +619,66 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
 
                             <ModalFormActions
                                 onCancel={() => actions.setIsAddProjectOpen(false)}
+                                submitLabel={t('btn_save')}
+                                isSubmitting={status.isSubmitting}
+                            />
+                        </form>
+                    </div>
+                </ModalTransition>
+            )}
+            </ModalPresence>
+
+            {/* MODAL 1B2: DODAWANIE NOWEGO MODELU */}
+            <ModalPresence>
+            {data.isAddModelOpen && (
+                <ModalTransition onBackdropClick={() => actions.setIsAddModelOpen(false)}>
+                    <div
+                        className="relative bg-brand-surface border border-brand-border w-full max-w-lg rounded-xl overflow-hidden shadow-2xl">
+                        <div
+                            className="bg-brand-surface-high p-5 border-b border-brand-border flex justify-between items-center">
+                            <h3 className="text-base font-bold text-brand-text uppercase tracking-wider flex items-center gap-2">
+                                <PlusCircle size={18} className="text-brand-accent"/>
+                                {t('modal_add_model_title')}
+                            </h3>
+                            <button className="text-brand-text-muted hover:text-red-400 transition-colors"
+                                    type="button"
+                                    aria-label={t('btn_cancel')}
+                                    onClick={() => actions.setIsAddModelOpen(false)}>
+                                <X size={18}/>
+                            </button>
+                        </div>
+
+                        <ErrorAlert message={data.validationError}/>
+
+                        <form onSubmit={actions.handleAddModel} className="p-6 space-y-4">
+                            <SelectField
+                                label={t('label_model_project')}
+                                value={data.newModelProject}
+                                onChange={(e) => actions.setNewModelProject(e.target.value)}
+                                required
+                            >
+                                <option value="">{t('placeholder_select_project')}</option>
+                                {data.projects.map((project: Project) => (
+                                    <option key={project.name} value={project.name}>{project.name}</option>
+                                ))}
+                            </SelectField>
+
+                            <InputField
+                                label={t('label_model_name')}
+                                type="text"
+                                autoFocus
+                                placeholder={t('placeholder_model_name')}
+                                value={data.newModelName.toUpperCase()}
+                                onChange={(e) => actions.setNewModelName(e.target.value.toUpperCase())}
+                                required
+                            />
+
+                            <p className="text-[10px] text-brand-text-muted/60 leading-relaxed italic">
+                                {t('validation_required_fields')}
+                            </p>
+
+                            <ModalFormActions
+                                onCancel={() => actions.setIsAddModelOpen(false)}
                                 submitLabel={t('btn_save')}
                                 isSubmitting={status.isSubmitting}
                             />

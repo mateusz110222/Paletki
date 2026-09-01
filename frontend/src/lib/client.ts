@@ -246,6 +246,12 @@ export namespace fis {
 }
 
 export namespace pallet {
+    export interface AddModelParams {
+        project: shared.ShortText
+        name: shared.ShortText
+        acceptLanguage?: string
+    }
+
     export interface AddPalletParams {
         "pallet_id": shared.PalletID
         project: shared.ShortText
@@ -306,6 +312,10 @@ export namespace pallet {
     export interface GetAllPalletsResponse {
         pallets: shared.Pallet[]
         "next_cursor"?: number
+    }
+
+    export interface GetAllModelsResponse {
+        models: shared.PalletModel[]
     }
 
     export interface GetAllProjectsResponse {
@@ -379,6 +389,7 @@ export namespace pallet {
         completed: number
         retried: number
         dead: number
+        pruned: number
     }
 
     export class ServiceClient {
@@ -386,12 +397,14 @@ export namespace pallet {
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
+            this.AddModel = this.AddModel.bind(this)
             this.AddPallet = this.AddPallet.bind(this)
             this.AddProject = this.AddProject.bind(this)
             this.BlockPallet = this.BlockPallet.bind(this)
             this.ChangePalletStatus = this.ChangePalletStatus.bind(this)
             this.DeletePallet = this.DeletePallet.bind(this)
             this.GetAllPalletHistory = this.GetAllPalletHistory.bind(this)
+            this.GetAllModels = this.GetAllModels.bind(this)
             this.GetAllPallets = this.GetAllPallets.bind(this)
             this.GetAllProjects = this.GetAllProjects.bind(this)
             this.GetPallet = this.GetPallet.bind(this)
@@ -401,6 +414,19 @@ export namespace pallet {
             this.ResetPalletCycles = this.ResetPalletCycles.bind(this)
             this.UnblockPallet = this.UnblockPallet.bind(this)
             this.UpdatePallet = this.UpdatePallet.bind(this)
+        }
+
+        public async AddModel(params: AddModelParams): Promise<void> {
+            const headers = makeRecord<string, string>({
+                "accept-language": params.acceptLanguage,
+            })
+
+            const body: Record<string, any> = {
+                name:    params.name,
+                project: params.project,
+            }
+
+            await this.baseClient.callTypedAPI("POST", `/models`, JSON.stringify(body), {headers})
         }
 
         public async AddPallet(params: AddPalletParams): Promise<AddPalletResponse> {
@@ -513,6 +539,11 @@ export namespace pallet {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI("GET", `/pallets`, undefined, {headers, query})
             return await resp.json() as GetAllPalletsResponse
+        }
+
+        public async GetAllModels(): Promise<GetAllModelsResponse> {
+            const resp = await this.baseClient.callTypedAPI("GET", `/models`)
+            return await resp.json() as GetAllModelsResponse
         }
 
         public async GetAllProjects(): Promise<GetAllProjectsResponse> {
@@ -671,6 +702,11 @@ export namespace shared {
         "created_at": string
         "created_by": string
         "updated_at": string
+    }
+
+    export interface PalletModel {
+        name: string
+        project: string
     }
 
     export type PalletID = string

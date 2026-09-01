@@ -1,5 +1,11 @@
 import {describe, expect, it} from "vitest";
-import {canChangePalletStatus, departmentAccess, hasITDepartmentAccess} from "./permissions";
+import {
+    canChangePalletStatus,
+    canOpenPalletInOperatorPanel,
+    departmentAccess,
+    hasITDepartmentAccess,
+    OPERATOR_OTHER_FAULT_STATUS,
+} from "./permissions";
 
 describe("pallet authorization policy", () => {
     it('grants UR only maintenance transitions', () => {
@@ -44,7 +50,18 @@ describe("pallet authorization policy", () => {
     it("allows operators to report faults without resetting cycles", () => {
         expect(canChangePalletStatus(false, "Damaged", false)).toBe(true);
         expect(canChangePalletStatus(false, "Washing_Required", false)).toBe(true);
-        expect(canChangePalletStatus(false, "Blocked", false)).toBe(true);
+        expect(canChangePalletStatus(false, "Blocked", false)).toBe(false);
+    });
+
+    it("keeps blocked pallets out of the operator panel", () => {
+        expect(canOpenPalletInOperatorPanel("Active")).toBe(true);
+        expect(canOpenPalletInOperatorPanel("Damaged")).toBe(true);
+        expect(canOpenPalletInOperatorPanel("Washing_Required")).toBe(true);
+        expect(canOpenPalletInOperatorPanel("Blocked")).toBe(false);
+    });
+
+    it("reports a custom operator fault as damaged, not blocked", () => {
+        expect(OPERATOR_OTHER_FAULT_STATUS).toBe("Damaged");
     });
 
     it("prevents operators from reactivating pallets or resetting cycles", () => {

@@ -4,7 +4,7 @@ import {PalletStatus} from "../shared/types";
 import {t} from "../shared/i18n";
 import {encodeAuditDescription} from "./audit-description";
 import {requireAuthenticatedUser, requirePalletManagementUser} from "../shared/authorization";
-import {canChangePalletStatus} from "../shared/permissions";
+import {canChangePalletStatus, canOpenPalletInOperatorPanel} from "../shared/permissions";
 import {
     type AuditReason,
     type PalletID,
@@ -53,6 +53,7 @@ async function changePalletStatus(
     resetCycles: boolean,
     lang?: string,
     maintenanceOnly = false,
+    operatorPanelRequest = false,
 ): Promise<void> {
     try {
         await using tx = await db.begin();
@@ -64,6 +65,9 @@ async function changePalletStatus(
         if (!row) throw APIError.notFound(t("pallet_not_found", lang));
         if (maintenanceOnly && row.status !== 'Damaged' && row.status !== 'Washing_Required') {
             throw APIError.permissionDenied(t('auth_maintenance_required', lang));
+        }
+        if (operatorPanelRequest && !canOpenPalletInOperatorPanel(row.status)) {
+            throw APIError.permissionDenied(t('auth_operator_blocked', lang));
         }
 
         await tx.exec`
@@ -106,6 +110,7 @@ export const ChangePalletStatus = api(
             params.reset_cycles === true,
             params.acceptLanguage,
             auth.hasURDepartmentAccess && !auth.hasITDepartmentAccess && !auth.hasMEDepartmentAccess,
+            !auth.hasITDepartmentAccess && !auth.hasURDepartmentAccess && !auth.hasMEDepartmentAccess,
         );
     },
 );

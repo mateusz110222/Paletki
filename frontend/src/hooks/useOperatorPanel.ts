@@ -8,6 +8,7 @@ import {asPallet} from "../lib/api.ts";
 import {useQueryClient} from '@tanstack/react-query';
 import {playScanErrorSound, playScanSuccessSound} from '../lib/audio.ts';
 import {getErrorMessage} from '../lib/errors.ts';
+import {canOpenPalletInOperatorPanel} from '@backend/shared/permissions';
 
 export const useOperatorPanel = () => {
     const {t, language} = useTranslation();
@@ -28,7 +29,7 @@ export const useOperatorPanel = () => {
     const [isScanning, setIsScanning] = useState(false);
 
     const barcodeInputRef = useRef<HTMLInputElement>(null);
-    const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scanAbortRef = useRef<AbortController | null>(null);
     const scanRequestRef = useRef(0);
 
@@ -51,12 +52,13 @@ export const useOperatorPanel = () => {
         };
 
         document.body.addEventListener('click', handleBodyClick);
-        return () => {
-            document.body.removeEventListener('click', handleBodyClick);
-            if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-            scanAbortRef.current?.abort();
-        };
+        return () => document.body.removeEventListener('click', handleBodyClick);
     }, [activePallet, isOtherFaultOpen]);
+
+    useEffect(() => () => {
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        scanAbortRef.current?.abort();
+    }, []);
 
     const processedUrlIdRef = useRef<string | null>(null);
 
@@ -66,6 +68,7 @@ export const useOperatorPanel = () => {
         setIsToastOpen(true);
         toastTimerRef.current = setTimeout(() => {
             setIsToastOpen(false);
+            toastTimerRef.current = null;
         }, 4000);
     }, []);
 
@@ -89,6 +92,15 @@ export const useOperatorPanel = () => {
             const response = await scanApi.pallet.GetPallet(palletUpper, {acceptLanguage: language});
             const pallet = asPallet(response.pallet);
             if (requestId !== scanRequestRef.current) return;
+
+            if (!canOpenPalletInOperatorPanel(pallet.status)) {
+                playScanErrorSound();
+                setActivePallet(null);
+                setScanStatus('ERROR');
+                triggerToast(t('op_blocked_pallet_unavailable'));
+                setTimeout(() => setScanStatus('IDLE'), 1500);
+                return;
+            }
 
             playScanSuccessSound();
             setActivePallet(pallet);

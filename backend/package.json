@@ -9,7 +9,8 @@
     "dev": "encore run",
     "build:docker": "encore build docker --config infra.config.json paletki-dev:latest",
     "gen:client": "encore gen client --output=../frontend/src/lib/client.ts --env=local",
-    "test": "vitest run --passWithNoTests",
+    "test": "node ./scripts/run-tests.mjs",
+    "test:integration": "node ./scripts/run-integration-tests.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint ."
   },

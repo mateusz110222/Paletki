@@ -54,6 +54,8 @@ export const dictionaries = {
         // Common Buttons
         btn_add_pallet: 'Dodaj Nową Paletę',
         btn_add_project: 'Dodaj Nowy Projekt',
+        btn_add_model: 'Dodaj Nowy Model',
+        btn_copy_pallet: 'Kopiuj dane palety',
         btn_export_audit: 'Eksportuj Audit Trail',
         btn_refresh_pallets: 'Odśwież Palety',
         btn_cancel: 'Anuluj',
@@ -105,6 +107,7 @@ export const dictionaries = {
         // Modals
         modal_add_pallet_title: 'Dodaj Nową Paletę do Bazy',
         modal_add_project_title: 'Dodaj Nowy Projekt do Bazy',
+        modal_add_model_title: 'Dodaj Nowy Model do Katalogu',
         label_pallet_id: 'Pallet ID (pallet_id) *',
         label_project: 'Projekt przypisany *',
         label_model: 'Model *',
@@ -113,6 +116,8 @@ export const dictionaries = {
         label_fis: 'FIS *',
         label_block_reason: 'Przyczyna Zablokowania (block_reason) *',
         label_project_name: 'Nazwa Projektu *',
+        label_model_project: 'Projekt modelu *',
+        label_model_name: 'Nazwa modelu *',
 
         // Operator Panel
         op_scanner_title: 'Skaner Palet',
@@ -134,6 +139,7 @@ export const dictionaries = {
         // Operator - komunikaty skanera
         op_no_pallet_scanned: 'Najpierw zeskanuj paletę.',
         op_scan_success_with_id: 'Paleta {{palletId}} została zeskanowana poprawnie.',
+        op_blocked_pallet_unavailable: 'Paleta jest zablokowana i nie może wejść do panelu operatora.',
         op_fault_reported_with_name: 'Zarejestrowano usterkę: {{faultName}}.',
         op_fault_audit_description: 'Zgłoszono usterkę (skaner): {{faultName}}',
 
@@ -184,6 +190,8 @@ export const dictionaries = {
         validation_error_pallet_id: 'Podaj ID palety.',
         pallet_exists: 'Paleta o takim ID już istnieje w bazie.',
         project_required: 'Wybierz projekt.',
+        model_required: 'Wybierz model przypisany do projektu.',
+        model_name_empty: 'Podaj nazwę modelu.',
         fis_invalid: 'Podaj poprawną wartość FIS.',
         project_name_empty: 'Podaj nazwę projektu.',
 
@@ -232,6 +240,8 @@ export const dictionaries = {
         placeholder_pallet_id: 'Wprowadź ID palety...',
         placeholder_model: "Wprowadz Model pallety...",
         placeholder_select_project: 'Wybierz projekt...',
+        placeholder_select_model: 'Wybierz model...',
+        placeholder_model_name: 'Wprowadź nazwę modelu...',
         validation_required_fields: 'Proszę wypełnić wszystkie wymagane pola.',
         placeholder_project_name: 'Wprowadź nazwę projektu...',
         error_connecting_to_encore: 'Błąd połączenia z serwerem Encore.',
@@ -366,6 +376,8 @@ export const dictionaries = {
         // Common Buttons
         btn_add_pallet: 'Add New Pallet',
         btn_add_project: 'Add New Project',
+        btn_add_model: 'Add New Model',
+        btn_copy_pallet: 'Copy pallet data',
         btn_export_audit: 'Export Audit Trail',
         btn_refresh_pallets: 'Refresh Pallets',
         btn_cancel: 'Cancel',
@@ -417,6 +429,7 @@ export const dictionaries = {
         // Modals
         modal_add_pallet_title: 'Add New Pallet to Database',
         modal_add_project_title: 'Add New Project to Database',
+        modal_add_model_title: 'Add New Model to Catalog',
         label_pallet_id: 'Pallet ID (pallet_id) *',
         label_project: 'Assigned Project *',
         label_model: 'Model *',
@@ -425,6 +438,8 @@ export const dictionaries = {
         label_fis: 'FIS *',
         label_block_reason: 'Block Reason (block_reason) *',
         label_project_name: 'Project Name *',
+        label_model_project: 'Model Project *',
+        label_model_name: 'Model Name *',
 
         // Operator Panel
         op_scanner_title: 'Pallet Scanner',
@@ -446,6 +461,7 @@ export const dictionaries = {
         // Operator - scanner messages
         op_no_pallet_scanned: 'Scan a pallet first.',
         op_scan_success_with_id: 'Pallet {{palletId}} was scanned successfully.',
+        op_blocked_pallet_unavailable: 'This pallet is blocked and cannot enter the operator panel.',
         op_fault_reported_with_name: 'Fault registered: {{faultName}}.',
         op_fault_audit_description: 'Fault reported (scanner): {{faultName}}',
 
@@ -505,6 +521,8 @@ export const dictionaries = {
         validation_error_pallet_id: 'Please enter a Pallet ID.',
         pallet_exists: 'A pallet with this ID already exists in the database.',
         project_required: 'Please select a project.',
+        model_required: 'Please select a model assigned to the project.',
+        model_name_empty: 'Please enter a model name.',
         fis_invalid: 'Please enter a valid FIS value.',
         project_name_empty: 'Please enter a project name.',
         modal_delete_pallet_title: 'Delete pallet',
@@ -543,6 +561,8 @@ export const dictionaries = {
         placeholder_pallet_id: 'Enter pallet ID...',
         placeholder_model: "Enter pallet model...",
         placeholder_select_project: 'Select project...',
+        placeholder_select_model: 'Select model...',
+        placeholder_model_name: 'Enter model name...',
         validation_required_fields: 'Please fill in all required fields.',
         placeholder_project_name: 'Enter project name...',
         error_connecting_to_encore: 'Error connecting to Encore server.',

@@ -163,5 +163,6 @@ export const config = Object.freeze({
         router1Url: requiredEnv("FIS1_ROUTER_URL"),
         router2Url: requiredEnv("FIS2_ROUTER_URL"),
         requestTimeoutMs: optionalPositiveIntegerEnv("FIS_REQUEST_TIMEOUT_MS", 10_000),
+        outboxCompletedRetentionDays: optionalPositiveIntegerEnv("FIS_OUTBOX_COMPLETED_RETENTION_DAYS", 30),
     }),
 });

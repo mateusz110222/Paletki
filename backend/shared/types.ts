@@ -43,6 +43,11 @@ export interface Project {
     name: string;
 }
 
+export interface PalletModel {
+    name: string;
+    project: string;
+}
+
 export type UserRole = 'staff' | 'operator';
 
 export interface UserData {
