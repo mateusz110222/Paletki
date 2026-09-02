@@ -48,6 +48,32 @@ export interface PalletModel {
     project: string;
 }
 
+export interface PublicDashboardPallet {
+    pallet_id: string;
+    project: string;
+    model: string;
+    status: PalletStatus;
+    current_cycles: number;
+    max_cycles: number;
+    status_changed_at: string;
+}
+
+export interface PublicDashboardServiceDay {
+    day: string;
+    completed: number;
+    average_minutes: number;
+}
+
+export interface PublicDashboardResponse {
+    generated_at: string;
+    pallets: PublicDashboardPallet[];
+    service: {
+        average_minutes_30d: number;
+        completed_30d: number;
+        daily: PublicDashboardServiceDay[];
+    };
+}
+
 export type UserRole = 'staff' | 'operator';
 
 export interface UserData {

@@ -51,6 +51,13 @@ Permissions are derived dynamically from the Active Directory `department` attri
 
 Migration `7_create_pallet_models.up.sql` automatically imports distinct project/model pairs already used by existing pallets, so upgrading an existing installation does not require manual catalog reconstruction.
 
+### 6. Public Live Dashboard
+* **No sign-in required**: both the original project monitor at `/live` and the operational dashboard at `/dashboard` can be opened directly or embedded in another dashboard.
+* **Automatic refresh**: operational data updates every 30 seconds without user interaction.
+* **Washing forecast**: pallets at 80% or more of their cycle limit are shown together with pallets already waiting for washing.
+* **Service analytics**: the screen shows the current service queue, 14-day turnaround chart, 30-day average turnaround, availability, and project load.
+* **Read-only data feed**: `/public/dashboard` intentionally excludes employee names, service comments, block reasons, and raw audit history.
+
 ---
 
 ## Architecture Overview

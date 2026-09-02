@@ -9,12 +9,26 @@ import {MainLayout} from '../layout/MainLayout.tsx'
 import {AdminPanelView as AdminPanel} from '../views/AdminPanelView.tsx';
 import {OperatorPanelView as OperatorPanel} from '../views/OperatorPanelView.tsx';
 import {MaintenancePanelView as MaintenancePanel} from '../views/MaintenancePanelView.tsx';
-import {LiveMonitorView as LiveMonitor} from '../views/LiveMonitorView.tsx';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
 import {PalletHistoryView} from '../views/PalletHistoryView.tsx';
 import {DirectoryView} from '../views/DirectoryView.tsx';
+import {LoginView} from '../views/LoginView.tsx';
+import {PublicDashboardView} from '../views/PublicDashboardView.tsx';
+import {LiveMonitorView} from '../views/LiveMonitorView.tsx';
 
 export const AppRoutes: React.FC = () => {
+    const {isAuthenticated} = useAuth();
+
+    return (
+        <Routes>
+            <Route path="/live" element={<LiveMonitorView/>}/>
+            <Route path="/dashboard" element={<PublicDashboardView/>}/>
+            <Route path="/*" element={isAuthenticated ? <AuthenticatedRoutes/> : <LoginView/>}/>
+        </Routes>
+    );
+};
+
+const AuthenticatedRoutes: React.FC = () => {
     const {apiClient, hasITDepartmentAccess, canManagePallets, isMaintenanceOnly, canAccessMaintenance, defaultPath} = useAuth();
     const {language, t} = useTranslation();
     const queryClient = useQueryClient();
@@ -76,7 +90,7 @@ export const AppRoutes: React.FC = () => {
     return (
         <>
             {(palletsQuery.isError || projectsQuery.isError || modelsQuery.isError) && (
-                <div role="alert" className="fixed top-3 left-1/2 z-[100] -translate-x-1/2 rounded-lg border border-red-500/50 bg-red-950 px-4 py-2 text-sm text-red-100 shadow-xl">
+                <div role="alert" className="fixed top-3 left-1/2 z-100 -translate-x-1/2 rounded-lg border border-red-500/50 bg-red-950 px-4 py-2 text-sm text-red-100 shadow-xl">
                     {t('fetch_error_banner')}
                 </div>
             )}
@@ -106,7 +120,6 @@ export const AppRoutes: React.FC = () => {
                     <Route path="/maintenance" element={<MaintenancePanel pallets={pallets}/>}/>
                 )}
 
-                {!isMaintenanceOnly && <Route path="/live" element={<LiveMonitor pallets={pallets} projects={projects}/>}/>}
             </Route>
 
             <Route path="*" element={<Navigate to={defaultPath} replace/>}/>

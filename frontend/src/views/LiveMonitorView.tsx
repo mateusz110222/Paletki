@@ -1,31 +1,44 @@
 import React from 'react';
+import {Link} from 'react-router-dom';
+import {useQuery} from '@tanstack/react-query';
 import {
-    Activity,
     AlertCircle,
     AlertTriangle,
+    BarChart3,
     CheckCircle2,
+    LogIn,
     Package,
-    Search,
+    RefreshCw,
     ShieldAlert,
+    Tv,
     Wrench
 } from 'lucide-react';
-import {useTranslation} from '../i18n/LanguageContext.tsx';
-import {Pallet, Project} from '@backend/shared/types.ts';
-import {MonitorSortOption, ProjectStats, useLiveMonitor} from '../hooks/useLiveMonitor.ts';
+import {LanguageSwitcher, useTranslation} from '../i18n/LanguageContext.tsx';
+import { ProjectStats, useLiveMonitor} from '../hooks/useLiveMonitor.ts';
+import {usePublicDashboard} from '../hooks/usePublicDashboard.ts';
+import {useDocumentMetadata} from '../hooks/useDocumentMetadata.ts';
+import {publicApi} from '../lib/api.ts';
 import {
     formatAvailablePallets,
     formatPalletsCount,
     formatProjectsCount
 } from '../i18n/pluralization.ts';
 
-interface LiveMonitorViewProps {
-    pallets: Pallet[];
-    projects?: Project[];
-}
-
-export const LiveMonitorView: React.FC<LiveMonitorViewProps> = (props) => {
-    const {data, actions} = useLiveMonitor(props);
+export const LiveMonitorView: React.FC = () => {
     const {t, language} = useTranslation();
+    const {query} = usePublicDashboard();
+    const projectsQuery = useQuery({
+        queryKey: ['public-projects'],
+        queryFn: () => publicApi.pallet.GetAllProjects(),
+        staleTime: 60_000,
+        refetchInterval: 60_000,
+    });
+    const {data} = useLiveMonitor({
+        pallets: query.data?.pallets ?? [],
+        projects: projectsQuery.data?.projects ?? [],
+    });
+
+    useDocumentMetadata(`PalletX | ${t('panel_live_title')}`, t('panel_live_subtitle'), language);
 
     const getStatusTheme = (percentage: number, total: number) => {
         if (total === 0) {
@@ -67,6 +80,34 @@ export const LiveMonitorView: React.FC<LiveMonitorViewProps> = (props) => {
     const overallTheme = getStatusTheme(data.fleetSummary.availabilityPercentage, data.fleetSummary.total);
 
     return (
+        <div className="min-h-screen bg-brand-bg text-brand-text">
+            <header className="border-b border-brand-border bg-brand-surface/95 backdrop-blur">
+                <div className="mx-auto flex max-w-[1800px] flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-8">
+                    <div className="flex items-center gap-3">
+                        <div className="grid size-10 place-items-center rounded-xl border border-brand-accent/30 bg-brand-accent/10 text-brand-accent"><Tv size={20}/></div>
+                        <div>
+                            <p className="text-xs font-black tracking-[0.15em] text-brand-accent">PALLETX · LIVE</p>
+                            <h1 className="mt-0.5 text-sm font-bold text-brand-text">{t('panel_live_title')}</h1>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="hidden items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-400 sm:flex"><RefreshCw size={12}/> 30s</span>
+                        <LanguageSwitcher/>
+                        <Link to="/dashboard" className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-brand-border bg-brand-bg px-3 text-[10px] font-bold text-brand-text-muted hover:border-brand-accent/50 hover:text-brand-text">
+                            <BarChart3 size={14}/><span className="hidden sm:inline">{t('nav_public_dashboard')}</span>
+                        </Link>
+                        <Link to="/" className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-brand-border bg-brand-bg px-3 text-[10px] font-bold text-brand-text-muted hover:border-brand-accent/50 hover:text-brand-text">
+                            <LogIn size={14}/><span className="hidden sm:inline">{t('dashboard_staff_panel')}</span>
+                        </Link>
+                    </div>
+                </div>
+            </header>
+            {(query.isError || projectsQuery.isError) && (
+                <div role="alert" className="mx-auto mt-5 max-w-[1800px] rounded-lg border border-red-500/40 bg-red-950/70 px-4 py-3 text-xs text-red-100">
+                    {t('fetch_error_banner')}
+                </div>
+            )}
+            <main className="mx-auto max-w-[1800px] px-5 py-6 sm:px-8">
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300" id="live-monitor-container">
             {/* Top Fleet Health Summary Bento */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -162,56 +203,6 @@ export const LiveMonitorView: React.FC<LiveMonitorViewProps> = (props) => {
                 </div>
             </div>
 
-            {/* Header & Filter Controls Section */}
-            <div className="bg-brand-surface rounded-xl border border-brand-border p-4 shadow-sm">
-                <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4">
-                    {/* Title */}
-                    <div className="flex items-center gap-3">
-                        <div className="p-2.5 bg-brand-accent/10 rounded-lg text-brand-accent border border-brand-accent/20 shrink-0">
-                            <Activity size={20}/>
-                        </div>
-                        <div>
-                            <h3 className="text-base font-bold text-brand-text tracking-wide uppercase">
-                                {t('project_health_monitor')}
-                            </h3>
-                            <p className="text-xs text-brand-text-muted mt-0.5">
-                                {data.projects.length === data.totalProjectsCount
-                                    ? formatProjectsCount(data.totalProjectsCount, language)
-                                    : `${data.projects.length} z ${formatProjectsCount(data.totalProjectsCount, language)}`}
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Search & Sort Controls */}
-                    <div className="flex flex-wrap items-center gap-3">
-                        {/* Search project */}
-                        <div className="relative flex-1 sm:w-60">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-text-muted" size={14}/>
-                            <input
-                                type="text"
-                                placeholder={t('search_project_placeholder')}
-                                value={data.searchQuery}
-                                onChange={(e) => actions.setSearchQuery(e.target.value)}
-                                className="w-full bg-brand-bg border border-brand-border rounded-lg pl-9 pr-3 py-2 text-xs text-brand-text placeholder:text-brand-text-muted/60 focus:outline-none focus:ring-1 focus:ring-brand-accent"
-                            />
-                        </div>
-
-                        {/* Sort Dropdown */}
-                        <select
-                            value={data.sortBy}
-                            onChange={(e) => actions.setSortBy(e.target.value as MonitorSortOption)}
-                            className="bg-brand-bg border border-brand-border text-xs rounded-lg px-3 py-2 text-brand-text font-medium focus:ring-1 focus:ring-brand-accent shrink-0"
-                            aria-label={t('sort_project_name')}
-                        >
-                            <option value="alphabetical">{t('sort_project_name')}</option>
-                            <option value="lowest_health">{t('sort_project_health')}</option>
-                            <option value="highest_health">{t('sort_project_name')} (100% → 0%)</option>
-                            <option value="most_pallets">{t('fleet_total_pallets')}</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
             {/* Dynamic Grid of Project Cards */}
             {data.projects.length === 0 ? (
                 <div className="bg-brand-surface rounded-xl border border-brand-border p-12 text-center">
@@ -297,6 +288,8 @@ export const LiveMonitorView: React.FC<LiveMonitorViewProps> = (props) => {
                     })}
                 </div>
             )}
+        </div>
+            </main>
         </div>
     );
 };

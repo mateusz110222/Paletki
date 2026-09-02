@@ -1,10 +1,22 @@
 import Client, {shared} from "./client";
 import {API_BASE_URL} from "@backend/shared/API_BASE_URL";
-import {PALLET_STATUSES, type LoginResponse, type Pallet, type UserData} from "@backend/shared/types";
+import {
+    PALLET_STATUSES,
+    type LoginResponse,
+    type Pallet,
+    type PublicDashboardResponse,
+    type UserData,
+} from "@backend/shared/types";
 
 const target = API_BASE_URL || window.location.origin;
 
 export const publicApi = new Client(target);
+
+export async function getPublicDashboard(signal?: AbortSignal): Promise<PublicDashboardResponse> {
+    const response = await fetch(`${target.replace(/\/$/, '')}/public/dashboard`, {signal});
+    if (!response.ok) throw new Error(`Dashboard request failed with status ${response.status}`);
+    return await response.json() as PublicDashboardResponse;
+}
 
 export function asPallet(value: shared.Pallet): Pallet {
     if (!value.status || !PALLET_STATUSES.includes(value.status) || (value.fis !== 1 && value.fis !== 2)) {

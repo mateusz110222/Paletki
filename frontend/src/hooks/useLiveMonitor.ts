@@ -1,5 +1,10 @@
 import {useMemo, useState} from 'react';
-import {Pallet, Project} from '@backend/shared/types';
+import {PalletStatus, Project} from '@backend/shared/types';
+
+export interface MonitorPallet {
+    project: string;
+    status: PalletStatus;
+}
 
 export interface ProjectStats {
     name: string;
@@ -23,7 +28,7 @@ export interface FleetSummary {
 export type MonitorSortOption = 'alphabetical' | 'lowest_health' | 'highest_health' | 'most_pallets';
 
 interface UseLiveMonitorProps {
-    pallets: Pallet[];
+    pallets: MonitorPallet[];
     projects?: Project[];
 }
 

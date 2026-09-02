@@ -12,12 +12,3 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_pallet_models_project_name_unique_ci
 
 CREATE INDEX IF NOT EXISTS idx_pallet_models_project_name
     ON pallet_models (project_id, name);
-
--- Preserve the model values already used by existing pallets.
-INSERT INTO pallet_models (project_id, name)
-SELECT projects.id, MIN(TRIM(pallets.model))
-FROM pallets
-JOIN projects ON LOWER(TRIM(projects.name)) = LOWER(TRIM(pallets.project))
-WHERE LENGTH(TRIM(pallets.model)) BETWEEN 1 AND 50
-GROUP BY projects.id, LOWER(TRIM(pallets.model))
-ON CONFLICT DO NOTHING;

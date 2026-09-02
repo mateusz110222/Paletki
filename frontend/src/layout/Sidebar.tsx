@@ -1,6 +1,6 @@
 import React from 'react';
 import {NavLink} from 'react-router-dom';
-import {LayoutDashboard, LogOut, LucideIcon, Scan, Tv, Wrench, UserSearch, X} from 'lucide-react';
+import {BarChart3, LayoutDashboard, LogOut, LucideIcon, Scan, Tv, Wrench, UserSearch, X} from 'lucide-react';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
 
 interface NavItem {
@@ -34,7 +34,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ...(canManagePallets ? [{path: '/admin', label: t('nav_admin'), icon: LayoutDashboard}] : []),
         ...(!isMaintenanceOnly ? [{path: '/operator', label: t('nav_operator'), icon: Scan}] : []),
         ...(canAccessMaintenance ? [{path: '/maintenance', label: t('nav_maintenance'), icon: Wrench}] : []),
-        ...(!isMaintenanceOnly ? [{path: '/live', label: t('nav_live'), icon: Tv}] : []),
+        {path: '/live', label: t('nav_live'), icon: Tv},
+        {path: '/dashboard', label: t('nav_public_dashboard'), icon: BarChart3},
         ...(hasITDepartmentAccess ? [{path: '/directory', label: t('nav_directory'), icon: UserSearch}] : []),
     ];
 

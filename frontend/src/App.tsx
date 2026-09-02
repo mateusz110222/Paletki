@@ -1,8 +1,7 @@
 import React from 'react';
 import {BrowserRouter} from 'react-router-dom';
-import {AuthProvider, useAuth} from './auth/AuthContext.tsx';
+import {AuthProvider} from './auth/AuthContext.tsx';
 import {LanguageProvider} from './i18n/LanguageContext.tsx';
-import {LoginView} from './views/LoginView.tsx';
 import {AppRoutes} from './routes/AppRoutes.tsx';
 
 export default function App() {
@@ -10,19 +9,9 @@ export default function App() {
         <LanguageProvider>
             <AuthProvider>
                 <BrowserRouter>
-                    <AppRoot/>
+                    <AppRoutes/>
                 </BrowserRouter>
             </AuthProvider>
         </LanguageProvider>
     );
-}
-
-function AppRoot() {
-    const {isAuthenticated} = useAuth();
-
-    if (!isAuthenticated) {
-        return <LoginView/>;
-    }
-
-    return <AppRoutes/>;
 }

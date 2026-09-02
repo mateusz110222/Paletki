@@ -22,7 +22,7 @@
     margin: 0;
   }
 
-  body {
+body {
     background-color: var(--color-brand-bg);
     color: var(--color-brand-text);
     font-family: var(--font-sans);
@@ -53,6 +53,19 @@
     background-color: var(--color-brand-surface);
     color: var(--color-brand-text);
   }
+}
+
+.dashboard-public {
+  background:
+    radial-gradient(circle at 8% -10%, rgba(99, 102, 241, 0.14), transparent 30rem),
+    radial-gradient(circle at 92% 5%, rgba(34, 211, 238, 0.07), transparent 28rem),
+    #090d16;
+}
+
+.dashboard-panel {
+  border: 1px solid rgba(255, 255, 255, 0.075);
+  background: linear-gradient(145deg, rgba(18, 25, 39, 0.96), rgba(13, 19, 30, 0.96));
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.16);
 }
 
 /* Custom premium glow effects and animations */
