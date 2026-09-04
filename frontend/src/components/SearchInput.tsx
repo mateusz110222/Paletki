@@ -1,5 +1,5 @@
 import {Search} from "lucide-react";
-import React from "react";
+import React, {useId} from "react";
 import {useTranslation} from "../i18n/LanguageContext.tsx";
 
 interface SearchInputProps {
@@ -11,6 +11,7 @@ interface SearchInputProps {
 
 export function SearchInput({searchTerm, onSearchTermChange, searchParams, setSearchParams}: SearchInputProps) {
     const {t} = useTranslation();
+    const searchInputId = useId();
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newSearchTerm = e.target.value;
@@ -27,9 +28,12 @@ export function SearchInput({searchTerm, onSearchTermChange, searchParams, setSe
 
     return (
         <div className="flex items-center gap-2 bg-brand-surface border border-brand-border h-12 px-3 rounded">
-            <Search className="text-brand-text-muted" size={18}/>
+            <label htmlFor={searchInputId} className="sr-only">{t('search_label')}</label>
+            <Search className="text-brand-text-muted" size={18} aria-hidden="true"/>
             <input
+                id={searchInputId}
                 type="text"
+                aria-label={t('search_label')}
                 placeholder={t('btn_search_placeholder')}
                 value={searchTerm}
                 onChange={handleChange}

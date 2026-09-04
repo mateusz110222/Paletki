@@ -1,6 +1,7 @@
-import {api} from "encore.dev/api";
+import {api, Query} from "encore.dev/api";
 import {db} from "./db";
-import type {PalletStatus, PublicDashboardResponse} from "../shared/types";
+import type {PalletStatus, ProductionStation, PublicDashboardResponse} from "../shared/types";
+import {normalizeStation} from "../shared/validation";
 
 interface DashboardPalletRecord {
     pallet_id: string;
@@ -23,6 +24,14 @@ interface ServiceSummaryRecord {
     average_minutes: number;
 }
 
+interface DashboardParams {
+    station?: Query<string>;
+}
+
+interface ProductionStationRecord extends Omit<ProductionStation, "updated_at"> {
+    updated_at: Date;
+}
+
 /**
  * Read-only, deliberately limited data feed for unattended shop-floor screens.
  * It exposes operational pallet state, but no employee names, comments, block
@@ -30,7 +39,24 @@ interface ServiceSummaryRecord {
  */
 export const GetPublicDashboard = api(
     {method: "GET", path: "/public/dashboard", expose: true},
-    async (): Promise<PublicDashboardResponse> => {
+    async (params: DashboardParams): Promise<PublicDashboardResponse> => {
+        const requestedStation = params.station ? normalizeStation(params.station) : null;
+        const showAll = requestedStation === "ALL";
+        const stationRows = await db.queryAll<ProductionStationRecord>`
+            SELECT stations.station, stations.pallet_id, pallets.project, pallets.model, stations.updated_at
+            FROM production_stations stations
+            JOIN pallets ON pallets.pallet_id = stations.pallet_id AND pallets.deleted_at IS NULL
+            ORDER BY stations.station
+        `;
+        const stations = stationRows.map((station) => ({
+            ...station,
+            updated_at: station.updated_at.toISOString(),
+        }));
+        const selectedStation = requestedStation && !showAll
+            ? stations.find((station) => station.station === requestedStation) ?? null
+            : null;
+        const selectedProject = selectedStation?.project ?? null;
+
         const pallets = await db.queryAll<DashboardPalletRecord>`
             SELECT
                 p.pallet_id,
@@ -51,6 +77,10 @@ export const GetPublicDashboard = api(
                 LIMIT 1
             ) status_change ON TRUE
             WHERE p.deleted_at IS NULL
+              AND (
+                  ${showAll}::boolean
+                  OR (${selectedProject}::text IS NOT NULL AND p.project = ${selectedProject})
+              )
             ORDER BY p.id
         `;
 
@@ -60,6 +90,7 @@ export const GetPublicDashboard = api(
                     finished.timestamp AS finished_at,
                     EXTRACT(EPOCH FROM (finished.timestamp - started.timestamp)) / 60.0 AS duration_minutes
                 FROM pallet_audit_logs finished
+                JOIN pallets serviced_pallet ON serviced_pallet.pallet_id = finished.pallet_id
                 JOIN LATERAL (
                     SELECT timestamp
                     FROM pallet_audit_logs started
@@ -73,6 +104,10 @@ export const GetPublicDashboard = api(
                 WHERE finished.new_status = 'Active'
                   AND finished.previous_status IN ('Washing_Required', 'Damaged')
                   AND finished.timestamp >= CURRENT_DATE - INTERVAL '13 days'
+                  AND (
+                      ${showAll}::boolean
+                      OR (${selectedProject}::text IS NOT NULL AND serviced_pallet.project = ${selectedProject})
+                  )
             ), days AS (
                 SELECT generate_series(
                     CURRENT_DATE - INTERVAL '13 days',
@@ -98,6 +133,7 @@ export const GetPublicDashboard = api(
             FROM (
                 SELECT EXTRACT(EPOCH FROM (finished.timestamp - started.timestamp)) / 60.0 AS duration_minutes
                 FROM pallet_audit_logs finished
+                JOIN pallets serviced_pallet ON serviced_pallet.pallet_id = finished.pallet_id
                 JOIN LATERAL (
                     SELECT timestamp
                     FROM pallet_audit_logs started
@@ -111,11 +147,18 @@ export const GetPublicDashboard = api(
                 WHERE finished.new_status = 'Active'
                   AND finished.previous_status IN ('Washing_Required', 'Damaged')
                   AND finished.timestamp >= NOW() - INTERVAL '30 days'
+                  AND (
+                      ${showAll}::boolean
+                      OR (${selectedProject}::text IS NOT NULL AND serviced_pallet.project = ${selectedProject})
+                  )
             ) durations
         `;
 
         return {
             generated_at: new Date().toISOString(),
+            scope: showAll ? "all" : selectedStation ? "station" : "selection",
+            stations,
+            selected_station: selectedStation,
             pallets: pallets.map((pallet) => ({
                 ...pallet,
                 status_changed_at: pallet.status_changed_at.toISOString(),

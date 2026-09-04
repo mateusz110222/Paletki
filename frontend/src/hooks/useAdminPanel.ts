@@ -13,6 +13,20 @@ interface UseAdminPanelProps {
     setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
 }
 
+type AddMode = 'single' | 'range';
+
+const expandRange = (first: string, last: string): string[] | null => {
+    const firstMatch = /^(.*?)(\d{2})$/.exec(first);
+    const lastMatch = /^(.*?)(\d{2})$/.exec(last);
+    if (!firstMatch || !lastMatch || !firstMatch[1] || firstMatch[1] !== lastMatch[1]) return null;
+    const start = Number(firstMatch[2]);
+    const end = Number(lastMatch[2]);
+    if (start > end) return null;
+    return Array.from({length: end - start + 1}, (_, index) =>
+        `${firstMatch[1]}${String(start + index).padStart(2, '0')}`,
+    );
+};
+
 export const useAdminPanel = ({
                                   pallets,
                                   projects,
@@ -44,6 +58,8 @@ export const useAdminPanel = ({
     const [newModelProject, setNewModelProject] = useState('');
     const [blockReason, setBlockReason] = useState('');
     const [newId, setNewId] = useState('');
+    const [newLastId, setNewLastId] = useState('');
+    const [addMode, setAddMode] = useState<AddMode>('single');
     const [newModel, setNewModel] = useState('');
     const [newProject, setNewProject] = useState('');
     const [newMaxCycles, setNewMaxCycles] = useState('200');
@@ -126,6 +142,8 @@ export const useAdminPanel = ({
 
     const resetAddPalletForm = () => {
         setNewId('');
+        setNewLastId('');
+        setAddMode('single');
         setNewProject('');
         setNewModel('');
         setNewMaxCycles('200');
@@ -141,6 +159,8 @@ export const useAdminPanel = ({
 
     const handleCopyPallet = (pallet: Pallet) => {
         setNewId('');
+        setNewLastId('');
+        setAddMode('single');
         setNewProject(pallet.project);
         setNewModel(pallet.model);
         setNewMaxCycles(String(pallet.max_cycles));
@@ -155,12 +175,19 @@ export const useAdminPanel = ({
         setValidationError('');
 
         const palletId = newId.trim().toUpperCase();
+        const lastPalletId = newLastId.trim().toUpperCase();
+        const rangeIds = addMode === 'range' ? expandRange(palletId, lastPalletId) : [palletId];
 
         if (!palletId) {
             setValidationError(t('validation_error_pallet_id'));
             return;
         }
-        if (pallets.some((p) => p.pallet_id?.toUpperCase() === palletId)) {
+        if (!rangeIds) {
+            setValidationError(t('pallet_range_invalid'));
+            return;
+        }
+        const existingIds = new Set(pallets.map((pallet) => pallet.pallet_id.toUpperCase()));
+        if (rangeIds.some((id) => existingIds.has(id))) {
             setValidationError(t('pallet_exists'));
             return;
         }
@@ -180,21 +207,30 @@ export const useAdminPanel = ({
         try {
             setIsSubmitting(true);
 
-            const fis = Number(newFis);
-            if (fis !== 1 && fis !== 2) {
+            const fisValue = Number(newFis);
+            if (fisValue !== 1 && fisValue !== 2) {
                 setValidationError(t('fis_invalid'));
                 return;
             }
-            await apiClient.pallet.AddPallet({
-                pallet_id: palletId,
+            const fis: 1 | 2 = fisValue;
+            const details = {
                 project: newProject,
                 model: newModel,
                 max_cycles: parseInt(newMaxCycles) || 200,
                 nests: parseInt(newNests) || 1,
                 fis,
-                status: "Active",
+                status: "Active" as const,
                 acceptLanguage: language,
-            });
+            };
+            if (addMode === 'range') {
+                await apiClient.pallet.AddPalletRange({
+                    ...details,
+                    first_pallet_id: palletId,
+                    last_pallet_id: lastPalletId,
+                });
+            } else {
+                await apiClient.pallet.AddPallet({...details, pallet_id: palletId});
+            }
 
             await fetchPallets();
             resetAddPalletForm();
@@ -464,6 +500,8 @@ export const useAdminPanel = ({
             editBlockReason,
             editError,
             newId,
+            newLastId,
+            addMode,
             newModel,
             newProject,
             newMaxCycles,
@@ -540,6 +578,8 @@ export const useAdminPanel = ({
             setEditBlockReason,
             setEditError,
             setNewId,
+            setNewLastId,
+            setAddMode,
             setNewModel,
             setNewProject: (project: string) => {
                 setNewProject(project);

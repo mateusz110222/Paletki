@@ -1,5 +1,5 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {Link} from 'react-router-dom';
+import {Link, useSearchParams} from 'react-router-dom';
 import {
     Activity,
     AlertTriangle,
@@ -20,6 +20,7 @@ import type {PalletStatus, PublicDashboardPallet} from '@backend/shared/types';
 import {LanguageSwitcher, useTranslation} from '../i18n/LanguageContext.tsx';
 import {useDocumentMetadata} from '../hooks/useDocumentMetadata.ts';
 import {usePublicDashboard} from '../hooks/usePublicDashboard.ts';
+import {StationSelectionView} from '../components/StationSelectionView.tsx';
 
 const statusStyle: Record<PalletStatus, {dot: string; badge: string; icon: React.ReactNode}> = {
     Active: {
@@ -174,8 +175,15 @@ export const PublicDashboardView: React.FC = () => {
         damaged: t('dashboard_status_damaged'),
         blocked: t('dashboard_status_blocked'),
         justNow: t('dashboard_just_now'),
+        station: t('dashboard_station'),
+        changeStation: t('dashboard_change_station'),
+        allLines: t('dashboard_all_lines'),
     };
-    const {query, metrics, cycleProgress} = usePublicDashboard();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const stationFromUrl = searchParams.get('station')?.trim() || undefined;
+    const {query, metrics, cycleProgress} = usePublicDashboard(stationFromUrl);
+    const showAll = query.data?.scope === 'all';
+    const selectedStation = query.data?.selected_station;
     const [now, setNow] = useState(0);
 
     useDocumentMetadata(`PalletX | ${labels.title}`, labels.subtitle, language);
@@ -219,6 +227,17 @@ export const PublicDashboardView: React.FC = () => {
         );
     }
 
+    if (!showAll && (!stationFromUrl || !selectedStation)) {
+        return (
+            <StationSelectionView
+                stations={query.data?.stations ?? []}
+                invalidSelection={Boolean(stationFromUrl)}
+                onSelect={(station) => setSearchParams({station})}
+                onSelectAll={() => setSearchParams({station: 'ALL'})}
+            />
+        );
+    }
+
     const locale = language === 'pl' ? 'pl-PL' : 'en-GB';
     const service = query.data?.service ?? {daily: [], average_minutes_30d: 0, completed_30d: 0};
     const chart = service.daily;
@@ -258,6 +277,17 @@ export const PublicDashboardView: React.FC = () => {
                     </div>
 
                     <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
+                        <div className="hidden rounded-lg border border-indigo-400/20 bg-indigo-400/8 px-3 py-2 text-right sm:block">
+                            <p className="text-[9px] font-bold uppercase tracking-wider text-indigo-300">
+                                {showAll ? 'ALL' : `${labels.station}: ${selectedStation?.station}`}
+                            </p>
+                            <p className="mt-0.5 max-w-48 truncate text-[10px] font-semibold text-white">
+                                {showAll ? labels.allLines : selectedStation?.project}
+                            </p>
+                        </div>
+                        <button type="button" onClick={() => setSearchParams({})} className="min-h-10 rounded-lg border border-white/10 bg-white/4 px-3 text-[10px] font-bold text-slate-200 hover:bg-white/8">
+                            {labels.changeStation}
+                        </button>
                         <div className="hidden items-center gap-2 rounded-lg border border-white/[0.07] bg-white/2.5 px-3 py-2 text-[10px] text-slate-400 lg:flex">
                             <ShieldCheck size={13} className="text-emerald-400"/> {labels.publicMode}
                         </div>
@@ -269,7 +299,7 @@ export const PublicDashboardView: React.FC = () => {
                             </p>
                         </div>
                         <LanguageSwitcher/>
-                        <Link to="/" className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 text-[10px] font-bold text-slate-200 hover:border-indigo-400/35 hover:bg-indigo-400/10 hover:text-white">
+                        <Link to="/" className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/10 bg-white/4 px-3 text-[10px] font-bold text-slate-200 hover:border-indigo-400/35 hover:bg-indigo-400/10 hover:text-white">
                             <LogIn size={14}/><span className="hidden sm:inline">{labels.staffPanel}</span>
                         </Link>
                     </div>

@@ -17,6 +17,7 @@ export const useOperatorPanel = () => {
     const {errorModalState, hideGlobalError} = useGlobalErrorModal();
 
     const [scannedId, setScannedId] = useState('');
+    const [lastScannedId, setLastScannedId] = useState('');
     const [activePallet, setActivePallet] = useState<Pallet | null>(null);
     const [scanStatus, setScanStatus] = useState<'IDLE' | 'SUCCESS' | 'ERROR'>('IDLE');
 
@@ -104,6 +105,7 @@ export const useOperatorPanel = () => {
 
             playScanSuccessSound();
             setActivePallet(pallet);
+            setLastScannedId(pallet.pallet_id);
             setScanStatus('SUCCESS');
             triggerToast(t('op_scan_success_with_id', {palletId: pallet.pallet_id}));
 
@@ -212,6 +214,7 @@ export const useOperatorPanel = () => {
     return {
         data: {
             scannedId,
+            lastScannedId,
             activePallet,
             scanStatus,
             isOtherFaultOpen,

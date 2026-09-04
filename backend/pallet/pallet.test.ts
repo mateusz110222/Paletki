@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest";
 import {parseLanguage, t, translations} from "../shared/i18n";
-import {normalizePalletId, normalizePalletStatus} from "../shared/validation";
+import {expandPalletRange, normalizePalletId, normalizePalletStatus} from "../shared/validation";
 import {
     encodeAuditChanges,
     encodeAuditDescription,
@@ -55,6 +55,15 @@ describe("localized audit descriptions", () => {
 });
 
 describe("server-side search and filtering parameters", () => {
+    it("expands a pallet range from its two-digit suffix", () => {
+        expect(expandPalletRange("line-a-01", "LINE-A-04")).toEqual([
+            "LINE-A-01", "LINE-A-02", "LINE-A-03", "LINE-A-04",
+        ]);
+        expect(expandPalletRange("LINE-A-04", "LINE-A-01")).toBeNull();
+        expect(expandPalletRange("LINE-A-01", "LINE-B-04")).toBeNull();
+        expect(expandPalletRange("LINE-A-1", "LINE-A-04")).toBeNull();
+    });
+
     it("normalizes pallet search queries and identifiers", () => {
         const rawQuery = "  pal-audi-001  ";
         const normalized = rawQuery.trim().toUpperCase();

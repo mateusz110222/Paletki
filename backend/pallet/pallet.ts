@@ -17,6 +17,7 @@ import {
     type ShortText,
     isFisSafeText,
     isSafePositiveInteger,
+    expandPalletRange,
     normalizePalletId,
 } from "../shared/validation";
 import {type AuditLogRecord, type PalletRecord, toPalletDTO} from "./models";
@@ -73,6 +74,24 @@ interface AddPalletParams extends LocalizedRequest {
 export interface AddPalletResponse {
     status: boolean;
     pallet_id: string;
+}
+
+interface AddPalletRangeParams extends LocalizedRequest {
+    first_pallet_id: PalletID;
+    last_pallet_id: PalletID;
+    project: ShortText;
+    model: ShortText;
+    max_cycles: MaxCycles;
+    nests: NestCount;
+    status: PalletStatus;
+    block_reason?: string | null;
+    fis: FisUnit;
+}
+
+export interface AddPalletRangeResponse {
+    status: true;
+    pallet_ids: string[];
+    created: number;
 }
 
 interface UpdatePalletParams extends LocalizedRequest {
@@ -306,6 +325,95 @@ export const AddPallet = api(
     },
 );
 
+/**
+ * Atomically creates a numbered family of pallets. The final two characters
+ * are interpreted as a zero-padded number, for example LINE-A-01..LINE-A-12.
+ */
+export const AddPalletRange = api(
+    {method: "POST", path: "/pallets/range", expose: true, auth: true},
+    async (params: AddPalletRangeParams): Promise<AddPalletRangeResponse> => {
+        const lang = params.acceptLanguage;
+        const palletIds = expandPalletRange(params.first_pallet_id, params.last_pallet_id);
+        const requestedProject = params.project?.trim();
+        const requestedModel = params.model?.trim();
+        const fis = params.fis;
+        const status = params.status;
+        const operator = requirePalletManagementUser().fullName;
+
+        if (!palletIds) throw APIError.invalidArgument(t("pallet_range_invalid", lang));
+        if (!requestedProject) throw APIError.invalidArgument(t("project_required", lang));
+        if (!requestedModel) throw APIError.invalidArgument(t("model_required", lang));
+        if (fis !== 1 && fis !== 2) throw APIError.invalidArgument(t("fis_unsupported", lang));
+        if (!isFisSafeText(requestedProject) || !isFisSafeText(requestedModel)) {
+            throw APIError.invalidArgument(t("fis_text_invalid", lang));
+        }
+        if (!isPalletStatus(status)) throw APIError.invalidArgument(t("status_invalid", lang, {status}));
+        if (status === "Blocked" && !params.block_reason?.trim()) {
+            throw APIError.invalidArgument(t("block_reason_required", lang));
+        }
+        if (!isSafePositiveInteger(params.max_cycles) || !isSafePositiveInteger(params.nests)) {
+            throw APIError.invalidArgument(t("integer_required", lang));
+        }
+
+        const catalogEntry = await db.queryRow<{project: string; model: string}>`
+            SELECT projects.name AS project, pallet_models.name AS model
+            FROM pallet_models
+            JOIN projects ON projects.id = pallet_models.project_id
+            WHERE LOWER(TRIM(projects.name)) = LOWER(TRIM(${requestedProject}))
+              AND LOWER(TRIM(pallet_models.name)) = LOWER(TRIM(${requestedModel}))
+        `;
+        if (!catalogEntry) throw APIError.invalidArgument(t("model_not_registered", lang));
+        const {project, model} = catalogEntry;
+
+        try {
+            await using tx = await db.begin();
+            for (const palletId of palletIds) {
+                const existing = await tx.queryRow<PalletRecord>`
+                    SELECT * FROM pallets WHERE pallet_id = ${palletId} FOR UPDATE
+                `;
+                if (existing?.deleted_at === null) {
+                    throw APIError.alreadyExists(t("pallet_exists", lang));
+                }
+
+                if (existing) {
+                    await tx.exec`
+                        UPDATE pallets
+                        SET project = ${project}, model = ${model}, max_cycles = ${params.max_cycles},
+                            current_cycles = 0, total_cycles = 0, nests = ${params.nests}, status = ${status},
+                            block_reason = ${params.block_reason?.trim() ?? null}, fis = ${fis},
+                            created_at = NOW(), created_by = ${operator}, updated_at = NOW(), updated_by = ${operator},
+                            deleted_at = NULL, deleted_by = NULL,
+                            last_operation_description = ${encodeAuditDescription("audit_registered")}
+                        WHERE pallet_id = ${palletId}
+                    `;
+                } else {
+                    await tx.exec`
+                        INSERT INTO pallets (
+                            pallet_id, project, model, max_cycles, nests, status, block_reason,
+                            fis, created_by, updated_by, last_operation_description
+                        ) VALUES (
+                            ${palletId}, ${project}, ${model}, ${params.max_cycles}, ${params.nests}, ${status},
+                            ${params.block_reason?.trim() ?? null}, ${fis}, ${operator}, ${operator},
+                            ${encodeAuditDescription("audit_registered")}
+                        )
+                    `;
+                }
+                await enqueueFisSync(tx, fis, {pallet_id: palletId, project, model}, operator);
+            }
+            await tx.commit();
+        } catch (error: unknown) {
+            if (error instanceof APIError) throw error;
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (errorMessage.includes("23505") || errorMessage.includes("duplicate key value")) {
+                throw APIError.alreadyExists(t("pallet_exists", lang));
+            }
+            throw APIError.internal(t("database_error", lang), error instanceof Error ? error : undefined);
+        }
+
+        return {status: true, pallet_ids: palletIds, created: palletIds.length};
+    },
+);
+
 export const UpdatePallet = api(
     {method: "PUT", path: "/pallets/:pallet_id", expose: true, auth: true},
     async (params: UpdatePalletParams): Promise<UpdatePalletResponse> => {
@@ -390,6 +498,7 @@ export const DeletePallet = api(
                 FOR UPDATE
             `;
             if (!pallet) throw APIError.notFound(t("pallet_not_found", lang));
+            await tx.exec`DELETE FROM production_stations WHERE pallet_id = ${palletId}`;
             await tx.exec`
                 UPDATE pallets
                 SET deleted_at = NOW(), deleted_by = ${operator}, updated_at = NOW(), updated_by = ${operator},

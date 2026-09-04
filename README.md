@@ -22,6 +22,7 @@ The system enforces automated lifecycle workflows, cycle limit tracking, role-ba
 * **Audit Trail Export**: Full export of audit logs to JSON/CSV for compliance and analysis.
 * **Project Model Catalog**: Pallet models are registered once per project. The pallet form first selects a project and then exposes only models assigned to that project.
 * **Copy Pallet Data**: An inventory action pre-fills a new-pallet form from an existing pallet while requiring a new pallet ID.
+* **Numbered Range Registration**: The add dialog can atomically create a complete pallet range when IDs share a prefix and use the final two digits as the sequence number (for example `PROJECT-01` through `PROJECT-12`).
 
 ### 2. Role-Based Access Control (LDAP / AD Departments)
 Permissions are derived dynamically from the Active Directory `department` attribute:
@@ -53,6 +54,8 @@ Migration `7_create_pallet_models.up.sql` automatically imports distinct project
 
 ### 6. Public Live Dashboard
 * **No sign-in required**: both the original project monitor at `/live` and the operational dashboard at `/dashboard` can be opened directly or embedded in another dashboard.
+* **Station-aware project detection**: `/dashboard?station=SOLDER-01` and `/live?station=SOLDER-01` show the project assigned to that soldering station. Without the query parameter, both pages present station-selection tiles from the current database assignments.
+* **Full fleet mode**: choose **All projects** on either selection screen, or open `/dashboard?station=ALL` and `/live?station=ALL`, to retain the original unfiltered overview.
 * **Automatic refresh**: operational data updates every 30 seconds without user interaction.
 * **Washing forecast**: pallets at 80% or more of their cycle limit are shown together with pallets already waiting for washing.
 * **Service analytics**: the screen shows the current service queue, 14-day turnaround chart, 30-day average turnaround, availability, and project load.
@@ -272,3 +275,14 @@ docker compose logs -f backend fis-outbox-worker
 
 Open the web interface at `http://<SERVER_IP>:8082`.
 Soldering machines communicate directly via `http://<SERVER_IP>:4000/fis/...`.
+
+To publish the pallet currently produced by a station, Soldering calls:
+
+```http
+PUT /fis/soldering/stations/SOLDER-01/current-pallet
+Content-Type: application/json
+
+{"pallet_id":"PROJECT-01"}
+```
+
+The assignment is an upsert: another call for the same station immediately switches its dashboard to the project belonging to the newly supplied pallet.

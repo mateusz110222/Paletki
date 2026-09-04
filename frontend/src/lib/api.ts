@@ -12,8 +12,10 @@ const target = API_BASE_URL || window.location.origin;
 
 export const publicApi = new Client(target);
 
-export async function getPublicDashboard(signal?: AbortSignal): Promise<PublicDashboardResponse> {
-    const response = await fetch(`${target.replace(/\/$/, '')}/public/dashboard`, {signal});
+export async function getPublicDashboard(station?: string, signal?: AbortSignal): Promise<PublicDashboardResponse> {
+    const url = new URL(`${target.replace(/\/$/, '')}/public/dashboard`);
+    if (station) url.searchParams.set('station', station);
+    const response = await fetch(url, {signal});
     if (!response.ok) throw new Error(`Dashboard request failed with status ${response.status}`);
     return await response.json() as PublicDashboardResponse;
 }

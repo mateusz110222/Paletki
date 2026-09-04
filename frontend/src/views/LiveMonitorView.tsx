@@ -1,5 +1,5 @@
 import React from 'react';
-import {Link} from 'react-router-dom';
+import {Link, useSearchParams} from 'react-router-dom';
 import {useQuery} from '@tanstack/react-query';
 import {
     AlertCircle,
@@ -17,6 +17,7 @@ import {LanguageSwitcher, useTranslation} from '../i18n/LanguageContext.tsx';
 import { ProjectStats, useLiveMonitor} from '../hooks/useLiveMonitor.ts';
 import {usePublicDashboard} from '../hooks/usePublicDashboard.ts';
 import {useDocumentMetadata} from '../hooks/useDocumentMetadata.ts';
+import {StationSelectionView} from '../components/StationSelectionView.tsx';
 import {publicApi} from '../lib/api.ts';
 import {
     formatAvailablePallets,
@@ -26,19 +27,66 @@ import {
 
 export const LiveMonitorView: React.FC = () => {
     const {t, language} = useTranslation();
-    const {query} = usePublicDashboard();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const stationFromUrl = searchParams.get('station')?.trim() || undefined;
+    const {query} = usePublicDashboard(stationFromUrl);
+    const selectedStation = query.data?.selected_station;
+    const showAll = query.data?.scope === 'all';
     const projectsQuery = useQuery({
         queryKey: ['public-projects'],
         queryFn: () => publicApi.pallet.GetAllProjects(),
         staleTime: 60_000,
         refetchInterval: 60_000,
+        enabled: showAll,
     });
     const {data} = useLiveMonitor({
         pallets: query.data?.pallets ?? [],
-        projects: projectsQuery.data?.projects ?? [],
+        projects: showAll
+            ? projectsQuery.data?.projects ?? []
+            : selectedStation ? [{name: selectedStation.project}] : [],
     });
 
     useDocumentMetadata(`PalletX | ${t('panel_live_title')}`, t('panel_live_subtitle'), language);
+
+    if (query.isPending || (showAll && projectsQuery.isPending)) {
+        return (
+            <div className="dashboard-public grid min-h-screen place-items-center p-6 text-white">
+                <div className="text-center">
+                    <RefreshCw className="mx-auto animate-spin text-indigo-300" size={28}/>
+                    <p className="mt-4 text-sm font-semibold text-slate-300">{t('dashboard_loading')}</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (query.isError || projectsQuery.isError) {
+        return (
+            <div className="dashboard-public grid min-h-screen place-items-center p-6 text-white">
+                <div className="dashboard-panel max-w-md rounded-2xl p-8 text-center">
+                    <AlertTriangle className="mx-auto text-amber-300" size={34}/>
+                    <h1 className="mt-4 text-lg font-black">{t('dashboard_error_title')}</h1>
+                    <p className="mt-2 text-sm text-slate-400">{t('dashboard_error_hint')}</p>
+                    <button type="button" onClick={() => {
+                        void query.refetch();
+                        if (showAll) void projectsQuery.refetch();
+                    }} className="mt-6 rounded-xl bg-indigo-500 px-4 py-2.5 text-xs font-bold text-white hover:bg-indigo-400">
+                        {t('dashboard_retry')}
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    if (!showAll && (!stationFromUrl || !selectedStation)) {
+        return (
+            <StationSelectionView
+                stations={query.data?.stations ?? []}
+                invalidSelection={Boolean(stationFromUrl)}
+                onSelect={(station) => setSearchParams({station})}
+                onSelectAll={() => setSearchParams({station: 'ALL'})}
+            />
+        );
+    }
 
     const getStatusTheme = (percentage: number, total: number) => {
         if (total === 0) {
@@ -91,9 +139,20 @@ export const LiveMonitorView: React.FC = () => {
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
+                        <div className="hidden rounded-lg border border-brand-accent/20 bg-brand-accent/8 px-3 py-2 text-right sm:block">
+                            <p className="text-[9px] font-bold uppercase tracking-wider text-brand-accent">
+                                {showAll ? 'ALL' : `${t('dashboard_station')}: ${selectedStation?.station}`}
+                            </p>
+                            <p className="mt-0.5 max-w-44 truncate text-[10px] font-semibold text-brand-text">
+                                {showAll ? t('dashboard_all_lines') : selectedStation?.project}
+                            </p>
+                        </div>
+                        <button type="button" onClick={() => setSearchParams({})} className="min-h-10 rounded-lg border border-brand-border bg-brand-bg px-3 text-[10px] font-bold text-brand-text-muted hover:border-brand-accent/50 hover:text-brand-text">
+                            {t('dashboard_change_station')}
+                        </button>
                         <span className="hidden items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-400 sm:flex"><RefreshCw size={12}/> 30s</span>
                         <LanguageSwitcher/>
-                        <Link to="/dashboard" className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-brand-border bg-brand-bg px-3 text-[10px] font-bold text-brand-text-muted hover:border-brand-accent/50 hover:text-brand-text">
+                        <Link to={`/dashboard?station=${encodeURIComponent(selectedStation?.station ?? 'ALL')}`} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-brand-border bg-brand-bg px-3 text-[10px] font-bold text-brand-text-muted hover:border-brand-accent/50 hover:text-brand-text">
                             <BarChart3 size={14}/><span className="hidden sm:inline">{t('nav_public_dashboard')}</span>
                         </Link>
                         <Link to="/" className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-brand-border bg-brand-bg px-3 text-[10px] font-bold text-brand-text-muted hover:border-brand-accent/50 hover:text-brand-text">
@@ -102,11 +161,6 @@ export const LiveMonitorView: React.FC = () => {
                     </div>
                 </div>
             </header>
-            {(query.isError || projectsQuery.isError) && (
-                <div role="alert" className="mx-auto mt-5 max-w-[1800px] rounded-lg border border-red-500/40 bg-red-950/70 px-4 py-3 text-xs text-red-100">
-                    {t('fetch_error_banner')}
-                </div>
-            )}
             <main className="mx-auto max-w-[1800px] px-5 py-6 sm:px-8">
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300" id="live-monitor-container">
             {/* Top Fleet Health Summary Bento */}

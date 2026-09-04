@@ -64,8 +64,19 @@ export interface PublicDashboardServiceDay {
     average_minutes: number;
 }
 
+export interface ProductionStation {
+    station: string;
+    pallet_id: string;
+    project: string;
+    model: string;
+    updated_at: string;
+}
+
 export interface PublicDashboardResponse {
     generated_at: string;
+    scope: 'selection' | 'all' | 'station';
+    stations: ProductionStation[];
+    selected_station: ProductionStation | null;
     pallets: PublicDashboardPallet[];
     service: {
         average_minutes_30d: number;

@@ -269,6 +269,25 @@ export namespace pallet {
         "pallet_id": string
     }
 
+    export interface AddPalletRangeParams {
+        "first_pallet_id": shared.PalletID
+        "last_pallet_id": shared.PalletID
+        project: shared.ShortText
+        model: shared.ShortText
+        "max_cycles": shared.MaxCycles
+        nests: shared.NestCount
+        status: shared.PalletStatus
+        "block_reason"?: string | null
+        fis: shared.FisUnit
+        acceptLanguage?: string
+    }
+
+    export interface AddPalletRangeResponse {
+        status: true
+        "pallet_ids": string[]
+        created: number
+    }
+
     export interface AddProjectParams {
         name: shared.ShortText
         acceptLanguage?: string
@@ -399,6 +418,7 @@ export namespace pallet {
             this.baseClient = baseClient
             this.AddModel = this.AddModel.bind(this)
             this.AddPallet = this.AddPallet.bind(this)
+            this.AddPalletRange = this.AddPalletRange.bind(this)
             this.AddProject = this.AddProject.bind(this)
             this.BlockPallet = this.BlockPallet.bind(this)
             this.ChangePalletStatus = this.ChangePalletStatus.bind(this)
@@ -450,6 +470,27 @@ export namespace pallet {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI("POST", `/pallets`, JSON.stringify(body), {headers})
             return await resp.json() as AddPalletResponse
+        }
+
+        public async AddPalletRange(params: AddPalletRangeParams): Promise<AddPalletRangeResponse> {
+            const headers = makeRecord<string, string>({
+                "accept-language": params.acceptLanguage,
+            })
+
+            const body: Record<string, any> = {
+                "block_reason":     params["block_reason"],
+                fis:                params.fis,
+                "first_pallet_id": params["first_pallet_id"],
+                "last_pallet_id":  params["last_pallet_id"],
+                "max_cycles":      params["max_cycles"],
+                model:              params.model,
+                nests:              params.nests,
+                project:            params.project,
+                status:             params.status,
+            }
+
+            const resp = await this.baseClient.callTypedAPI("POST", `/pallets/range`, JSON.stringify(body), {headers})
+            return await resp.json() as AddPalletRangeResponse
         }
 
         public async AddProject(params: AddProjectParams): Promise<void> {

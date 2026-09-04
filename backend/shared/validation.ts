@@ -16,6 +16,28 @@ export function normalizePalletId(value: string): string {
     return value.trim().toUpperCase();
 }
 
+export function normalizeStation(value: string): string {
+    return value.trim().toUpperCase();
+}
+
+/** Expands IDs whose final two characters are the pallet sequence number. */
+export function expandPalletRange(firstValue: string, lastValue: string): string[] | null {
+    const first = normalizePalletId(firstValue);
+    const last = normalizePalletId(lastValue);
+    const firstMatch = /^(.*?)(\d{2})$/.exec(first);
+    const lastMatch = /^(.*?)(\d{2})$/.exec(last);
+    if (!firstMatch || !lastMatch || !firstMatch[1] || firstMatch[1] !== lastMatch[1]) return null;
+
+    const start = Number(firstMatch[2]);
+    const end = Number(lastMatch[2]);
+    if (start > end) return null;
+
+    return Array.from(
+        {length: end - start + 1},
+        (_, index) => `${firstMatch[1]}${String(start + index).padStart(2, "0")}`,
+    );
+}
+
 export function normalizePalletStatus(value: string): PalletStatus | null {
     const normalized = value.trim().toLocaleLowerCase("en-US");
     return PALLET_STATUSES.find(

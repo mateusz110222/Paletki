@@ -12,10 +12,10 @@ const timestampOrEnd = (value: string) => {
     return Number.isFinite(timestamp) ? timestamp : Number.MAX_SAFE_INTEGER;
 };
 
-export const usePublicDashboard = () => {
+export const usePublicDashboard = (station?: string) => {
     const query = useQuery({
-        queryKey: ['public-dashboard'],
-        queryFn: ({signal}) => getPublicDashboard(signal),
+        queryKey: ['public-dashboard', station ?? null],
+        queryFn: ({signal}) => getPublicDashboard(station, signal),
         refetchInterval: 30_000,
         staleTime: 15_000,
         refetchOnWindowFocus: true,

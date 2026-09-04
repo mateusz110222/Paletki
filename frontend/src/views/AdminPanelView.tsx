@@ -7,6 +7,7 @@ import {
     History,
     PlusCircle,
     RefreshCw,
+    RotateCcw,
     ShieldAlert,
     Trash2,
     X
@@ -52,8 +53,31 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
     const selectedModelFromUrl = searchParams.get('model') || 'ALL';
     const selectedStatusFromUrl = searchParams.get('status') || 'ALL';
     const searchTermFromURL = searchParams.get('searchTerm') || '';
+    const hasActiveFilters = selectedProjectFromUrl !== 'ALL' || selectedModelFromUrl !== 'ALL' ||
+        selectedStatusFromUrl !== 'ALL' || Boolean(searchTermFromURL);
+    const isAddPalletValid = Boolean(
+        data.newId.trim() &&
+        (data.addMode === 'single' || data.newLastId.trim()) &&
+        data.newProject &&
+        data.newModel &&
+        Number(data.newMaxCycles) > 0 &&
+        Number(data.newNests) > 0 &&
+        data.newFis,
+    );
+    const isAddProjectValid = Boolean(data.newProjectName.trim());
+    const isAddModelValid = Boolean(data.newModelProject && data.newModelName.trim());
     const openPalletHistory = (pallet: Pallet) => {
         navigate(`/admin/pallets/${encodeURIComponent(pallet.pallet_id)}/history`);
+    };
+
+    const clearFilters = () => {
+        const nextParams = new URLSearchParams(searchParams);
+        ['project', 'model', 'status', 'searchTerm'].forEach((key) => nextParams.delete(key));
+        setSearchParams(nextParams);
+        actions.setSelectedProject('ALL');
+        actions.setSelectedModel('ALL');
+        actions.setSelectedStatus('ALL');
+        actions.setSearchTerm('');
     };
 
     useEffect(() => {
@@ -132,14 +156,14 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                         </button>
                         <button
                             onClick={() => actions.setIsAddProjectOpen(true)}
-                            className="flex-1 bg-brand-accent text-brand-bg font-bold uppercase text-xs h-14 px-6 flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.98] transition-all rounded"
+                            className="flex-1 border border-brand-accent/50 bg-brand-accent/10 text-brand-accent font-bold uppercase text-xs h-14 px-6 flex items-center justify-center gap-2 hover:bg-brand-accent/20 active:scale-[0.98] transition-all rounded"
                         >
                             <PlusCircle size={18}/>
                             {t('btn_add_project')}
                         </button>
                         <button
                             onClick={() => actions.setIsAddModelOpen(true)}
-                            className="flex-1 bg-brand-accent text-brand-bg font-bold uppercase text-xs h-14 px-6 flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.98] transition-all rounded"
+                            className="flex-1 border border-brand-accent/50 bg-brand-accent/10 text-brand-accent font-bold uppercase text-xs h-14 px-6 flex items-center justify-center gap-2 hover:bg-brand-accent/20 active:scale-[0.98] transition-all rounded"
                         >
                             <PlusCircle size={18}/>
                             {t('btn_add_model')}
@@ -161,13 +185,14 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
             {/* Advanced Filters */}
             <div
                 className="bg-brand-surface p-4 rounded-xl border border-brand-border flex flex-wrap gap-4 items-center justify-between">
-                <div className="flex flex-wrap gap-4 items-center">
+                <div className="flex flex-wrap items-start gap-4">
                     {/* FILTR: PROJEKT */}
                     <div className="flex flex-col gap-1">
-                        <label className="text-[10px] uppercase font-bold text-brand-text-muted">
+                        <label htmlFor="admin-filter-project" className="text-[10px] uppercase font-bold text-brand-text-muted">
                             {t('filter_by_project')}
                         </label>
                         <select
+                            id="admin-filter-project"
                             value={selectedProjectFromUrl}
                             onChange={(e) => {
                                 const selectedValue = e.target.value;
@@ -194,10 +219,12 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
 
                     {/* FILTR: MODEL (Zależny od wybranego projektu) */}
                     <div className="flex flex-col gap-1">
-                        <label className="text-[10px] uppercase font-bold text-brand-text-muted">
+                        <label htmlFor="admin-filter-model" className="text-[10px] uppercase font-bold text-brand-text-muted">
                             {t('filter_by_model')}
                         </label>
                         <select
+                            id="admin-filter-model"
+                            aria-describedby={selectedProjectFromUrl === 'ALL' ? 'admin-filter-model-hint' : undefined}
                             value={selectedModelFromUrl}
                             onChange={(e) => {
                                 const selectedValue = e.target.value;
@@ -218,14 +245,20 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 <option key={modelName} value={modelName}>{modelName}</option>
                             ))}
                         </select>
+                        {selectedProjectFromUrl === 'ALL' && (
+                            <span id="admin-filter-model-hint" className="max-w-40 text-[9px] leading-tight text-brand-text-muted">
+                                {t('filter_model_hint')}
+                            </span>
+                        )}
                     </div>
 
                     {/* FILTR: STATUS */}
                     <div className="flex flex-col gap-1">
-                        <label className="text-[10px] uppercase font-bold text-brand-text-muted">
+                        <label htmlFor="admin-filter-status" className="text-[10px] uppercase font-bold text-brand-text-muted">
                             {t('filter_by_status')}
                         </label>
                         <select
+                            id="admin-filter-status"
                             value={selectedStatusFromUrl}
                             onChange={(e) => {
                                 const selectedValue = e.target.value;
@@ -251,10 +284,11 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
 
                     {/* PAGINACJA: ILOŚĆ NA STRONĘ */}
                     <div className="flex flex-col gap-1">
-                        <label className="text-[10px] uppercase font-bold text-brand-text-muted">
+                        <label htmlFor="admin-page-size" className="text-[10px] uppercase font-bold text-brand-text-muted">
                             {t('rows_per_page')}
                         </label>
                         <select
+                            id="admin-page-size"
                             value={data.pageSize}
                             onChange={(e) => actions.setPageSize(Number(e.target.value))}
                             className="bg-brand-bg border border-brand-border text-xs rounded p-2 text-brand-text font-medium focus:ring-1 focus:ring-brand-accent"
@@ -264,6 +298,15 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                             ))}
                         </select>
                     </div>
+                    <button
+                        type="button"
+                        onClick={clearFilters}
+                        disabled={!hasActiveFilters}
+                        className="mt-4 inline-flex h-9 items-center justify-center gap-2 rounded border border-brand-border px-3 text-[10px] font-bold uppercase tracking-wider text-brand-text-muted transition-colors hover:border-brand-accent hover:text-brand-accent disabled:cursor-not-allowed disabled:opacity-30"
+                    >
+                        <RotateCcw size={14} aria-hidden="true"/>
+                        {t('filter_clear')}
+                    </button>
                 </div>
 
                 <div className="text-xs text-brand-text-muted font-medium">
@@ -297,7 +340,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                             <th className="px-6 py-3 text-[10px] uppercase font-bold tracking-wider text-brand-text-muted">{t('col_model')}</th>
                             <th className="px-6 py-3 text-[10px] uppercase font-bold tracking-wider text-brand-text-muted">{t('col_fis')}</th>
                             <th className="px-6 py-3 text-[10px] uppercase font-bold tracking-wider text-brand-text-muted">{t('col_cycles')}</th>
-                            <th className="px-6 py-3 text-[10px] uppercase font-bold tracking-wider text-brand-text-muted">{t('status_all')}</th>
+                            <th className="px-6 py-3 text-[10px] uppercase font-bold tracking-wider text-brand-text-muted">{t('col_status')}</th>
                             <th className="px-6 py-3 text-[10px] uppercase font-bold tracking-wider text-brand-text-muted">{t('col_operator')}</th>
                             <th className="px-6 py-3 text-[10px] uppercase font-bold tracking-wider text-brand-text-muted text-right">{t('col_actions')}</th>
                         </tr>
@@ -376,33 +419,38 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <div className="flex justify-end gap-2">
+                                            <div className="flex min-w-48 items-center justify-end gap-1">
                                                 <button
                                                     onClick={() => openPalletHistory(p)}
                                                     title={t('audit_trail_title')}
                                                     aria-label={`${t('audit_trail_title')}: ${p.pallet_id}`}
-                                                    className="p-1 text-brand-text-muted hover:text-brand-accent transition-colors"
+                                                    className="rounded-lg p-2 text-brand-text-muted hover:bg-brand-accent/10 hover:text-brand-accent transition-colors"
                                                 >
                                                     <History size={16}/>
+                                                    <span className="sr-only">{t('audit_trail_title')}: {p.pallet_id}</span>
                                                 </button>
 
                                                 <button
                                                     onClick={() => actions.handleOpenEditModal(p)}
                                                     title={t('btn_edit')}
                                                     aria-label={`${t('btn_edit')}: ${p.pallet_id}`}
-                                                    className="p-1 text-brand-text-muted hover:text-brand-accent transition-colors"
+                                                    className="rounded-lg p-2 text-brand-text-muted hover:bg-brand-accent/10 hover:text-brand-accent transition-colors"
                                                 >
                                                     <Edit size={16}/>
+                                                    <span className="sr-only">{t('btn_edit')}: {p.pallet_id}</span>
                                                 </button>
 
                                                 <button
                                                     onClick={() => actions.handleCopyPallet(p)}
                                                     title={t('btn_copy_pallet')}
                                                     aria-label={`${t('btn_copy_pallet')}: ${p.pallet_id}`}
-                                                    className="p-1 text-brand-text-muted hover:text-brand-accent transition-colors"
+                                                    className="rounded-lg p-2 text-brand-text-muted hover:bg-brand-accent/10 hover:text-brand-accent transition-colors"
                                                 >
                                                     <Copy size={16}/>
+                                                    <span className="sr-only">{t('btn_copy_pallet')}: {p.pallet_id}</span>
                                                 </button>
+
+                                                <span aria-hidden="true" className="mx-1 h-6 w-px bg-brand-border"/>
 
                                                 {p.status === 'Blocked' ? (
                                                     <button
@@ -418,9 +466,11 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                                         onClick={() => actions.handleBlockClick(p)}
                                                         title={t('btn_block')}
                                                         aria-label={`${t('btn_block')}: ${p.pallet_id}`}
-                                                        className="p-1 text-brand-text-muted hover:text-red-400 transition-colors"
+                                                        className="inline-flex items-center gap-1.5 rounded-lg p-2 text-brand-text-muted hover:bg-amber-500/10 hover:text-amber-400 transition-colors"
                                                     >
                                                         <ShieldAlert size={16}/>
+                                                        <span className="sr-only">{t('btn_block')}: {p.pallet_id}</span>
+                                                        <span className="hidden 2xl:inline text-[10px] font-bold uppercase">{t('btn_block')}</span>
                                                     </button>
                                                 )}
 
@@ -428,9 +478,11 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                                     onClick={() => actions.setSelectedPalletForDelete(p)}
                                                     title={t('btn_delete')}
                                                     aria-label={`${t('btn_delete')}: ${p.pallet_id}`}
-                                                    className="p-1 text-brand-text-muted hover:text-red-500 transition-colors"
+                                                    className="ml-1 inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 p-2 text-red-400 hover:border-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors"
                                                 >
                                                     <Trash2 size={16}/>
+                                                    <span className="sr-only">{t('btn_delete')}: {p.pallet_id}</span>
+                                                    <span className="hidden 2xl:inline text-[10px] font-bold uppercase">{t('btn_delete')}</span>
                                                 </button>
                                             </div>
                                         </td>
@@ -487,10 +539,27 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                         {/* Formularz */}
                         <form onSubmit={actions.handleAddPallet} className="p-6 space-y-6">
 
+                            <div className="grid grid-cols-2 gap-2 rounded-xl border border-brand-border bg-brand-bg p-1.5">
+                                <button
+                                    type="button"
+                                    onClick={() => actions.setAddMode('single')}
+                                    className={`rounded-lg px-3 py-2.5 text-[11px] font-black uppercase tracking-wide transition-colors ${data.addMode === 'single' ? 'bg-brand-accent text-brand-bg' : 'text-brand-text-muted hover:text-brand-text'}`}
+                                >
+                                    {t('add_mode_single')}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => actions.setAddMode('range')}
+                                    className={`rounded-lg px-3 py-2.5 text-[11px] font-black uppercase tracking-wide transition-colors ${data.addMode === 'range' ? 'bg-brand-accent text-brand-bg' : 'text-brand-text-muted hover:text-brand-text'}`}
+                                >
+                                    {t('add_mode_range')}
+                                </button>
+                            </div>
+
                             {/* Sekcja główna: ID i Projekt, zależny Model poniżej na całą szerokość */}
                             <div className="grid grid-cols-2 gap-4">
                                 <InputField
-                                    label={t('label_pallet_id')}
+                                    label={data.addMode === 'range' ? t('label_first_pallet_id') : t('label_pallet_id')}
                                     type="text"
                                     autoFocus
                                     placeholder={t('placeholder_pallet_id')}
@@ -499,8 +568,20 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                     required
                                 />
 
+                                {data.addMode === 'range' && (
+                                    <InputField
+                                        label={t('label_last_pallet_id')}
+                                        type="text"
+                                        placeholder={t('placeholder_last_pallet_id')}
+                                        value={data.newLastId.toUpperCase()}
+                                        onChange={(e) => actions.setNewLastId(e.target.value.toUpperCase())}
+                                        required
+                                    />
+                                )}
+
                                 <SelectField
                                     label={t('label_project')}
+                                    fieldClassName={data.addMode === 'range' ? 'flex flex-col gap-1.5 col-span-2' : undefined}
                                     value={data.newProject}
                                     onChange={(e) => actions.setNewProject(e.target.value)}
                                     required
@@ -511,6 +592,12 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                         return <option key={name} value={name}>{name}</option>
                                     })}
                                 </SelectField>
+
+                                {data.addMode === 'range' && (
+                                    <p className="col-span-2 -mt-1 text-[10px] leading-relaxed text-brand-text-muted">
+                                        {t('pallet_range_hint')}
+                                    </p>
+                                )}
 
                                 <SelectField
                                     label={t('label_model')}
@@ -562,8 +649,8 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 </SelectField>
                             </div>
 
-                            <p className="text-[10px] text-brand-text-muted/60 leading-relaxed italic tracking-wide">
-                                {t('validation_required_fields')}
+                            <p className="text-[10px] text-brand-text-muted leading-relaxed tracking-wide">
+                                {t('required_fields_hint')}
                             </p>
 
                             {/* Stopka z przyciskami akcji */}
@@ -571,6 +658,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 onCancel={() => actions.setIsAddOpen(false)}
                                 submitLabel={t('btn_save')}
                                 isSubmitting={status.isSubmitting}
+                                submitDisabled={!isAddPalletValid}
                             />
                         </form>
                     </div>
@@ -613,14 +701,15 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 required
                             />
 
-                            <p className="text-[10px] text-brand-text-muted/60 leading-relaxed italic">
-                                {t('validation_required_fields')}
+                            <p className="text-[10px] text-brand-text-muted leading-relaxed">
+                                {t('required_fields_hint')}
                             </p>
 
                             <ModalFormActions
                                 onCancel={() => actions.setIsAddProjectOpen(false)}
                                 submitLabel={t('btn_save')}
                                 isSubmitting={status.isSubmitting}
+                                submitDisabled={!isAddProjectValid}
                             />
                         </form>
                     </div>
@@ -673,14 +762,15 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 required
                             />
 
-                            <p className="text-[10px] text-brand-text-muted/60 leading-relaxed italic">
-                                {t('validation_required_fields')}
+                            <p className="text-[10px] text-brand-text-muted leading-relaxed">
+                                {t('required_fields_hint')}
                             </p>
 
                             <ModalFormActions
                                 onCancel={() => actions.setIsAddModelOpen(false)}
                                 submitLabel={t('btn_save')}
                                 isSubmitting={status.isSubmitting}
+                                submitDisabled={!isAddModelValid}
                             />
                         </form>
                     </div>

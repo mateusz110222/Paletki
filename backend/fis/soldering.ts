@@ -1,6 +1,6 @@
 import {api, APIError} from "encore.dev/api";
 import {PalletStatus} from "../shared/types";
-import {normalizePalletId} from "../shared/validation";
+import {normalizePalletId, normalizeStation} from "../shared/validation";
 import {palletsDatabase as db} from "../shared/persistence";
 
 interface PalletPathParams {
@@ -36,6 +36,28 @@ interface PalletAvailability {
     max_cycles: number;
 }
 
+interface SetStationPalletParams {
+    station: string;
+    pallet_id: string;
+}
+
+export interface SetStationPalletResponse {
+    status: true;
+    station: string;
+    pallet_id: string;
+    project: string;
+    model: string;
+    updated_at: string;
+}
+
+interface StationPalletRecord {
+    station: string;
+    pallet_id: string;
+    project: string;
+    model: string;
+    updated_at: Date;
+}
+
 export const GetSolderingPallet = api(
     {method: "GET", path: "/fis/soldering/pallets/:pallet_id", expose: true},
     async (params: PalletPathParams): Promise<SolderingPallet> => {
@@ -66,6 +88,41 @@ export const GetSolderingPallet = api(
         } catch (error) {
             if (error instanceof APIError) throw error;
             throw APIError.internal("Could not read pallet data.", error instanceof Error ? error : undefined);
+        }
+    },
+);
+
+/** Records which pallet is currently being produced on a soldering station. */
+export const SetSolderingStationPallet = api(
+    {method: "PUT", path: "/fis/soldering/stations/:station/current-pallet", expose: true},
+    async (params: SetStationPalletParams): Promise<SetStationPalletResponse> => {
+        const station = normalizeStation(params.station);
+        const palletId = normalizePalletId(params.pallet_id);
+        if (!/^[A-Z0-9._-]{1,64}$/.test(station) || station === "ALL") {
+            throw APIError.invalidArgument("Station must contain 1-64 letters, digits, dots, hyphens, or underscores, and must not be ALL.");
+        }
+        if (!palletId) throw APIError.invalidArgument("Pallet ID is required.");
+
+        try {
+            const updated = await db.queryRow<StationPalletRecord>`
+                WITH assignment AS (
+                    INSERT INTO production_stations (station, pallet_id, updated_at)
+                    SELECT ${station}, pallets.pallet_id, NOW()
+                    FROM pallets
+                    WHERE pallets.pallet_id = ${palletId} AND pallets.deleted_at IS NULL
+                    ON CONFLICT (station) DO UPDATE
+                    SET pallet_id = EXCLUDED.pallet_id, updated_at = EXCLUDED.updated_at
+                    RETURNING station, pallet_id, updated_at
+                )
+                SELECT assignment.station, assignment.pallet_id, pallets.project, pallets.model, assignment.updated_at
+                FROM assignment
+                JOIN pallets ON pallets.pallet_id = assignment.pallet_id
+            `;
+            if (!updated) throw APIError.notFound(`Pallet ${palletId} was not found.`);
+            return {...updated, status: true, updated_at: updated.updated_at.toISOString()};
+        } catch (error) {
+            if (error instanceof APIError) throw error;
+            throw APIError.internal("Could not update the soldering station.", error instanceof Error ? error : undefined);
         }
     },
 );

@@ -69,10 +69,13 @@ export const OperatorPanelView: React.FC = () => {
                             className="w-full max-w-md space-y-3">
                             <div className="relative">
                                 <input
+                                    id="pallet-scanner-input"
                                     ref={actions.barcodeInputRef}
                                     type="text"
                                     value={data.scannedId || ''}
                                     onChange={handleInputChange}
+                                    aria-label={t('op_scan_input_label')}
+                                    aria-describedby="pallet-scanner-help pallet-scanner-status"
                                     className="w-full bg-brand-bg/80 border-2 border-brand-border rounded-xl py-4 px-6 text-2xl font-mono font-black text-brand-accent focus:ring-4 focus:ring-brand-accent/10 outline-none transition-all text-center tracking-widest uppercase shadow-inner"
                                     placeholder={t('op_scan_placeholder')}
                                     autoComplete="off"
@@ -82,15 +85,30 @@ export const OperatorPanelView: React.FC = () => {
                             <button type="submit" className="hidden" disabled={data.isScanning || data.isSubmitting}>{t('btn_scan')}</button>
 
                             <div
-                                className="flex items-center justify-center gap-2 text-xs font-bold text-brand-text-muted uppercase tracking-wider pt-1">
+                                id="pallet-scanner-status"
+                                role="status"
+                                aria-live="polite"
+                                className={`flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider pt-1 ${data.scanStatus === 'ERROR' ? 'text-red-400' : 'text-brand-text-muted'}`}>
                                 <span className="relative flex h-2.5 w-2.5">
                                     <span
-                                        className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-accent opacity-75"></span>
+                                        className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${data.scanStatus === 'ERROR' ? 'bg-red-400' : 'bg-brand-accent'}`}></span>
                                     <span
-                                        className="relative inline-flex rounded-full h-2.5 w-2.5 bg-brand-accent"></span>
+                                        className={`relative inline-flex rounded-full h-2.5 w-2.5 ${data.scanStatus === 'ERROR' ? 'bg-red-400' : 'bg-brand-accent'}`}></span>
                                 </span>
-                                {t('op_waiting_for_scanner')}
+                                {data.isScanning
+                                    ? t('op_scanning')
+                                    : data.scanStatus === 'ERROR'
+                                        ? t('op_scan_retry')
+                                        : t('op_waiting_for_scanner')}
                             </div>
+                            <p id="pallet-scanner-help" className="text-xs leading-relaxed text-brand-text-muted">
+                                {t('op_scan_help')}
+                            </p>
+                            {data.lastScannedId && (
+                                <p className="text-xs text-brand-text-muted">
+                                    {t('op_last_scanned')}: <span className="font-mono font-bold text-brand-accent">{data.lastScannedId}</span>
+                                </p>
+                            )}
                         </form>
                     </div>
                 </section>
