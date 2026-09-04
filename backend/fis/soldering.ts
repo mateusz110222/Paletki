@@ -238,7 +238,7 @@ export const RegisterSolderingCycle = api(
             await using tx = await db.begin();
             const inserted = await tx.queryRow<{event_id: string}>`
                 INSERT INTO soldering_cycle_events (event_id, pallet_id, station, process, unit_ids)
-                VALUES (${eventId}, ${palletId}, ${station}, ${processName}, ${JSON.stringify(unitIds)}::jsonb)
+                VALUES (${eventId}, ${palletId}, ${station}, ${processName}, to_jsonb(${unitIds}::text[]))
                 ON CONFLICT (event_id) DO NOTHING
                 RETURNING event_id
             `;
@@ -248,7 +248,7 @@ export const RegisterSolderingCycle = api(
                     SELECT pallet_id,
                            station,
                            process,
-                           unit_ids = ${JSON.stringify(unitIds)}::jsonb AS unit_ids_match,
+                           unit_ids = to_jsonb(${unitIds}::text[]) AS unit_ids_match,
                            state,
                            result_current_cycles,
                            result_total_cycles,

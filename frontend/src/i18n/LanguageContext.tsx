@@ -288,7 +288,6 @@ export const dictionaries = {
         login_or_divider: 'LUB',
         login_error_title: 'Błąd logowania',
         auth_error: 'Wystąpił błąd podczas logowania.',
-        login_security_note: 'Zabezpieczono przez firmową usługę Active Directory BorgWarner',
         logout_button: 'Wyloguj',
         guest_department: 'Sesja operatorska',
 
@@ -681,7 +680,6 @@ export const dictionaries = {
         login_or_divider: 'OR',
         login_error_title: 'Login Error',
         auth_error: 'An error occurred during login.',
-        login_security_note: 'Secured by BorgWarner Corporate Active Directory',
         logout_button: 'Log Out',
         guest_department: 'Operator session',
 

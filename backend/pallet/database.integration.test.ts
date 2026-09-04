@@ -182,6 +182,11 @@ describe('PostgreSQL pallet integration', () => {
             FROM soldering_cycle_events
             WHERE pallet_id = 'PALLET-CYCLES'
         `).toEqual({events: 2});
+        expect(await db.queryRow<{unit_ids_type: string; unit_ids: string[]}>`
+            SELECT jsonb_typeof(unit_ids) AS unit_ids_type, unit_ids
+            FROM soldering_cycle_events
+            WHERE event_id = ${firstEvent.event_id}
+        `).toEqual({unit_ids_type: 'array', unit_ids: ['UNIT-001']});
         const audit = await db.queryRow<{previous_status: string; new_status: string; description: string}>`
             SELECT previous_status, new_status, description
             FROM pallet_audit_logs

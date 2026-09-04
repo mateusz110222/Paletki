@@ -283,13 +283,6 @@ export const LoginView: React.FC = () => {
                         </div>
                     )}
                 </form>
-
-                {/* Footer security note */}
-                <div className="pt-3 border-t border-brand-border/60 text-center">
-                    <p className="text-[10px] font-bold text-brand-text-muted/60 uppercase tracking-widest">
-                        {t('login_security_note')}
-                    </p>
-                </div>
             </div>
         </div>
     );

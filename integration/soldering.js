@@ -596,6 +596,20 @@ function resetProcessForms() {
     }
 }
 
+function resetScannedInput(input, generatedContainer = null) {
+    if (generatedContainer) {
+        generatedContainer
+            .querySelectorAll('[data-generated="unitHandler2"]')
+            .forEach((element) => element.remove());
+    }
+    if (!input) {
+        return;
+    }
+    input.value = "";
+    input.disabled = false;
+    input.focus();
+}
+
 async function runFormHandlerOnce(form, handler) {
     if (!form || form.dataset.processing === "1" || unitCheckInProgress) {
         return;
@@ -1401,7 +1415,7 @@ async function unitHandler(event) {
     const initialUnitSerialNumberValue = unitSerialNumber.value;
     const review = await unitReview(initialUnitSerialNumberValue);
     if (!review.status) {
-        unitSerialNumber.value = "";
+        resetScannedInput(unitSerialNumber);
         return;
     }
     unitSerialNumber.value = review.data;
@@ -1414,7 +1428,7 @@ async function unitHandler(event) {
         const unitStatus = await unitCheck(fd);
         console.log("Unit check status:", unitStatus);
         if (!unitStatus.status) {
-            unitSerialNumber.value = "";
+            resetScannedInput(unitSerialNumber);
             showError(unitSerialNumberValue + "<br>" + unitStatus.message);
             return;
         }
@@ -1424,7 +1438,7 @@ async function unitHandler(event) {
         sensorPn = "";
         const response = await Get_Unit_Status(fd);
         if (!response.status) {
-            unitSerialNumber.value = "";
+            resetScannedInput(unitSerialNumber);
             showError(unitSerialNumberValue + "<br>" + response.message);
             return;
         }
@@ -1439,12 +1453,12 @@ async function unitHandler(event) {
         let processHousing = response.data.uk3 === "HOUSING" ? 1 : 0;
         const unitParent = await parentCheck(fd);
         if (isRouterTransportFailure(unitParent)) {
-            unitSerialNumber.value = "";
+            resetScannedInput(unitSerialNumber);
             showRouterTransportError("sprawdzania parenta", unitParent, unitSerialNumberValue);
             return;
         }
         if (!unitParent?.status && !isExpectedMissingParent(unitParent)) {
-            unitSerialNumber.value = "";
+            resetScannedInput(unitSerialNumber);
             showError(unitSerialNumberValue + "<br>FIS zwrócił niejednoznaczny wynik sprawdzania parenta.<br>" + (unitParent?.message || "Brak kodu NO_PARENT"), 8000,);
             return;
         }
@@ -1456,7 +1470,7 @@ async function unitHandler(event) {
             fd.set("unitSerialNumber", unitParent.data);
             const parentStatus = await unitCheck(fd);
             if (!parentStatus.status) {
-                unitSerialNumber.value = "";
+                resetScannedInput(unitSerialNumber);
                 showError("Parent niegotowy na process!<br>" + String(unitParent.data || "") + "<br>" + (parentStatus.message || unitParent.message || "Brak szczegółów"), 8000);
                 return;
             }
@@ -1467,6 +1481,7 @@ async function unitHandler(event) {
         const unitChildren = await childrenCheck(fd);
         console.log("unitChildren:", unitChildren);
         if (!unitChildren?.status) {
+            resetScannedInput(unitSerialNumber);
             showError(unitSerialNumberValue + "<br>" + (unitChildren?.message || "Błąd pobierania childrenów"), 8000);
             return;
         }
@@ -1478,6 +1493,7 @@ async function unitHandler(event) {
             fd.set("unitSerialNumber", unitChildren.data[0]);
             const childStatusResponse = await Get_Unit_Status(fd);
             if (!childStatusResponse?.status) {
+                resetScannedInput(unitSerialNumber);
                 showError(unitChildren.data[0] + "<br>" + (childStatusResponse?.message || "Błąd pobierania statusu childrena"), 8000);
                 return;
             }
@@ -1502,7 +1518,8 @@ async function unitHandler(event) {
                 console.log("Child check:", childCheck);
                 if (!childCheck.status) {
                     showError(childCheck.message, 6000);
-                    resetProcessForms();
+                    document.getElementById("palletForm02")?.remove();
+                    resetScannedInput(unitSerialNumber);
                     return;
                 }
                 unitSerialNumber.disabled = true;
@@ -1595,69 +1612,76 @@ async function unitHandler(event) {
                     if (!String(input.value || "").trim()) {
                         return;
                     }
-                    let bad = 0;
-                    let duplicate;
-                    let msg = "";
-                    const inputReview = await unitReview(input.value);
-                    if (!inputReview.status) {
-                        input.value = "";
-                        return;
-                    }
-                    input.value = inputReview.data;
-                    if (input.name === "powerModuleSn") {
-                        fd.set("unitSerialNumber", input.value);
-                        const pmStatus = await Get_Unit_Status(fd);
-                        if (!pmStatus.status) {
-                            const failedUnit = input.value;
-                            input.value = "";
-                            showError(failedUnit + "<br>" + (pmStatus.message || "Błąd Get_Unit_Status"), 8000);
+                    const scannedInputValue = String(input.value || "").trim().toUpperCase();
+                    try {
+                        let bad = 0;
+                        let duplicate;
+                        let msg = "";
+                        const inputReview = await unitReview(input.value);
+                        if (!inputReview.status) {
+                            resetScannedInput(input);
                             return;
                         }
-                        const pmUnitStatus = await unitCheck(fd);
-                        const parentStatus = await parentCheck(fd);
-                        if (isRouterTransportFailure(parentStatus)) {
-                            const failedUnit = input.value;
-                            input.value = "";
-                            showRouterTransportError("sprawdzania linku Power Module", parentStatus, failedUnit);
+                        input.value = inputReview.data;
+                        if (input.name === "powerModuleSn") {
+                            fd.set("unitSerialNumber", input.value);
+                            const pmStatus = await Get_Unit_Status(fd);
+                            if (!pmStatus.status) {
+                                const failedUnit = input.value;
+                                resetScannedInput(input);
+                                showError(failedUnit + "<br>" + (pmStatus.message || "Błąd Get_Unit_Status"), 8000);
+                                return;
+                            }
+                            const pmUnitStatus = await unitCheck(fd);
+                            const parentStatus = await parentCheck(fd);
+                            if (isRouterTransportFailure(parentStatus)) {
+                                const failedUnit = input.value;
+                                resetScannedInput(input);
+                                showRouterTransportError("sprawdzania linku Power Module", parentStatus, failedUnit);
+                                return;
+                            }
+                            if (!parentStatus?.status && !isExpectedMissingParent(parentStatus)) {
+                                const failedUnit = input.value;
+                                resetScannedInput(input);
+                                showError(failedUnit + "<br>FIS nie potwierdził braku linku Power Module.<br>" + (parentStatus?.message || "Brak kodu NO_PARENT"), 8000,);
+                                return;
+                            }
+                            duplicate = hasDuplicateValues('input[name="powerModuleSn"]');
+                            if (!pmUnitStatus.status) {
+                                bad = 1;
+                                msg = pmUnitStatus.message;
+                            } else if (pmStatus.data.uk2 != powerModuleToChild) {
+                                bad = 1;
+                                msg = "Part Number Power Module nie pasuje do konfiguracji!<br>" + input.value;
+                            } else if (duplicate) {
+                                bad = 1;
+                                msg = "Użyty ten sam numer power module!<br>" + input.value;
+                            } else if (parentStatus.status) {
+                                bad = 1;
+                                msg = "Power Module jest już zlinkowany!<br>" + input.value;
+                            }
+                        } else if (input.name === "sensorSn") {
+                            const lastPn = input.value.slice(-11);
+                            duplicate = hasDuplicateValues('input[name="sensorSn"]');
+                            if (sensorPn != lastPn) {
+                                bad = 1;
+                                msg = "Part Number Sensora LEM nie pasuje do konfiguracji!<br>" + input.value;
+                            } else if (duplicate) {
+                                bad = 1;
+                                msg = "Użyty ten sam numer current sensor!<br>" + input.value;
+                            }
+                        }
+                        if (bad === 1) {
+                            resetScannedInput(input);
+                            showError(msg, 6000);
                             return;
                         }
-                        if (!parentStatus?.status && !isExpectedMissingParent(parentStatus)) {
-                            const failedUnit = input.value;
-                            input.value = "";
-                            showError(failedUnit + "<br>FIS nie potwierdził braku linku Power Module.<br>" + (parentStatus?.message || "Brak kodu NO_PARENT"), 8000,);
-                            return;
-                        }
-                        duplicate = hasDuplicateValues('input[name="powerModuleSn"]');
-                        if (!pmUnitStatus.status) {
-                            bad = 1;
-                            msg = pmUnitStatus.message;
-                        } else if (pmStatus.data.uk2 != powerModuleToChild) {
-                            bad = 1;
-                            msg = "Part Number Power Module nie pasuje do konfiguracji!<br>" + input.value;
-                        } else if (duplicate) {
-                            bad = 1;
-                            msg = "Użyty ten sam numer power module!<br>" + input.value;
-                        } else if (parentStatus.status) {
-                            bad = 1;
-                            msg = "Power Module jest już zlinkowany!<br>" + input.value;
-                        }
-                    } else if (input.name === "sensorSn") {
-                        const lastPn = input.value.slice(-11);
-                        duplicate = hasDuplicateValues('input[name="sensorSn"]');
-                        if (sensorPn != lastPn) {
-                            bad = 1;
-                            msg = "Part Number Sensora LEM nie pasuje do konfiguracji!<br>" + input.value;
-                        } else if (duplicate) {
-                            bad = 1;
-                            msg = "Użyty ten sam numer current sensor!<br>" + input.value;
-                        }
+                        await focusNext(powerSensCheck);
+                    } catch (error) {
+                        console.error("component input error:", error);
+                        resetScannedInput(input);
+                        showError(scannedInputValue + "<br>Nieoczekiwany błąd obsługi sztuki!<br>" + (error?.message || "Brak szczegółów błędu"), 8000);
                     }
-                    if (bad === 1) {
-                        input.value = "";
-                        showError(msg, 6000);
-                        return;
-                    }
-                    await focusNext(powerSensCheck);
                 });
             }
         }
@@ -1686,8 +1710,7 @@ async function unitHandler(event) {
                     const failure = formatFisWriteFailure("Błąd zapisu dla childrena!<br>" + childUnit + "<br>" + (childEntry?.message || "Brak szczegółów"), childEntry, fisWritesCompleted,);
                     showError(failure.message, failure.requiresReview ? 15000 : 8000);
                     if (!failure.requiresReview) {
-                        unitSerialNumber.disabled = false;
-                        unitSerialNumber.focus();
+                        resetScannedInput(unitSerialNumber);
                     }
                     return;
                 }
@@ -1705,8 +1728,7 @@ async function unitHandler(event) {
             const failure = formatFisWriteFailure("Błąd zapisu!<br>" + unitSerialNumberValue + "<br>" + (dataEntryStatus.message || "Skontaktuj się z inżynierem lub IT"), dataEntryStatus, fisWritesCompleted,);
             showError(failure.message, failure.requiresReview ? 15000 : 8000);
             if (!failure.requiresReview) {
-                unitSerialNumber.disabled = false;
-                unitSerialNumber.focus();
+                resetScannedInput(unitSerialNumber);
             }
             console.error(dataEntryStatus);
             return;
@@ -1731,8 +1753,7 @@ async function unitHandler(event) {
         const suffix = requiresReview ? "<br>Stan procesu w FIS może być częściowo zapisany. Nie ponawiaj operacji i skontaktuj się z inżynierem lub IT." : "";
         showError(unitSerialNumberValue + "<br>Nieoczekiwany błąd obsługi sztuki!<br>" + (error?.message || "Brak szczegółów błędu") + suffix, requiresReview ? 15000 : 8000,);
         if (!requiresReview) {
-            unitSerialNumber.disabled = false;
-            unitSerialNumber.focus();
+            resetScannedInput(unitSerialNumber);
         }
     }
 }
@@ -1748,16 +1769,14 @@ async function unitHandler2(form, event) {
     const review = await unitReview(scannedUnit);
     console.log("unitHandler2 review:", review);
     if (!review?.status) {
-        unitSerialNumber.value = "";
-        unitSerialNumber.focus();
+        resetScannedInput(unitSerialNumber, form);
         return;
     }
     unitSerialNumber.value = review.data;
     unitSerialNumberValue = review.data;
     if (hasDuplicateRootValue(unitSerialNumber, unitSerialNumberValue)) {
         const duplicateUnit = unitSerialNumberValue;
-        unitSerialNumber.value = "";
-        unitSerialNumber.focus();
+        resetScannedInput(unitSerialNumber, form);
         showError(duplicateUnit + "<br>Użyty ten sam numer!", 6000);
         return;
     }
@@ -1769,8 +1788,7 @@ async function unitHandler2(form, event) {
         console.log("unitHandler2 unitStatus:", unitStatus);
         if (!unitStatus?.status) {
             const failedUnit = unitSerialNumberValue;
-            unitSerialNumber.value = "";
-            unitSerialNumber.focus();
+            resetScannedInput(unitSerialNumber, form);
             showError(failedUnit + "<br>" + (unitStatus?.message || "Błąd unitCheck"), 8000);
             return;
         }
@@ -1782,8 +1800,7 @@ async function unitHandler2(form, event) {
         console.log("unitHandler2 Get_Unit_Status:", response);
         if (!response?.status) {
             const failedUnit = unitSerialNumberValue;
-            unitSerialNumber.value = "";
-            unitSerialNumber.focus();
+            resetScannedInput(unitSerialNumber, form);
             showError(failedUnit + "<br>" + (response?.message || "Błąd Get_Unit_Status"), 8000);
             return;
         }
@@ -1798,17 +1815,13 @@ async function unitHandler2(form, event) {
         const unitParent = await parentCheck(fd);
         console.log("unitHandler2 unitParent:", unitParent);
         if (isRouterTransportFailure(unitParent)) {
-            unitSerialNumber.value = "";
-            unitSerialNumber.disabled = false;
-            unitSerialNumber.focus();
+            resetScannedInput(unitSerialNumber, form);
             showRouterTransportError("sprawdzania parenta", unitParent, unitSerialNumberValue);
             return;
         }
         if (!unitParent?.status && !isExpectedMissingParent(unitParent)) {
             const failedUnit = unitSerialNumberValue;
-            unitSerialNumber.value = "";
-            unitSerialNumber.disabled = false;
-            unitSerialNumber.focus();
+            resetScannedInput(unitSerialNumber, form);
             showError(failedUnit + "<br>FIS zwrócił niejednoznaczny wynik sprawdzania parenta.<br>" + (unitParent?.message || "Brak kodu NO_PARENT"), 8000,);
             return;
         }
@@ -1819,9 +1832,7 @@ async function unitHandler2(form, event) {
             fd.set("unitSerialNumber", unitParent.data);
             const parentStatus = await unitCheck(fd);
             if (!parentStatus?.status) {
-                unitSerialNumber.value = "";
-                unitSerialNumber.disabled = false;
-                unitSerialNumber.focus();
+                resetScannedInput(unitSerialNumber, form);
                 showError("Parent niegotowy na process!<br>" + unitParent.data + "<br>" + (parentStatus?.message || unitParent?.message || "Brak szczegółów"), 8000);
                 return;
             }
@@ -1830,9 +1841,7 @@ async function unitHandler2(form, event) {
             fd.set("unitSerialNumber", unitSerialNumberValue);
             if (hasDuplicateRootValue(unitSerialNumber, unitSerialNumberValue)) {
                 const duplicateUnit = unitSerialNumberValue;
-                unitSerialNumber.value = "";
-                unitSerialNumber.disabled = false;
-                unitSerialNumber.focus();
+                resetScannedInput(unitSerialNumber, form);
                 showError(duplicateUnit + "<br>Ten sam parent został już użyty w innym gnieździe!", 8000);
                 return;
             }
@@ -1840,6 +1849,7 @@ async function unitHandler2(form, event) {
         const unitChildren = await childrenCheck(fd);
         console.log("unitHandler2 unitChildren:", unitChildren);
         if (!unitChildren?.status) {
+            resetScannedInput(unitSerialNumber, form);
             showError(unitSerialNumberValue + "<br>" + (unitChildren?.message || "Błąd pobierania childrenów"), 8000);
             return;
         }
@@ -1848,6 +1858,7 @@ async function unitHandler2(form, event) {
             fd.set("unitSerialNumber", childrenData[0]);
             const childStatusResponse = await Get_Unit_Status(fd);
             if (!childStatusResponse?.status) {
+                resetScannedInput(unitSerialNumber, form);
                 showError(childrenData[0] + "<br>" + (childStatusResponse?.message || "Błąd pobierania statusu childrena"), 8000);
                 return;
             }
@@ -1872,9 +1883,7 @@ async function unitHandler2(form, event) {
                 fd.set("unitSerialNumber", childUnit);
                 const childCheck = await unitCheck(fd);
                 if (!childCheck?.status) {
-                    unitSerialNumber.value = "";
-                    unitSerialNumber.disabled = false;
-                    unitSerialNumber.focus();
+                    resetScannedInput(unitSerialNumber, form);
                     showError(childUnit + "<br>" + (childCheck?.message || "Child niegotowy na process"), 8000);
                     return;
                 }
@@ -1972,65 +1981,72 @@ async function unitHandler2(form, event) {
                 if (!String(input.value || "").trim()) {
                     return;
                 }
-                let bad = 0;
-                let duplicate = false;
-                let msg = "";
-                const inputReview = await unitReview(input.value);
-                console.log("manual input review:", inputReview);
-                if (!inputReview?.status) {
-                    input.value = "";
-                    return;
-                }
-                input.value = inputReview.data;
-                if (input.name === "powerModuleSn") {
-                    fd.set("unitSerialNumber", input.value);
-                    const pmUnitStatus = await unitCheck(fd);
-                    const pmStatusResponse = await Get_Unit_Status(fd);
-                    const parentStatus = await parentCheck(fd);
-                    if (isRouterTransportFailure(parentStatus)) {
-                        msg = parentStatus?.message || "Błąd komunikacji podczas sprawdzania linku Power Module";
-                        bad = 1;
-                    } else if (!parentStatus?.status && !isExpectedMissingParent(parentStatus)) {
-                        msg = parentStatus?.message || "FIS nie potwierdził braku linku Power Module (brak kodu NO_PARENT)";
-                        bad = 1;
-                    } else if (!pmStatusResponse?.status) {
-                        msg = pmStatusResponse?.message || "Błąd Get_Unit_Status dla Power Module";
-                        bad = 1;
-                    } else {
-                        duplicate = hasDuplicateValues('input[name="powerModuleSn"]');
+                const scannedInputValue = String(input.value || "").trim().toUpperCase();
+                try {
+                    let bad = 0;
+                    let duplicate = false;
+                    let msg = "";
+                    const inputReview = await unitReview(input.value);
+                    console.log("manual input review:", inputReview);
+                    if (!inputReview?.status) {
+                        resetScannedInput(input);
+                        return;
                     }
-                    if (!bad && !pmUnitStatus?.status) {
-                        msg = pmUnitStatus?.message || "Power Module niegotowy na process";
-                        bad = 1;
-                    } else if (!bad && pmStatusResponse.data?.uk2 != input.dataset.expectedPartNumber) {
-                        bad = 1;
-                        msg = "Part Number Power Module nie pasuje do konfiguracji!<br>" + input.value;
-                    } else if (!bad && duplicate) {
-                        bad = 1;
-                        msg = "Użyty ten sam numer power module!<br>" + input.value;
-                    } else if (!bad && parentStatus?.status) {
-                        bad = 1;
-                        msg = "Power Module jest już zlinkowany!<br>" + input.value;
+                    input.value = inputReview.data;
+                    if (input.name === "powerModuleSn") {
+                        fd.set("unitSerialNumber", input.value);
+                        const pmUnitStatus = await unitCheck(fd);
+                        const pmStatusResponse = await Get_Unit_Status(fd);
+                        const parentStatus = await parentCheck(fd);
+                        if (isRouterTransportFailure(parentStatus)) {
+                            msg = parentStatus?.message || "Błąd komunikacji podczas sprawdzania linku Power Module";
+                            bad = 1;
+                        } else if (!parentStatus?.status && !isExpectedMissingParent(parentStatus)) {
+                            msg = parentStatus?.message || "FIS nie potwierdził braku linku Power Module (brak kodu NO_PARENT)";
+                            bad = 1;
+                        } else if (!pmStatusResponse?.status) {
+                            msg = pmStatusResponse?.message || "Błąd Get_Unit_Status dla Power Module";
+                            bad = 1;
+                        } else {
+                            duplicate = hasDuplicateValues('input[name="powerModuleSn"]');
+                        }
+                        if (!bad && !pmUnitStatus?.status) {
+                            msg = pmUnitStatus?.message || "Power Module niegotowy na process";
+                            bad = 1;
+                        } else if (!bad && pmStatusResponse.data?.uk2 != input.dataset.expectedPartNumber) {
+                            bad = 1;
+                            msg = "Part Number Power Module nie pasuje do konfiguracji!<br>" + input.value;
+                        } else if (!bad && duplicate) {
+                            bad = 1;
+                            msg = "Użyty ten sam numer power module!<br>" + input.value;
+                        } else if (!bad && parentStatus?.status) {
+                            bad = 1;
+                            msg = "Power Module jest już zlinkowany!<br>" + input.value;
+                        }
+                    } else if (input.name === "sensorSn") {
+                        const lastPn = String(input.value || "").slice(-11);
+                        duplicate = hasDuplicateValues('input[name="sensorSn"]');
+                        if (input.dataset.expectedPartNumber != lastPn) {
+                            bad = 1;
+                            msg = "Part Number Sensora LEM nie pasuje do konfiguracji!<br>" + input.value;
+                        } else if (duplicate) {
+                            bad = 1;
+                            msg = "Użyty ten sam numer current sensor!<br>" + input.value;
+                        }
                     }
-                } else if (input.name === "sensorSn") {
-                    const lastPn = String(input.value || "").slice(-11);
-                    duplicate = hasDuplicateValues('input[name="sensorSn"]');
-                    if (input.dataset.expectedPartNumber != lastPn) {
-                        bad = 1;
-                        msg = "Part Number Sensora LEM nie pasuje do konfiguracji!<br>" + input.value;
-                    } else if (duplicate) {
-                        bad = 1;
-                        msg = "Użyty ten sam numer current sensor!<br>" + input.value;
+                    if (bad === 1) {
+                        const failedValue = input.value;
+                        resetScannedInput(input);
+                        showError(msg || failedValue + "<br>Błąd walidacji", 6000);
+                        return;
                     }
+                    inputs = [...document.querySelectorAll('#childDiv input:not([disabled]):not([id="themeToggle"])'),];
+                    await focusNext(dataEntryFunc);
+                } catch (error) {
+                    console.error("component input error:", error);
+                    resetScannedInput(input);
+                    showError(scannedInputValue + "<br>Nieoczekiwany błąd obsługi sztuki!<br>" + (error?.message || "Brak szczegółów błędu"), 8000);
                 }
-                if (bad === 1) {
-                    const failedValue = input.value;
-                    input.value = "";
-                    showError(msg || failedValue + "<br>Błąd walidacji", 6000);
-                    return;
-                }
-                inputs = [...document.querySelectorAll('#childDiv input:not([disabled]):not([id="themeToggle"])'),];
-                await focusNext(dataEntryFunc);
             });
         }
         const currentManualInputs = Array.from(form.querySelectorAll('input[name="powerModuleSn"], ' + 'input[name="sensorSn"]')).filter((input) => !input.disabled);
@@ -2045,6 +2061,7 @@ async function unitHandler2(form, event) {
         }
     } catch (error) {
         console.error("unitHandler2 error:", error);
+        resetScannedInput(unitSerialNumber, form);
         showError((unitSerialNumberValue || scannedUnit) + "<br>Nieoczekiwany błąd obsługi sztuki!<br>" + (error?.message || "Brak szczegółów błędu"), 8000);
     }
 }
