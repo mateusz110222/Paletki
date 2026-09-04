@@ -193,12 +193,34 @@ export namespace auth {
 }
 
 export namespace fis {
+    export interface RegisterCycleParams {
+        "event_id": string
+        station: string
+        process: string
+        "unit_ids": string[]
+    }
+
     export interface RegisterCycleResponse {
         status: true
+        "event_id": string
+        "cycle_recorded": boolean
         "pallet_id": string
         "current_cycles": number
         "total_cycles": number
         "pallet_status": shared.PalletStatus
+    }
+
+    export interface SetStationPalletParams {
+        "pallet_id": string
+    }
+
+    export interface SetStationPalletResponse {
+        status: true
+        station: string
+        "pallet_id": string
+        project: string
+        model: string
+        "updated_at": string
     }
 
     export interface SolderingPallet {
@@ -221,6 +243,7 @@ export namespace fis {
             this.baseClient = baseClient
             this.GetSolderingPallet = this.GetSolderingPallet.bind(this)
             this.RegisterSolderingCycle = this.RegisterSolderingCycle.bind(this)
+            this.SetSolderingStationPallet = this.SetSolderingStationPallet.bind(this)
         }
 
         public async GetSolderingPallet(pallet_id: string): Promise<SolderingPallet> {
@@ -234,13 +257,31 @@ export namespace fis {
          * Both counters are incremented in one statement, so concurrent stations cannot
          * overwrite one another. The existing database trigger changes the pallet to
          * Washing_Required when the configured limit is reached.
-         * This FIS integration does not require a user session; it restricts network access
-         * to trusted stations. The source label below is not an authenticated identity.
+         * This legacy FIS integration does not use a user session. Its deployment must
+         * restrict network access to trusted stations; that boundary is not enforced here.
+         * The source label below is not an authenticated identity.
          */
-        public async RegisterSolderingCycle(pallet_id: string): Promise<RegisterCycleResponse> {
+        public async RegisterSolderingCycle(pallet_id: string, params: RegisterCycleParams): Promise<RegisterCycleResponse> {
+            // Construct the body with only the fields which we want encoded within the body (excluding path fields)
+            const body: Record<string, any> = {
+                "event_id": params["event_id"],
+                process:    params.process,
+                station:    params.station,
+                "unit_ids": params["unit_ids"],
+            }
+
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/fis/soldering/pallets/${encodeURIComponent(pallet_id)}/cycles`)
+            const resp = await this.baseClient.callTypedAPI("POST", `/fis/soldering/pallets/${encodeURIComponent(pallet_id)}/cycles`, JSON.stringify(body))
             return await resp.json() as RegisterCycleResponse
+        }
+
+        public async SetSolderingStationPallet(station: string, params: SetStationPalletParams): Promise<SetStationPalletResponse> {
+            const body: Record<string, any> = {
+                "pallet_id": params["pallet_id"],
+            }
+
+            const resp = await this.baseClient.callTypedAPI("PUT", `/fis/soldering/stations/${encodeURIComponent(station)}/current-pallet`, JSON.stringify(body))
+            return await resp.json() as SetStationPalletResponse
         }
     }
 }

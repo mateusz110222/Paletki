@@ -286,3 +286,31 @@ Content-Type: application/json
 ```
 
 The assignment is an upsert: another call for the same station immediately switches its dashboard to the project belonging to the newly supplied pallet.
+
+After all FIS unit operations complete, a station records the pallet cycle with a
+client-generated idempotency key:
+
+```http
+POST /fis/soldering/pallets/PROJECT-01/cycles
+Content-Type: application/json
+
+{
+  "event_id":"<64 lowercase hexadecimal characters>",
+  "station":"SOLDER-01",
+  "process":"WAVE-SOLDERING",
+  "unit_ids":["UNIT-001","UNIT-002"]
+}
+```
+
+The cycle counter, event ledger, and current station assignment are committed in
+one database transaction. Repeating the same event and metadata returns
+`"cycle_recorded": false` with the original counter snapshot and does not increment
+the pallet again. Reusing an event ID with different metadata is rejected.
+
+Deploy the backend (including migration `10_create_soldering_cycle_events.up.sql`)
+before publishing the updated station script; the script requires the new
+`event_id`/`cycle_recorded` response contract.
+
+The `/fis/*` routes intentionally have no user session because they are consumed by
+legacy machines. Access to the machine ingress port must therefore be limited to
+trusted production networks at the firewall or reverse proxy.

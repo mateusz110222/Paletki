@@ -86,7 +86,7 @@ beforeEach(async () => {
     await db.exec`DROP TRIGGER IF EXISTS test_reject_outbox_insert ON fis_outbox`;
     await db.exec`DROP FUNCTION IF EXISTS test_reject_outbox_insert()`;
     await db.exec`
-        TRUNCATE TABLE production_stations, pallet_audit_logs, fis_outbox, pallets, pallet_models, projects
+        TRUNCATE TABLE production_stations, soldering_cycle_events, pallet_audit_logs, fis_outbox, pallets, pallet_models, projects
         RESTART IDENTITY CASCADE
     `;
     await db.exec`
@@ -158,11 +158,30 @@ describe('PostgreSQL pallet integration', () => {
         await seedCatalog();
         await addPallet('PALLET-CYCLES', 'MODEL-A', 2);
 
-        const first = await fis.RegisterSolderingCycle({pallet_id: 'PALLET-CYCLES'});
-        const second = await fis.RegisterSolderingCycle({pallet_id: 'PALLET-CYCLES'});
+        const firstEvent = {
+            event_id: '1'.repeat(64),
+            station: 'SOLDER-01',
+            process: 'PROCESS-A',
+            unit_ids: ['UNIT-001'],
+        };
+        const secondEvent = {
+            event_id: '2'.repeat(64),
+            station: 'SOLDER-01',
+            process: 'PROCESS-A',
+            unit_ids: ['UNIT-002'],
+        };
+        const first = await fis.RegisterSolderingCycle({pallet_id: 'PALLET-CYCLES', ...firstEvent});
+        const second = await fis.RegisterSolderingCycle({pallet_id: 'PALLET-CYCLES', ...secondEvent});
+        const duplicate = await fis.RegisterSolderingCycle({pallet_id: 'PALLET-CYCLES', ...firstEvent});
 
-        expect(first).toMatchObject({current_cycles: 1, pallet_status: 'Active'});
-        expect(second).toMatchObject({current_cycles: 2, pallet_status: 'Washing_Required'});
+        expect(first).toMatchObject({cycle_recorded: true, current_cycles: 1, pallet_status: 'Active'});
+        expect(duplicate).toMatchObject({cycle_recorded: false, current_cycles: 1, pallet_status: 'Active'});
+        expect(second).toMatchObject({cycle_recorded: true, current_cycles: 2, pallet_status: 'Washing_Required'});
+        expect(await db.queryRow<{events: number}>`
+            SELECT COUNT(*)::int AS events
+            FROM soldering_cycle_events
+            WHERE pallet_id = 'PALLET-CYCLES'
+        `).toEqual({events: 2});
         const audit = await db.queryRow<{previous_status: string; new_status: string; description: string}>`
             SELECT previous_status, new_status, description
             FROM pallet_audit_logs
@@ -171,6 +190,210 @@ describe('PostgreSQL pallet integration', () => {
         `;
         expect(audit).toMatchObject({previous_status: 'Active', new_status: 'Washing_Required'});
         expect(audit?.description).toContain('audit_cycle_limit');
+    });
+
+    it('rejects reuse of a cycle event ID with different canonical metadata', async () => {
+        await seedCatalog();
+        await addPallet('PALLET-EVENT-A', 'MODEL-A', 20);
+        await addPallet('PALLET-EVENT-B', 'MODEL-A', 20);
+        const original = {
+            event_id: 'a'.repeat(64),
+            station: 'SOLDER-01',
+            process: 'PROCESS-A',
+            unit_ids: ['UNIT-002', 'UNIT-001'],
+        };
+        await fis.RegisterSolderingCycle({pallet_id: 'PALLET-EVENT-A', ...original});
+
+        await expect(fis.RegisterSolderingCycle({
+            pallet_id: 'PALLET-EVENT-A',
+            ...original,
+            station: 'SOLDER-02',
+        })).rejects.toMatchObject({
+            code: 'already_exists',
+            details: {reason: 'CYCLE_EVENT_METADATA_CONFLICT'},
+        });
+        await expect(fis.RegisterSolderingCycle({
+            pallet_id: 'PALLET-EVENT-A',
+            ...original,
+            process: 'PROCESS-B',
+        })).rejects.toMatchObject({
+            code: 'already_exists',
+            details: {reason: 'CYCLE_EVENT_METADATA_CONFLICT'},
+        });
+        await expect(fis.RegisterSolderingCycle({
+            pallet_id: 'PALLET-EVENT-A',
+            ...original,
+            unit_ids: ['UNIT-003'],
+        })).rejects.toMatchObject({
+            code: 'already_exists',
+            details: {reason: 'CYCLE_EVENT_METADATA_CONFLICT'},
+        });
+        await expect(fis.RegisterSolderingCycle({
+            pallet_id: 'PALLET-EVENT-B',
+            ...original,
+        })).rejects.toMatchObject({
+            code: 'already_exists',
+            details: {reason: 'CYCLE_EVENT_METADATA_CONFLICT'},
+        });
+
+        const canonicalReplay = await fis.RegisterSolderingCycle({
+            pallet_id: 'pallet-event-a',
+            ...original,
+            station: 'solder-01',
+            process: 'process-a',
+            unit_ids: ['unit-001', 'unit-002'],
+        });
+        expect(canonicalReplay).toMatchObject({cycle_recorded: false, current_cycles: 1, total_cycles: 1});
+        expect((await fis.GetSolderingPallet({pallet_id: 'PALLET-EVENT-B'})).current_cycles).toBe(0);
+    });
+
+    it('increments only once when the same cycle event arrives concurrently', async () => {
+        await seedCatalog();
+        await addPallet('PALLET-SAME-EVENT', 'MODEL-A', 100);
+        const event = {
+            event_id: 'b'.repeat(64),
+            station: 'SOLDER-01',
+            process: 'PROCESS-A',
+            unit_ids: ['UNIT-001'],
+        };
+
+        const results = await Promise.all(Array.from(
+            {length: 12},
+            () => fis.RegisterSolderingCycle({pallet_id: 'PALLET-SAME-EVENT', ...event}),
+        ));
+
+        expect(results.filter((result) => result.cycle_recorded)).toHaveLength(1);
+        expect(results.every((result) => result.current_cycles === 1 && result.total_cycles === 1)).toBe(true);
+        expect(await db.queryRow<{cycles: number; events: number}>`
+            SELECT
+                (SELECT current_cycles FROM pallets WHERE pallet_id = 'PALLET-SAME-EVENT') AS cycles,
+                (SELECT COUNT(*)::int FROM soldering_cycle_events WHERE pallet_id = 'PALLET-SAME-EVENT') AS events
+        `).toEqual({cycles: 1, events: 1});
+    });
+
+    it('does not lose updates for different concurrent cycle events', async () => {
+        await seedCatalog();
+        await addPallet('PALLET-MANY-EVENTS', 'MODEL-A', 100);
+        const eventCount = 20;
+
+        const results = await Promise.all(Array.from({length: eventCount}, (_, index) => (
+            fis.RegisterSolderingCycle({
+                pallet_id: 'PALLET-MANY-EVENTS',
+                event_id: (index + 1).toString(16).padStart(64, '0'),
+                station: 'SOLDER-01',
+                process: 'PROCESS-A',
+                unit_ids: [`UNIT-${String(index + 1).padStart(3, '0')}`],
+            })
+        )));
+
+        expect(results.every((result) => result.cycle_recorded)).toBe(true);
+        expect(await db.queryRow<{current_cycles: number; total_cycles: number; events: number}>`
+            SELECT current_cycles,
+                   total_cycles,
+                   (SELECT COUNT(*)::int FROM soldering_cycle_events WHERE pallet_id = pallets.pallet_id) AS events
+            FROM pallets
+            WHERE pallet_id = 'PALLET-MANY-EVENTS'
+        `).toEqual({current_cycles: eventCount, total_cycles: eventCount, events: eventCount});
+    });
+
+    it('reasserts the station assignment in the successful cycle transaction', async () => {
+        await seedCatalog();
+        await addPallet('PALLET-PREVIOUS', 'MODEL-A', 20);
+        await addPallet('PALLET-CURRENT', 'MODEL-A', 20);
+        await stationClient.SetSolderingStationPallet({
+            station: 'SOLDER-01',
+            pallet_id: 'PALLET-PREVIOUS',
+        });
+
+        await fis.RegisterSolderingCycle({
+            pallet_id: 'PALLET-CURRENT',
+            event_id: 'e'.repeat(64),
+            station: 'SOLDER-01',
+            process: 'PROCESS-A',
+            unit_ids: ['UNIT-001'],
+        });
+
+        expect(await db.queryRow<{pallet_id: string; state: string; result_current_cycles: number}>`
+            SELECT stations.pallet_id, events.state, events.result_current_cycles
+            FROM production_stations stations
+            JOIN soldering_cycle_events events
+              ON events.station = stations.station AND events.pallet_id = stations.pallet_id
+            WHERE stations.station = 'SOLDER-01' AND events.event_id = ${'e'.repeat(64)}
+        `).toEqual({pallet_id: 'PALLET-CURRENT', state: 'recorded', result_current_cycles: 1});
+    });
+
+    it('rejects invalid pallet IDs before writing a cycle event', async () => {
+        await expect(fis.RegisterSolderingCycle({
+            pallet_id: 'INVALID PALLET ID',
+            event_id: 'c'.repeat(64),
+            station: 'SOLDER-01',
+            process: 'PROCESS-A',
+            unit_ids: ['UNIT-001'],
+        })).rejects.toMatchObject({
+            code: 'invalid_argument',
+            details: {reason: 'INVALID_PALLET_ID'},
+        });
+        expect((await db.queryRow<{events: number}>`
+            SELECT COUNT(*)::int AS events FROM soldering_cycle_events
+        `)?.events).toBe(0);
+    });
+
+    it('rejects an invalid cycle event ID before opening an event claim', async () => {
+        await expect(fis.RegisterSolderingCycle({
+            pallet_id: 'PALLET-VALID',
+            event_id: 'not-a-64-character-hex-id',
+            station: 'SOLDER-01',
+            process: 'PROCESS-A',
+            unit_ids: ['UNIT-001'],
+        })).rejects.toMatchObject({
+            code: 'invalid_argument',
+            details: {reason: 'INVALID_CYCLE_EVENT_ID'},
+        });
+        expect((await db.queryRow<{events: number}>`
+            SELECT COUNT(*)::int AS events FROM soldering_cycle_events
+        `)?.events).toBe(0);
+    });
+
+    it('rolls back the event claim and station assignment when a cycle is rejected', async () => {
+        await seedCatalog();
+        await addPallet('PALLET-DAMAGED', 'MODEL-A', 20);
+        await db.exec`UPDATE pallets SET status = 'Damaged' WHERE pallet_id = 'PALLET-DAMAGED'`;
+        const eventId = 'd'.repeat(64);
+
+        await expect(fis.RegisterSolderingCycle({
+            pallet_id: 'PALLET-DAMAGED',
+            event_id: eventId,
+            station: 'SOLDER-01',
+            process: 'PROCESS-A',
+            unit_ids: ['UNIT-001'],
+        })).rejects.toMatchObject({
+            code: 'failed_precondition',
+            details: {reason: 'PALLET_NOT_ACTIVE'},
+        });
+
+        expect(await db.queryRow<{events: number; assignments: number; cycles: number}>`
+            SELECT
+                (SELECT COUNT(*)::int FROM soldering_cycle_events WHERE event_id = ${eventId}) AS events,
+                (SELECT COUNT(*)::int FROM production_stations WHERE station = 'SOLDER-01') AS assignments,
+                (SELECT current_cycles FROM pallets WHERE pallet_id = 'PALLET-DAMAGED') AS cycles
+        `).toEqual({events: 0, assignments: 0, cycles: 0});
+    });
+
+    it('does not assign an inactive pallet to a soldering station', async () => {
+        await seedCatalog();
+        await addPallet('PALLET-INACTIVE', 'MODEL-A', 20);
+        await db.exec`UPDATE pallets SET status = 'Washing_Required' WHERE pallet_id = 'PALLET-INACTIVE'`;
+
+        await expect(stationClient.SetSolderingStationPallet({
+            station: 'SOLDER-01',
+            pallet_id: 'PALLET-INACTIVE',
+        })).rejects.toMatchObject({
+            code: 'failed_precondition',
+            details: {reason: 'PALLET_NOT_ACTIVE'},
+        });
+        expect((await db.queryRow<{assignments: number}>`
+            SELECT COUNT(*)::int AS assignments FROM production_stations
+        `)?.assignments).toBe(0);
     });
 
     it('creates a two-digit pallet range and its FIS jobs atomically', async () => {
