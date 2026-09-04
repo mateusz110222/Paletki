@@ -9,6 +9,7 @@ import {
     LogIn,
     Package,
     RefreshCw,
+    ScanBarcode,
     ShieldAlert,
     Tv,
     Wrench
@@ -25,6 +26,18 @@ import {
     formatProjectsCount
 } from '../i18n/pluralization.ts';
 
+const formatLastScanTime = (value: string | undefined, language: 'pl' | 'en') => {
+    if (!value) return '—';
+    const timestamp = Date.parse(value);
+    if (!Number.isFinite(timestamp)) return '—';
+    return new Intl.DateTimeFormat(language === 'pl' ? 'pl-PL' : 'en-GB', {
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+    }).format(new Date(timestamp));
+};
+
 export const LiveMonitorView: React.FC = () => {
     const {t, language} = useTranslation();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -32,6 +45,8 @@ export const LiveMonitorView: React.FC = () => {
     const {query} = usePublicDashboard(stationFromUrl);
     const selectedStation = query.data?.selected_station;
     const showAll = query.data?.scope === 'all';
+    const stationHistory = query.data?.station_history ?? (selectedStation ? [selectedStation] : []);
+    const recentProjectNames = [...new Set(stationHistory.map((entry) => entry.project))];
     const projectsQuery = useQuery({
         queryKey: ['public-projects'],
         queryFn: () => publicApi.pallet.GetAllProjects(),
@@ -43,7 +58,7 @@ export const LiveMonitorView: React.FC = () => {
         pallets: query.data?.pallets ?? [],
         projects: showAll
             ? projectsQuery.data?.projects ?? []
-            : selectedStation ? [{name: selectedStation.project}] : [],
+            : recentProjectNames.map((name) => ({name})),
     });
 
     useDocumentMetadata(`PalletX | ${t('panel_live_title')}`, t('panel_live_subtitle'), language);
@@ -126,6 +141,15 @@ export const LiveMonitorView: React.FC = () => {
     };
 
     const overallTheme = getStatusTheme(data.fleetSummary.availabilityPercentage, data.fleetSummary.total);
+    const projectsByName = new Map(data.projects.map((project) => [project.name, project]));
+    const visibleProjects = showAll
+        ? data.projects
+        : recentProjectNames.flatMap((name) => {
+            const project = projectsByName.get(name);
+            return project ? [project] : [];
+        });
+    const stationRowMode = !showAll;
+    const latestStationUpdate = stationHistory[0]?.updated_at ?? 'empty';
 
     return (
         <div className="min-h-screen bg-brand-bg text-brand-text">
@@ -144,7 +168,11 @@ export const LiveMonitorView: React.FC = () => {
                                 {showAll ? 'ALL' : `${t('dashboard_station')}: ${selectedStation?.station}`}
                             </p>
                             <p className="mt-0.5 max-w-44 truncate text-[10px] font-semibold text-brand-text">
-                                {showAll ? t('dashboard_all_lines') : selectedStation?.project}
+                                {showAll
+                                    ? t('dashboard_all_lines')
+                                    : visibleProjects.length > 1
+                                        ? formatProjectsCount(visibleProjects.length, language)
+                                        : selectedStation?.project}
                             </p>
                         </div>
                         <button type="button" onClick={() => setSearchParams({})} className="min-h-10 rounded-lg border border-brand-border bg-brand-bg px-3 text-[10px] font-bold text-brand-text-muted hover:border-brand-accent/50 hover:text-brand-text">
@@ -163,8 +191,9 @@ export const LiveMonitorView: React.FC = () => {
             </header>
             <main className="mx-auto max-w-[1800px] px-5 py-6 sm:px-8">
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300" id="live-monitor-container">
-            {/* Top Fleet Health Summary Bento */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Global summary is useful only when several projects are being compared. */}
+            {showAll && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {/* 1. Global Health Score */}
                 <div className="bg-brand-surface p-5 rounded-xl border border-brand-border flex flex-col justify-between relative overflow-hidden group hover:border-brand-accent/40 transition-colors">
                     <div className="flex items-center justify-between">
@@ -256,9 +285,10 @@ export const LiveMonitorView: React.FC = () => {
                     </span>
                 </div>
             </div>
+            )}
 
             {/* Dynamic Grid of Project Cards */}
-            {data.projects.length === 0 ? (
+            {visibleProjects.length === 0 ? (
                 <div className="bg-brand-surface rounded-xl border border-brand-border p-12 text-center">
                     <Package size={32} className="mx-auto text-brand-text-muted/40 mb-3"/>
                     <p className="text-sm font-medium text-brand-text-muted">
@@ -266,41 +296,113 @@ export const LiveMonitorView: React.FC = () => {
                     </p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {data.projects.map((proj: ProjectStats) => {
+                <div
+                    key={showAll ? 'all-projects' : latestStationUpdate}
+                    className={stationRowMode
+                        ? 'flex flex-col gap-3'
+                        : 'grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'}
+                >
+                    {visibleProjects.map((proj: ProjectStats, index) => {
                         const ready = proj.active;
                         const total = proj.total;
                         const unavailable = total - ready;
                         const roundedPercentage = proj.percentage;
                         const theme = getStatusTheme(roundedPercentage, total);
+                        const stationEntry = stationHistory.find((entry) => entry.project === proj.name);
+                        const isNewest = !showAll && index === 0;
 
                         return (
                             <div
                                 key={proj.name}
-                                className={`bg-brand-surface rounded-xl border border-brand-border p-5 flex flex-col justify-between transition-all duration-300 hover:shadow-lg ${theme.borderAccent} group`}
+                                className={`group relative overflow-hidden rounded-xl border border-brand-border bg-brand-surface transition-all duration-300 hover:shadow-lg ${theme.borderAccent} ${stationRowMode ? 'min-h-60 p-5 sm:p-6' : 'flex min-h-64 flex-col justify-between p-5'} ${stationRowMode ? 'live-project-card' : ''} ${isNewest ? 'live-project-card-newest' : ''}`}
+                                style={!showAll ? {animationDelay: `${Math.min(index * 70, 350)}ms`} : undefined}
                             >
-                                <div>
-                                    {/* Card Top: Title & Status Badge */}
-                                    <div className="flex items-start justify-between gap-2 mb-4">
-                                        <div className="space-y-1 min-w-0">
-                                            <span
-                                                className="text-[10px] font-semibold text-brand-text-muted uppercase tracking-wider">
-                                                {t('project')}
-                                            </span>
-                                            <h4 className="text-sm font-bold text-brand-text group-hover:text-brand-accent transition-colors truncate">
-                                                {proj.name}
-                                            </h4>
+                                {stationRowMode ? (
+                                    <div className="grid h-full gap-5 lg:grid-cols-[minmax(260px,0.7fr)_minmax(340px,0.9fr)_minmax(0,1.8fr)] lg:items-center lg:gap-7">
+                                        <div className="flex flex-col items-center justify-center border-b border-brand-border/60 pb-5 text-center lg:h-full lg:border-r lg:border-b-0 lg:pr-7 lg:pb-0">
+                                            <span className="text-xs font-bold uppercase tracking-[0.2em] text-brand-text-muted">{t('project')}</span>
+                                            <h4 className="mt-2 w-full truncate text-4xl font-black leading-none text-brand-text transition-colors group-hover:text-brand-accent xl:text-5xl">{proj.name}</h4>
+                                            <div className={`mt-5 inline-flex items-center gap-2.5 rounded-xl border px-4 py-3 font-mono text-5xl font-black leading-none xl:text-6xl ${theme.badgeBg}`}>
+                                                {theme.icon}<span>{total > 0 ? `${roundedPercentage}%` : '—'}</span>
+                                            </div>
                                         </div>
-                                        <div
-                                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-bold shrink-0 ${theme.badgeBg}`}>
-                                            {theme.icon}
-                                            <span>{total > 0 ? `${roundedPercentage}%` : '—'}</span>
+
+                                        <div className="flex min-w-0 items-center gap-4 rounded-xl border border-brand-accent/20 bg-brand-bg/60 px-5 py-5">
+                                            <div className="grid size-14 shrink-0 place-items-center rounded-xl border border-brand-accent/25 bg-brand-accent/10 text-brand-accent">
+                                                <ScanBarcode size={28}/>
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[10px] font-black uppercase tracking-[0.15em] text-brand-accent">{t('dashboard_last_scanned_pallet')}</span>
+                                                    {isNewest && <span className="rounded bg-emerald-400/10 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-emerald-400">{t('dashboard_newest')}</span>}
+                                                </div>
+                                                <p className="mt-2 truncate font-mono text-3xl font-black tracking-[0.06em] text-brand-text xl:text-4xl">{stationEntry?.pallet_id ?? '—'}</p>
+                                                <p className="mt-1 truncate text-xs font-semibold uppercase tracking-wide text-brand-text-muted">
+                                                    {stationEntry?.model ?? '—'} · {formatLastScanTime(stationEntry?.updated_at, language)}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="min-w-0">
+                                            <div className="grid grid-cols-4 gap-2 sm:gap-3">
+                                                {[
+                                                    {label: t('status_active'), value: ready, color: 'text-emerald-400', panel: 'border-emerald-500/20 bg-emerald-500/[0.07]', icon: <CheckCircle2 size={24}/>},
+                                                    {label: t('status_washing_required'), value: proj.washing, color: 'text-cyan-400', panel: 'border-cyan-500/20 bg-cyan-500/[0.07]', icon: <RefreshCw size={24}/>},
+                                                    {label: t('damaged_status'), value: proj.damaged, color: 'text-rose-400', panel: 'border-rose-500/20 bg-rose-500/[0.07]', icon: <Wrench size={24}/>},
+                                                    {label: t('status_blocked'), value: proj.blocked, color: 'text-orange-400', panel: 'border-orange-500/20 bg-orange-500/[0.07]', icon: <ShieldAlert size={24}/>},
+                                                ].map((metric) => (
+                                                    <div key={metric.label} className={`grid min-h-32 min-w-0 grid-rows-[4rem_2rem_2.75rem] place-items-center overflow-hidden rounded-xl border px-2 py-3 text-center sm:px-3 ${metric.panel}`}>
+                                                        <p className={`flex h-16 items-center justify-center font-mono text-5xl font-black leading-none xl:text-6xl ${metric.color}`}>{metric.value}</p>
+                                                        <div className={`flex h-8 items-center justify-center ${metric.color}`}>{metric.icon}</div>
+                                                        <p className={`flex h-11 w-full items-center justify-center break-words text-[11px] font-black uppercase leading-tight tracking-[0.03em] md:text-xs 2xl:text-sm ${metric.color}`}>{metric.label}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="mt-3 flex items-center gap-4">
+                                                <div className="h-2.5 min-w-0 flex-1 overflow-hidden rounded-full border border-brand-border/30 bg-brand-bg p-px">
+                                                    <div className={`h-full rounded-full transition-all duration-700 ${theme.barBg}`} style={{width: total > 0 ? `${roundedPercentage}%` : '0%'}}/>
+                                                </div>
+                                                <span className={`shrink-0 font-mono text-2xl font-black xl:text-3xl ${theme.textColor}`}>{ready} / {total}</span>
+                                            </div>
                                         </div>
                                     </div>
+                                ) : (
+                                    <>
+                                        <div>
+                                            <div className="mb-4 flex items-start justify-between gap-2">
+                                                <div className="min-w-0 space-y-1">
+                                                    <span className="text-[10px] font-semibold uppercase tracking-wider text-brand-text-muted">
+                                                        {t('project')}
+                                                    </span>
+                                                    <h4 className="truncate text-sm font-bold text-brand-text transition-colors group-hover:text-brand-accent">
+                                                        {proj.name}
+                                                    </h4>
+                                                </div>
+                                                <div className={`flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold ${theme.badgeBg}`}>
+                                                    {theme.icon}
+                                                    <span>{total > 0 ? `${roundedPercentage}%` : '—'}</span>
+                                                </div>
+                                            </div>
 
-                                    {/* Card Stats */}
-                                    <div
-                                        className="bg-brand-bg/40 rounded-lg p-3 border border-brand-border/30 mb-4 grid grid-cols-2 gap-2 items-center">
+                                            {!showAll && stationEntry && (
+                                                <div className="mb-4 rounded-lg border border-brand-accent/20 bg-brand-bg/60 p-3">
+                                                    <div className="flex items-center justify-between gap-3">
+                                                        <div className="flex min-w-0 items-center gap-2.5">
+                                                            <ScanBarcode size={17} className="shrink-0 text-brand-accent"/>
+                                                            <div className="min-w-0">
+                                                                <p className="truncate font-mono text-base font-black tracking-[0.06em] text-brand-text">{stationEntry.pallet_id}</p>
+                                                                <p className="mt-0.5 truncate text-[10px] font-semibold text-brand-text-muted">{stationEntry.model}</p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="shrink-0 text-right">
+                                                            {isNewest && <p className="text-[8px] font-black uppercase tracking-[0.14em] text-emerald-400">{t('dashboard_newest')}</p>}
+                                                            <p className="mt-0.5 text-[10px] font-bold text-brand-text-muted">{formatLastScanTime(stationEntry.updated_at, language)}</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            <div className="mb-4 grid grid-cols-2 items-center gap-2 rounded-lg border border-brand-border/30 bg-brand-bg/40 p-3">
                                         <div>
                                             <p className="text-[10px] uppercase font-semibold text-brand-text-muted">
                                                 {t('ready_total')}
@@ -320,23 +422,23 @@ export const LiveMonitorView: React.FC = () => {
                                             </p>
                                         </div>
                                     </div>
-                                </div>
+                                        </div>
 
-                                {/* Progress Bar at Bottom */}
-                                <div className="space-y-1.5 pt-1">
-                                    <div
-                                        className="h-2 w-full bg-brand-bg rounded-full overflow-hidden border border-brand-border/30 p-px">
-                                        <div
-                                            className={`h-full rounded-full transition-all duration-700 ${theme.barBg}`}
-                                            style={{width: total > 0 ? `${roundedPercentage}%` : '0%'}}
-                                        ></div>
-                                    </div>
-                                    {total === 0 && (
-                                        <p className="text-[10px] text-brand-text-muted text-center italic">
-                                            {formatPalletsCount(0, language)}
-                                        </p>
-                                    )}
-                                </div>
+                                        <div className="space-y-1.5 pt-1">
+                                            <div className="h-2 w-full overflow-hidden rounded-full border border-brand-border/30 bg-brand-bg p-px">
+                                                <div
+                                                    className={`h-full rounded-full transition-all duration-700 ${theme.barBg}`}
+                                                    style={{width: total > 0 ? `${roundedPercentage}%` : '0%'}}
+                                                />
+                                            </div>
+                                            {total === 0 && (
+                                                <p className="text-center text-[10px] italic text-brand-text-muted">
+                                                    {formatPalletsCount(0, language)}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         );
                     })}

@@ -1,4 +1,4 @@
-import React, {useMemo, useState} from 'react';
+import React, {useCallback, useMemo, useState} from 'react';
 import {getErrorMessage} from '../lib/errors';
 import {Pallet, PalletModel, PalletStatus, Project} from '@backend/shared/types';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
@@ -82,6 +82,27 @@ export const useAdminPanel = ({
 
     const [pageSize, setPageSize] = useState(50);
     const [currentPage, setCurrentPage] = useState(1);
+
+    const updateSearchTerm = useCallback((term: string) => {
+        setSearchTerm(term);
+        setCurrentPage(1);
+    }, []);
+    const updateSelectedProject = useCallback((project: string) => {
+        setSelectedProject(project);
+        setCurrentPage(1);
+    }, []);
+    const updateSelectedModel = useCallback((model: string) => {
+        setSelectedModel(model);
+        setCurrentPage(1);
+    }, []);
+    const updateSelectedStatus = useCallback((status: string) => {
+        setSelectedStatus(status);
+        setCurrentPage(1);
+    }, []);
+    const updatePageSize = useCallback((size: number) => {
+        setPageSize(size);
+        setCurrentPage(1);
+    }, []);
 
     const filteredPallets = useMemo(() => (pallets || []).filter((p) => {
         const palletId = p.pallet_id || '';
@@ -527,22 +548,10 @@ export const useAdminPanel = ({
             isRefreshing,
         },
         actions: {
-            setSearchTerm: (term: string) => {
-                setSearchTerm(term);
-                setCurrentPage(1);
-            },
-            setSelectedProject: (proj: string) => {
-                setSelectedProject(proj);
-                setCurrentPage(1);
-            },
-            setSelectedModel: (model: string) => {
-                setSelectedModel(model);
-                setCurrentPage(1);
-            },
-            setSelectedStatus: (status: string) => {
-                setSelectedStatus(status);
-                setCurrentPage(1);
-            },
+            setSearchTerm: updateSearchTerm,
+            setSelectedProject: updateSelectedProject,
+            setSelectedModel: updateSelectedModel,
+            setSelectedStatus: updateSelectedStatus,
             setCurrentPage,
             setIsAddOpen: (open: boolean) => {
                 setValidationError('');
@@ -604,10 +613,7 @@ export const useAdminPanel = ({
             handleRefreshPallets,
             showGlobalError,
             hideGlobalError,
-            setPageSize: (size: number) => {
-                setPageSize(size);
-                setCurrentPage(1);
-            },
+            setPageSize: updatePageSize,
         },
     };
 };

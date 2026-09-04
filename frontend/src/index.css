@@ -97,6 +97,41 @@ body {
   75% { transform: translateX(-3px); }
 }
 
+@keyframes live-project-enter {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -18px, 0) scale(0.975);
+  }
+  65% {
+    opacity: 1;
+    transform: translate3d(0, 3px, 0) scale(1.004);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes live-project-scan {
+  0% { transform: translateX(-140%) skewX(-18deg); opacity: 0; }
+  20% { opacity: 0.55; }
+  70%, 100% { transform: translateX(430%) skewX(-18deg); opacity: 0; }
+}
+
+.live-project-card {
+  animation: live-project-enter 560ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.live-project-card-newest::after {
+  position: absolute;
+  inset: -30% auto -30% -18%;
+  width: 12%;
+  content: '';
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgb(99 102 241 / 0.22), transparent);
+  animation: live-project-scan 1100ms cubic-bezier(0.22, 1, 0.36, 1) 180ms both;
+}
+
 .animate-in {
   animation: ui-enter 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -192,6 +227,8 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .animate-in,
+  .live-project-card,
+  .live-project-card-newest::after,
   .login-card-enter,
   .login-fields-enter,
   .login-glow {

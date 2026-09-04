@@ -82,6 +82,19 @@ async function addPallet(id: string, model = 'MODEL-A', cycles = 2): Promise<voi
     }, callOptions);
 }
 
+async function addPalletForProject(id: string, project: string, model: string): Promise<void> {
+    await pallet.AddPallet({
+        pallet_id: palletId(id),
+        project: shortText(project),
+        model: shortText(model),
+        max_cycles: maxCycles(200),
+        nests: nests(2),
+        status: 'Active',
+        fis: fisUnit(1),
+        acceptLanguage: 'en',
+    }, callOptions);
+}
+
 beforeEach(async () => {
     await db.exec`DROP TRIGGER IF EXISTS test_reject_outbox_insert ON fis_outbox`;
     await db.exec`DROP FUNCTION IF EXISTS test_reject_outbox_insert()`;
@@ -461,6 +474,7 @@ describe('PostgreSQL pallet integration', () => {
         const dashboard = await pallet.GetPublicDashboard({station: 'solder-01'});
         expect(dashboard.scope).toBe('station');
         expect(dashboard.selected_station?.station).toBe('SOLDER-01');
+        expect(dashboard.station_history.map((entry) => entry.pallet_id)).toEqual(['PALLET-STATION']);
         expect(dashboard.pallets.map((entry) => entry.pallet_id)).toContain('PALLET-STATION');
 
         const allProjects = await pallet.GetPublicDashboard({station: 'ALL'});
@@ -470,6 +484,36 @@ describe('PostgreSQL pallet integration', () => {
 
         await pallet.DeletePallet({pallet_id: 'PALLET-STATION', acceptLanguage: 'en'}, callOptions);
         expect((await pallet.GetPublicDashboard({})).stations).toEqual([]);
+    });
+
+    it('keeps the three most recent unique projects for each production station', async () => {
+        for (let index = 1; index <= 4; index += 1) {
+            const project = `PROJECT-${index}`;
+            const model = `MODEL-${index}`;
+            await seedCatalog(project, model);
+            await addPalletForProject(`PALLET-${index}`, project, model);
+            await stationClient.SetSolderingStationPallet({station: 'SOLDER-01', pallet_id: `PALLET-${index}`});
+        }
+
+        const firstDashboard = await pallet.GetPublicDashboard({station: 'SOLDER-01'});
+        expect(firstDashboard.station_history).toHaveLength(3);
+        expect(firstDashboard.selected_station?.project).toBe('PROJECT-4');
+        expect(firstDashboard.station_history.map((entry) => entry.project)).not.toContain('PROJECT-1');
+        expect(new Set(firstDashboard.station_history.map((entry) => entry.project)).size).toBe(3);
+
+        await addPalletForProject('PALLET-3B', 'PROJECT-3', 'MODEL-3');
+        await stationClient.SetSolderingStationPallet({station: 'SOLDER-01', pallet_id: 'PALLET-3B'});
+
+        const refreshedDashboard = await pallet.GetPublicDashboard({station: 'SOLDER-01'});
+        expect(refreshedDashboard.station_history).toHaveLength(3);
+        expect(refreshedDashboard.selected_station).toMatchObject({
+            project: 'PROJECT-3',
+            pallet_id: 'PALLET-3B',
+        });
+        expect(refreshedDashboard.station_history.filter((entry) => entry.project === 'PROJECT-3')).toHaveLength(1);
+        expect((await db.queryRow<{count: number}>`
+            SELECT COUNT(*)::int AS count FROM production_stations WHERE station = 'SOLDER-01'
+        `)?.count).toBe(3);
     });
 
     it('prunes completed outbox records beyond the configured retention', async () => {

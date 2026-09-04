@@ -22,7 +22,13 @@ export const usePublicDashboard = (station?: string) => {
     });
 
     const metrics = useMemo(() => {
-        const pallets = query.data?.pallets ?? [];
+        const allPallets = query.data?.pallets ?? [];
+        const selectedProject = query.data?.scope === 'station'
+            ? query.data.selected_station?.project
+            : undefined;
+        const pallets = selectedProject
+            ? allPallets.filter((pallet) => pallet.project === selectedProject)
+            : allPallets;
         const operational = pallets.filter((pallet) => pallet.status === 'Active').length;
         const dueSoon = pallets
             .filter((pallet) => pallet.status === 'Active' && cycleProgress(pallet) >= 80)

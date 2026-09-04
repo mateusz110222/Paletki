@@ -43,10 +43,11 @@ export const GetPublicDashboard = api(
         const requestedStation = params.station ? normalizeStation(params.station) : null;
         const showAll = requestedStation === "ALL";
         const stationRows = await db.queryAll<ProductionStationRecord>`
-            SELECT stations.station, stations.pallet_id, pallets.project, pallets.model, stations.updated_at
+            SELECT DISTINCT ON (stations.station)
+                   stations.station, stations.pallet_id, pallets.project, pallets.model, stations.updated_at
             FROM production_stations stations
             JOIN pallets ON pallets.pallet_id = stations.pallet_id AND pallets.deleted_at IS NULL
-            ORDER BY stations.station
+            ORDER BY stations.station, stations.updated_at DESC, stations.pallet_id DESC
         `;
         const stations = stationRows.map((station) => ({
             ...station,
@@ -55,7 +56,21 @@ export const GetPublicDashboard = api(
         const selectedStation = requestedStation && !showAll
             ? stations.find((station) => station.station === requestedStation) ?? null
             : null;
-        const selectedProject = selectedStation?.project ?? null;
+        const stationHistoryRows = requestedStation && !showAll
+            ? await db.queryAll<ProductionStationRecord>`
+                SELECT stations.station, stations.pallet_id, pallets.project, pallets.model, stations.updated_at
+                FROM production_stations stations
+                JOIN pallets ON pallets.pallet_id = stations.pallet_id AND pallets.deleted_at IS NULL
+                WHERE stations.station = ${requestedStation}
+                ORDER BY stations.updated_at DESC, stations.pallet_id DESC
+                LIMIT 3
+            `
+            : [];
+        const stationHistory = stationHistoryRows.map((station) => ({
+            ...station,
+            updated_at: station.updated_at.toISOString(),
+        }));
+        const selectedProjects = [...new Set(stationHistory.map((entry) => entry.project))];
 
         const pallets = await db.queryAll<DashboardPalletRecord>`
             SELECT
@@ -79,7 +94,7 @@ export const GetPublicDashboard = api(
             WHERE p.deleted_at IS NULL
               AND (
                   ${showAll}::boolean
-                  OR (${selectedProject}::text IS NOT NULL AND p.project = ${selectedProject})
+                  OR p.project = ANY(${selectedProjects}::text[])
               )
             ORDER BY p.id
         `;
@@ -106,7 +121,7 @@ export const GetPublicDashboard = api(
                   AND finished.timestamp >= CURRENT_DATE - INTERVAL '13 days'
                   AND (
                       ${showAll}::boolean
-                      OR (${selectedProject}::text IS NOT NULL AND serviced_pallet.project = ${selectedProject})
+                      OR serviced_pallet.project = ANY(${selectedProjects}::text[])
                   )
             ), days AS (
                 SELECT generate_series(
@@ -149,7 +164,7 @@ export const GetPublicDashboard = api(
                   AND finished.timestamp >= NOW() - INTERVAL '30 days'
                   AND (
                       ${showAll}::boolean
-                      OR (${selectedProject}::text IS NOT NULL AND serviced_pallet.project = ${selectedProject})
+                      OR serviced_pallet.project = ANY(${selectedProjects}::text[])
                   )
             ) durations
         `;
@@ -159,6 +174,7 @@ export const GetPublicDashboard = api(
             scope: showAll ? "all" : selectedStation ? "station" : "selection",
             stations,
             selected_station: selectedStation,
+            station_history: stationHistory,
             pallets: pallets.map((pallet) => ({
                 ...pallet,
                 status_changed_at: pallet.status_changed_at.toISOString(),

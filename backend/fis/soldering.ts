@@ -42,6 +42,7 @@ interface PalletCycleState {
     current_cycles: number;
     total_cycles: number;
     max_cycles: number;
+    project: string;
 }
 
 interface CycleEventRecord {
@@ -59,6 +60,7 @@ const PALLET_ID_PATTERN = /^[A-Z0-9._-]{1,50}$/;
 const CYCLE_EVENT_ID_PATTERN = /^[a-f0-9]{64}$/;
 const STATION_PATTERN = /^[A-Z0-9._-]{1,64}$/;
 const UNIT_ID_PATTERN = /^[A-Z0-9._-]{1,128}$/;
+const STATION_PROJECT_HISTORY_LIMIT = 3;
 
 function normalizeSolderingPalletId(value: string): string {
     const palletId = normalizePalletId(String(value || ""));
@@ -182,6 +184,7 @@ export const SetSolderingStationPallet = api(
 
         try {
             await using tx = await db.begin();
+            await tx.exec`SELECT pg_advisory_xact_lock(hashtext(${station}))`;
             const pallet = await tx.queryRow<StationPalletSource>`
                 SELECT project, model, status
                 FROM pallets
@@ -196,14 +199,33 @@ export const SetSolderingStationPallet = api(
                 throw APIError.failedPrecondition(`Pallet ${palletId} is not active (${pallet.status}).`)
                     .withDetails({reason: "PALLET_NOT_ACTIVE", pallet_id: palletId, pallet_status: pallet.status});
             }
+            await tx.exec`
+                DELETE FROM production_stations existing
+                USING pallets existing_pallet
+                WHERE existing.station = ${station}
+                  AND existing.pallet_id = existing_pallet.pallet_id
+                  AND existing_pallet.project = ${pallet.project}
+                  AND existing.pallet_id <> ${palletId}
+            `;
             const updated = await tx.queryRow<StationPalletRecord>`
                 INSERT INTO production_stations (station, pallet_id, updated_at)
                 VALUES (${station}, ${palletId}, NOW())
-                ON CONFLICT (station) DO UPDATE
-                SET pallet_id = EXCLUDED.pallet_id, updated_at = EXCLUDED.updated_at
+                ON CONFLICT (station, pallet_id) DO UPDATE
+                SET updated_at = EXCLUDED.updated_at
                 RETURNING station, pallet_id, updated_at
             `;
             if (!updated) throw new Error("Station assignment did not return a row.");
+            await tx.exec`
+                DELETE FROM production_stations old_assignment
+                WHERE old_assignment.station = ${station}
+                  AND old_assignment.pallet_id IN (
+                    SELECT pallet_id
+                    FROM production_stations
+                    WHERE station = ${station}
+                    ORDER BY updated_at DESC, pallet_id DESC
+                    OFFSET ${STATION_PROJECT_HISTORY_LIMIT}
+                  )
+            `;
             await tx.commit();
             return {
                 ...updated,
@@ -236,6 +258,7 @@ export const RegisterSolderingCycle = api(
 
         try {
             await using tx = await db.begin();
+            await tx.exec`SELECT pg_advisory_xact_lock(hashtext(${station}))`;
             const inserted = await tx.queryRow<{event_id: string}>`
                 INSERT INTO soldering_cycle_events (event_id, pallet_id, station, process, unit_ids)
                 VALUES (${eventId}, ${palletId}, ${station}, ${processName}, to_jsonb(${unitIds}::text[]))
@@ -286,7 +309,7 @@ export const RegisterSolderingCycle = api(
             }
 
             const pallet = await tx.queryRow<PalletCycleState>`
-                SELECT status, current_cycles, total_cycles, max_cycles
+                SELECT status, current_cycles, total_cycles, max_cycles, project
                 FROM pallets
                 WHERE pallet_id = ${palletId} AND deleted_at IS NULL
                 FOR UPDATE
@@ -316,10 +339,29 @@ export const RegisterSolderingCycle = api(
             if (!updated) throw new Error("Pallet cycle update did not return a row.");
 
             await tx.exec`
+                DELETE FROM production_stations existing
+                USING pallets existing_pallet
+                WHERE existing.station = ${station}
+                  AND existing.pallet_id = existing_pallet.pallet_id
+                  AND existing_pallet.project = ${pallet.project}
+                  AND existing.pallet_id <> ${palletId}
+            `;
+            await tx.exec`
                 INSERT INTO production_stations (station, pallet_id, updated_at)
                 VALUES (${station}, ${palletId}, NOW())
-                ON CONFLICT (station) DO UPDATE
-                SET pallet_id = EXCLUDED.pallet_id, updated_at = EXCLUDED.updated_at
+                ON CONFLICT (station, pallet_id) DO UPDATE
+                SET updated_at = EXCLUDED.updated_at
+            `;
+            await tx.exec`
+                DELETE FROM production_stations old_assignment
+                WHERE old_assignment.station = ${station}
+                  AND old_assignment.pallet_id IN (
+                    SELECT pallet_id
+                    FROM production_stations
+                    WHERE station = ${station}
+                    ORDER BY updated_at DESC, pallet_id DESC
+                    OFFSET ${STATION_PROJECT_HISTORY_LIMIT}
+                  )
             `;
 
             await tx.exec`

@@ -11,6 +11,7 @@ import {
     LogIn,
     Package,
     RefreshCw,
+    ScanLine,
     ShieldCheck,
     TimerReset,
     TriangleAlert,
@@ -129,6 +130,19 @@ const PanelHeader: React.FC<{icon: React.ReactNode; title: string; subtitle: str
     </div>
 );
 
+const StationMetric: React.FC<{
+    label: string;
+    value: React.ReactNode;
+    icon: React.ReactNode;
+    tone: string;
+}> = ({label, value, icon, tone}) => (
+    <div className="rounded-xl border border-white/[0.07] bg-black/15 p-4">
+        <div className={`mb-4 flex size-9 items-center justify-center rounded-lg border ${tone}`}>{icon}</div>
+        <p className="text-3xl font-black tracking-tight text-white">{value}</p>
+        <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-400">{label}</p>
+    </div>
+);
+
 export const PublicDashboardView: React.FC = () => {
     const {language, t} = useTranslation();
     const labels = {
@@ -178,6 +192,16 @@ export const PublicDashboardView: React.FC = () => {
         station: t('dashboard_station'),
         changeStation: t('dashboard_change_station'),
         allLines: t('dashboard_all_lines'),
+        lineStatus: t('dashboard_line_status'),
+        lineProject: t('dashboard_line_project'),
+        linePallets: t('dashboard_line_pallets'),
+        linePalletsHint: t('dashboard_line_pallets_hint'),
+        lineClear: t('dashboard_line_clear'),
+        lineClearHint: t('dashboard_line_clear_hint'),
+        cycleUsage: t('dashboard_cycle_usage'),
+        lastScannedPallet: t('dashboard_last_scanned_pallet'),
+        lastScannedAt: t('dashboard_last_scanned_at'),
+        noScanData: t('dashboard_no_scan_data'),
     };
     const [searchParams, setSearchParams] = useSearchParams();
     const stationFromUrl = searchParams.get('station')?.trim() || undefined;
@@ -195,9 +219,11 @@ export const PublicDashboardView: React.FC = () => {
 
     const statusCounts = useMemo(() => {
         const counts: Record<PalletStatus, number> = {Active: 0, Washing_Required: 0, Damaged: 0, Blocked: 0};
-        for (const pallet of query.data?.pallets ?? []) counts[pallet.status] += 1;
+        for (const pallet of query.data?.pallets ?? []) {
+            if (!selectedStation || pallet.project === selectedStation.project) counts[pallet.status] += 1;
+        }
         return counts;
-    }, [query.data]);
+    }, [query.data, selectedStation]);
 
     if (query.isPending) {
         return (
@@ -257,6 +283,15 @@ export const PublicDashboardView: React.FC = () => {
         hour: '2-digit',
         minute: '2-digit',
     });
+    const stationPallet = selectedStation
+        ? query.data?.pallets.find((pallet) => pallet.pallet_id === selectedStation.pallet_id)
+        : undefined;
+    const stationProgress = stationPallet ? cycleProgress(stationPallet) : 0;
+    const stationCyclesRemaining = stationPallet
+        ? Math.max(0, stationPallet.max_cycles - stationPallet.current_cycles)
+        : 0;
+    const stationHasAttention = metrics.serviceQueue.length > 0 || metrics.dueSoon.length > 0;
+    const stationPallets = (query.data?.pallets ?? []).filter((pallet) => pallet.project === selectedStation?.project);
 
     return (
         <div className="dashboard-public min-h-screen text-slate-100 selection:bg-indigo-400 selection:text-slate-950">
@@ -307,6 +342,128 @@ export const PublicDashboardView: React.FC = () => {
             </header>
 
             <main className="mx-auto max-w-[1800px] space-y-5 px-5 py-6 sm:px-7 lg:px-10 lg:py-8">
+                {!showAll && selectedStation ? (
+                    <>
+                        <section className="grid gap-5 lg:grid-cols-[minmax(0,1.55fr)_minmax(380px,0.75fr)]">
+                            <div className="dashboard-panel relative overflow-hidden rounded-2xl p-6 sm:p-8">
+                                <div className="pointer-events-none absolute -right-24 -top-32 size-96 rounded-full bg-indigo-500/[0.08] blur-3xl"/>
+                                <div className="relative">
+                                    <div className="flex flex-wrap items-start justify-between gap-4">
+                                        <div>
+                                            <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-300">{labels.lineProject}</p>
+                                            <h2 className="mt-2 text-4xl font-black tracking-tight text-white sm:text-5xl">{selectedStation.project}</h2>
+                                            <p className="mt-2 text-sm font-semibold text-slate-400">{labels.station}: <span className="text-slate-200">{selectedStation.station}</span></p>
+                                        </div>
+                                        {stationPallet && <StatusBadge pallet={stationPallet} labels={labels}/>}
+                                    </div>
+
+                                    <div className="mt-7 rounded-2xl border border-indigo-400/20 bg-indigo-400/[0.07] p-5 sm:p-6">
+                                        <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-indigo-300">
+                                            <ScanLine size={18}/>{labels.lastScannedPallet}
+                                        </div>
+                                        <div className="mt-4 flex flex-wrap items-end justify-between gap-5">
+                                            <div>
+                                                <p className="font-mono text-4xl font-black tracking-tight text-white sm:text-6xl">
+                                                    {selectedStation.pallet_id || labels.noScanData}
+                                                </p>
+                                                <p className="mt-2 text-base font-bold text-slate-300 sm:text-lg">{selectedStation.model}</p>
+                                            </div>
+                                            <div className="rounded-xl border border-white/[0.08] bg-black/20 px-4 py-3 text-right">
+                                                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">{labels.lastScannedAt}</p>
+                                                <p className="mt-1 text-base font-black text-white">
+                                                    {formatTimestamp(selectedStation.updated_at, locale, {day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'})}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {stationPallet && (
+                                        <div className="mt-6">
+                                            <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+                                                <div>
+                                                    <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">{labels.cycleUsage}</p>
+                                                    <p className="mt-1 font-mono text-lg font-black text-white">{stationPallet.current_cycles} / {stationPallet.max_cycles}</p>
+                                                </div>
+                                                <p className="text-sm font-bold text-slate-300"><span className="text-emerald-300">{stationCyclesRemaining}</span> {labels.cyclesLeft}</p>
+                                            </div>
+                                            <div className="h-3 overflow-hidden rounded-full bg-white/[0.07]">
+                                                <div
+                                                    className={`h-full rounded-full transition-[width] duration-700 ${stationProgress >= 95 ? 'bg-rose-400' : stationProgress >= 80 ? 'bg-amber-300' : 'bg-emerald-400'}`}
+                                                    style={{width: `${stationProgress}%`}}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="dashboard-panel rounded-2xl p-5 sm:p-6">
+                                <div className="flex items-center justify-between gap-4">
+                                    <div>
+                                        <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">{labels.lineStatus}</p>
+                                        <p className="mt-2 text-5xl font-black tracking-tight text-emerald-300">{metrics.availability}%</p>
+                                    </div>
+                                    <div className="grid size-14 place-items-center rounded-2xl border border-emerald-400/20 bg-emerald-400/10 text-emerald-300">
+                                        <Gauge size={27}/>
+                                    </div>
+                                </div>
+                                <div className="mt-6 grid grid-cols-2 gap-3">
+                                    <StationMetric label={labels.operational} value={metrics.operational} icon={<Activity size={18}/>} tone="border-emerald-400/20 bg-emerald-400/10 text-emerald-300"/>
+                                    <StationMetric label={labels.washSoon} value={metrics.dueSoon.length} icon={<TimerReset size={18}/>} tone="border-amber-300/20 bg-amber-300/10 text-amber-200"/>
+                                    <StationMetric label={labels.inWash} value={statusCounts.Washing_Required} icon={<Droplets size={18}/>} tone="border-cyan-300/20 bg-cyan-300/10 text-cyan-200"/>
+                                    <StationMetric label={labels.damaged} value={statusCounts.Damaged + statusCounts.Blocked} icon={<Wrench size={18}/>} tone="border-rose-400/20 bg-rose-400/10 text-rose-300"/>
+                                </div>
+                            </div>
+                        </section>
+
+                        {!stationHasAttention && (
+                            <section className="flex flex-col gap-4 rounded-2xl border border-emerald-400/15 bg-emerald-400/[0.055] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                                <div className="flex items-center gap-4">
+                                    <div className="grid size-11 shrink-0 place-items-center rounded-xl border border-emerald-400/20 bg-emerald-400/10 text-emerald-300">
+                                        <CheckCircle2 size={23}/>
+                                    </div>
+                                    <div>
+                                        <h2 className="text-base font-black text-white">{labels.lineClear}</h2>
+                                        <p className="mt-0.5 text-sm text-slate-400">{labels.lineClearHint}</p>
+                                    </div>
+                                </div>
+                                <span className="inline-flex items-center gap-2 self-start rounded-lg border border-emerald-400/15 bg-black/15 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-emerald-300 sm:self-auto">
+                                    <span className="size-2 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.7)]"/>
+                                    LIVE
+                                </span>
+                            </section>
+                        )}
+
+                        <section className="dashboard-panel overflow-hidden rounded-2xl">
+                            <PanelHeader icon={<Package size={17}/>} title={labels.linePallets} subtitle={labels.linePalletsHint} aside={
+                                <span className="rounded-lg border border-indigo-300/15 bg-indigo-300/[0.07] px-2.5 py-1 text-xs font-black text-indigo-200">{metrics.total}</span>
+                            }/>
+                            <div className={`grid gap-px bg-white/[0.055] ${stationPallets.length > 1 ? 'sm:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1'}`}>
+                                {stationPallets.map((pallet) => {
+                                    const progress = cycleProgress(pallet);
+                                    return (
+                                        <div key={pallet.pallet_id} className={`bg-[#101622] p-5 ${stationPallets.length === 1 ? 'sm:flex sm:items-center sm:gap-8' : ''}`}>
+                                            <div className={`flex items-start justify-between gap-4 ${stationPallets.length === 1 ? 'sm:min-w-80' : ''}`}>
+                                                <div className="min-w-0">
+                                                    <p className="truncate font-mono text-xl font-black text-white">{pallet.pallet_id}</p>
+                                                    <p className="mt-1 truncate text-sm font-semibold text-slate-400">{pallet.model}</p>
+                                                </div>
+                                                <StatusBadge pallet={pallet} labels={labels}/>
+                                            </div>
+                                            <div className={`mt-5 flex items-center gap-3 ${stationPallets.length === 1 ? 'sm:mt-0 sm:flex-1' : ''}`}>
+                                                <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/[0.07]">
+                                                    <div className={`h-full rounded-full ${progress >= 95 ? 'bg-rose-400' : progress >= 80 ? 'bg-amber-300' : 'bg-emerald-400'}`} style={{width: `${progress}%`}}/>
+                                                </div>
+                                                <span className="font-mono text-sm font-black text-slate-200">{pallet.current_cycles}/{pallet.max_cycles}</span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </section>
+                    </>
+                ) : (
+                    <>
                 <section className="grid grid-cols-2 gap-3 lg:grid-cols-5 lg:gap-4">
                     <KpiCard label={labels.availability} value={`${metrics.availability}%`} detail={`${metrics.operational} / ${metrics.total}`} icon={<Gauge size={20}/>} tone="via-emerald-400/70"/>
                     <KpiCard label={labels.operational} value={metrics.operational} detail={`${metrics.total} ${labels.allPallets}`} icon={<Activity size={20}/>} tone="via-indigo-400/70"/>
@@ -452,9 +609,11 @@ export const PublicDashboardView: React.FC = () => {
                     </div>
                 </section>
 
-                <footer className="flex flex-col items-center justify-between gap-2 border-t border-white/5.5 py-3 text-[9px] uppercase tracking-[0.16em] text-slate-600 sm:flex-row">
-                    <span>PALLETX · {labels.publicMode}</span>
-                    <span className="flex items-center gap-1.5"><RefreshCw size={10}/> AUTO REFRESH · 30s</span>
+                    </>
+                )}
+
+                <footer className="flex items-center justify-center border-t border-white/5.5 py-3 text-[10px] uppercase tracking-[0.16em] text-slate-600 sm:justify-end">
+                    <span className="flex items-center gap-1.5"><RefreshCw size={11}/> AUTO REFRESH · 30s</span>
                 </footer>
             </main>
         </div>
@@ -464,7 +623,7 @@ export const PublicDashboardView: React.FC = () => {
 const StatusBadge: React.FC<{pallet: PublicDashboardPallet; labels: DashboardStatusLabels}> = ({pallet, labels}) => {
     const style = statusStyle[pallet.status];
     return (
-        <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[9px] font-black uppercase tracking-wide ${style.badge}`}>
+        <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[10px] font-black uppercase tracking-wide ${style.badge}`}>
             {style.icon}{statusLabel(pallet.status, labels)}
         </span>
     );

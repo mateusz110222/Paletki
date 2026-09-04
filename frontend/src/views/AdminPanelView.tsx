@@ -53,6 +53,12 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
     const selectedModelFromUrl = searchParams.get('model') || 'ALL';
     const selectedStatusFromUrl = searchParams.get('status') || 'ALL';
     const searchTermFromURL = searchParams.get('searchTerm') || '';
+    const {
+        setSearchTerm,
+        setSelectedModel,
+        setSelectedProject,
+        setSelectedStatus,
+    } = actions;
     const hasActiveFilters = selectedProjectFromUrl !== 'ALL' || selectedModelFromUrl !== 'ALL' ||
         selectedStatusFromUrl !== 'ALL' || Boolean(searchTermFromURL);
     const isAddPalletValid = Boolean(
@@ -81,20 +87,20 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
     };
 
     useEffect(() => {
-        actions.setSelectedProject(selectedProjectFromUrl);
-    }, [actions, selectedProjectFromUrl]);
+        setSelectedProject(selectedProjectFromUrl);
+    }, [selectedProjectFromUrl, setSelectedProject]);
 
     useEffect(() => {
-        actions.setSelectedModel(selectedModelFromUrl);
-    }, [actions, selectedModelFromUrl]);
+        setSelectedModel(selectedModelFromUrl);
+    }, [selectedModelFromUrl, setSelectedModel]);
 
     useEffect(() => {
-        actions.setSelectedStatus(selectedStatusFromUrl);
-    }, [actions, selectedStatusFromUrl]);
+        setSelectedStatus(selectedStatusFromUrl);
+    }, [selectedStatusFromUrl, setSelectedStatus]);
 
     useEffect(() => {
-        actions.setSearchTerm(searchTermFromURL);
-    }, [actions, searchTermFromURL]);
+        setSearchTerm(searchTermFromURL);
+    }, [searchTermFromURL, setSearchTerm]);
 
     const hasOpenModal = data.errorModalState.isOpen || data.selectedPalletForDelete !== null ||
         data.isBlockOpen || data.isEditOpen || data.isAddProjectOpen || data.isAddModelOpen || data.isAddOpen;

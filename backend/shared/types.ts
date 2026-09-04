@@ -77,6 +77,7 @@ export interface PublicDashboardResponse {
     scope: 'selection' | 'all' | 'station';
     stations: ProductionStation[];
     selected_station: ProductionStation | null;
+    station_history: ProductionStation[];
     pallets: PublicDashboardPallet[];
     service: {
         average_minutes_30d: number;
