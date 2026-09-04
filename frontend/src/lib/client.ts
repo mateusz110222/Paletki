@@ -33,7 +33,6 @@ const BROWSER = typeof globalThis === "object" && ("window" in globalThis);
  */
 export default class Client {
     public readonly auth: auth.ServiceClient
-    public readonly fis: fis.ServiceClient
     public readonly pallet: pallet.ServiceClient
     private readonly options: ClientOptions
     private readonly target: string
@@ -50,7 +49,6 @@ export default class Client {
         this.options = options ?? {}
         const base = new BaseClient(this.target, this.options)
         this.auth = new auth.ServiceClient(base)
-        this.fis = new fis.ServiceClient(base)
         this.pallet = new pallet.ServiceClient(base)
     }
 
@@ -188,100 +186,6 @@ export namespace auth {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI("POST", `/auth/operator-session`, JSON.stringify(body), {headers})
             return await resp.json() as shared.LoginResponse
-        }
-    }
-}
-
-export namespace fis {
-    export interface RegisterCycleParams {
-        "event_id": string
-        station: string
-        process: string
-        "unit_ids": string[]
-    }
-
-    export interface RegisterCycleResponse {
-        status: true
-        "event_id": string
-        "cycle_recorded": boolean
-        "pallet_id": string
-        "current_cycles": number
-        "total_cycles": number
-        "pallet_status": shared.PalletStatus
-    }
-
-    export interface SetStationPalletParams {
-        "pallet_id": string
-    }
-
-    export interface SetStationPalletResponse {
-        status: true
-        station: string
-        "pallet_id": string
-        project: string
-        model: string
-        "updated_at": string
-    }
-
-    export interface SolderingPallet {
-        "pallet_id": string
-        "max_cycles": number
-        "current_cycles": number
-        "total_cycles": number
-        nests: number
-        status: shared.PalletStatus
-        "block_reason": string | null
-        project: string
-        model: string
-        fis: 1 | 2
-    }
-
-    export class ServiceClient {
-        private baseClient: BaseClient
-
-        constructor(baseClient: BaseClient) {
-            this.baseClient = baseClient
-            this.GetSolderingPallet = this.GetSolderingPallet.bind(this)
-            this.RegisterSolderingCycle = this.RegisterSolderingCycle.bind(this)
-            this.SetSolderingStationPallet = this.SetSolderingStationPallet.bind(this)
-        }
-
-        public async GetSolderingPallet(pallet_id: string): Promise<SolderingPallet> {
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/fis/soldering/pallets/${encodeURIComponent(pallet_id)}`)
-            return await resp.json() as SolderingPallet
-        }
-
-        /**
-         * Atomically records a completed soldering cycle.
-         * Both counters are incremented in one statement, so concurrent stations cannot
-         * overwrite one another. The existing database trigger changes the pallet to
-         * Washing_Required when the configured limit is reached.
-         * This legacy FIS integration does not use a user session. Its deployment must
-         * restrict network access to trusted stations; that boundary is not enforced here.
-         * The source label below is not an authenticated identity.
-         */
-        public async RegisterSolderingCycle(pallet_id: string, params: RegisterCycleParams): Promise<RegisterCycleResponse> {
-            // Construct the body with only the fields which we want encoded within the body (excluding path fields)
-            const body: Record<string, any> = {
-                "event_id": params["event_id"],
-                process:    params.process,
-                station:    params.station,
-                "unit_ids": params["unit_ids"],
-            }
-
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/fis/soldering/pallets/${encodeURIComponent(pallet_id)}/cycles`, JSON.stringify(body))
-            return await resp.json() as RegisterCycleResponse
-        }
-
-        public async SetSolderingStationPallet(station: string, params: SetStationPalletParams): Promise<SetStationPalletResponse> {
-            const body: Record<string, any> = {
-                "pallet_id": params["pallet_id"],
-            }
-
-            const resp = await this.baseClient.callTypedAPI("PUT", `/fis/soldering/stations/${encodeURIComponent(station)}/current-pallet`, JSON.stringify(body))
-            return await resp.json() as SetStationPalletResponse
         }
     }
 }
@@ -470,9 +374,6 @@ export namespace pallet {
             this.GetAllProjects = this.GetAllProjects.bind(this)
             this.GetPallet = this.GetPallet.bind(this)
             this.GetPalletHistory = this.GetPalletHistory.bind(this)
-            this.ProcessFisOutbox = this.ProcessFisOutbox.bind(this)
-            this.ReconcileFisOutbox = this.ReconcileFisOutbox.bind(this)
-            this.ResetPalletCycles = this.ResetPalletCycles.bind(this)
             this.UnblockPallet = this.UnblockPallet.bind(this)
             this.UpdatePallet = this.UpdatePallet.bind(this)
         }
@@ -665,35 +566,6 @@ export namespace pallet {
          * This route is intentionally absent from nginx.conf. It is reachable only from
          * the Compose network, where the scheduler containers call the Encore gateway.
          */
-        public async ProcessFisOutbox(params: WorkerRequest): Promise<WorkerResponse> {
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/internal/fis-outbox/process`, JSON.stringify(params))
-            return await resp.json() as WorkerResponse
-        }
-
-        public async ReconcileFisOutbox(): Promise<ReconcileResponse> {
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/internal/fis-outbox/reconcile`)
-            return await resp.json() as ReconcileResponse
-        }
-
-        public async ResetPalletCycles(params: ResetCyclesParams): Promise<ResetCyclesResponse> {
-            // Convert our params into the objects we need for the request
-            const headers = makeRecord<string, string>({
-                "accept-language": params.acceptLanguage,
-            })
-
-            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
-            const body: Record<string, any> = {
-                "block_reason": params["block_reason"],
-                "pallet_id":    params["pallet_id"],
-            }
-
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/pallets/reset-cycles`, JSON.stringify(body), {headers})
-            return await resp.json() as ResetCyclesResponse
-        }
-
         public async UnblockPallet(params: PalletActionParams): Promise<void> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
@@ -841,176 +713,6 @@ function makeRecord<K extends string | number | symbol, V>(record: Record<K, V |
     return record as Record<K, V>
 }
 
-function encodeWebSocketHeaders(headers: Record<string, string>) {
-    // url safe, no pad
-    const base64encoded = btoa(JSON.stringify(headers))
-      .replaceAll("=", "")
-      .replaceAll("+", "-")
-      .replaceAll("/", "_");
-    return "encore.dev.headers." + base64encoded;
-}
-
-class WebSocketConnection {
-    public ws: WebSocket;
-
-    private hasUpdateHandlers: (() => void)[] = [];
-
-    constructor(url: string, headers?: Record<string, string>) {
-        let protocols = ["encore-ws"];
-        if (headers) {
-            protocols.push(encodeWebSocketHeaders(headers))
-        }
-
-        this.ws = new WebSocket(url, protocols)
-
-        this.on("error", () => {
-            this.resolveHasUpdateHandlers();
-        });
-
-        this.on("close", () => {
-            this.resolveHasUpdateHandlers();
-        });
-    }
-
-    resolveHasUpdateHandlers() {
-        const handlers = this.hasUpdateHandlers;
-        this.hasUpdateHandlers = [];
-
-        for (const handler of handlers) {
-            handler()
-        }
-    }
-
-    async hasUpdate() {
-        // await until a new message have been received, or the socket is closed
-        await new Promise((resolve) => {
-            this.hasUpdateHandlers.push(() => resolve(null))
-        });
-    }
-
-    on(type: "error" | "close" | "message" | "open", handler: (event: any) => void) {
-        this.ws.addEventListener(type, handler);
-    }
-
-    off(type: "error" | "close" | "message" | "open", handler: (event: any) => void) {
-        this.ws.removeEventListener(type, handler);
-    }
-
-    close() {
-        this.ws.close();
-    }
-}
-
-export class StreamInOut<Request, Response> {
-    public socket: WebSocketConnection;
-    private buffer: Response[] = [];
-
-    constructor(url: string, headers?: Record<string, string>) {
-        this.socket = new WebSocketConnection(url, headers);
-        this.socket.on("message", (event: any) => {
-            this.buffer.push(JSON.parse(event.data));
-            this.socket.resolveHasUpdateHandlers();
-        });
-    }
-
-    close() {
-        this.socket.close();
-    }
-
-    async send(msg: Request) {
-        if (this.socket.ws.readyState === WebSocket.CONNECTING) {
-            // await that the socket is opened
-            await new Promise((resolve) => {
-                this.socket.ws.addEventListener("open", resolve, { once: true });
-            });
-        }
-
-        return this.socket.ws.send(JSON.stringify(msg));
-    }
-
-    async next(): Promise<Response | undefined> {
-        for await (const next of this) return next;
-        return undefined;
-    }
-
-    async *[Symbol.asyncIterator](): AsyncGenerator<Response, undefined, void> {
-        while (true) {
-            if (this.buffer.length > 0) {
-                yield this.buffer.shift() as Response;
-            } else {
-                if (this.socket.ws.readyState === WebSocket.CLOSED) return;
-                await this.socket.hasUpdate();
-            }
-        }
-    }
-}
-
-export class StreamIn<Response> {
-    public socket: WebSocketConnection;
-    private buffer: Response[] = [];
-
-    constructor(url: string, headers?: Record<string, string>) {
-        this.socket = new WebSocketConnection(url, headers);
-        this.socket.on("message", (event: any) => {
-            this.buffer.push(JSON.parse(event.data));
-            this.socket.resolveHasUpdateHandlers();
-        });
-    }
-
-    close() {
-        this.socket.close();
-    }
-
-    async next(): Promise<Response | undefined> {
-        for await (const next of this) return next;
-        return undefined;
-    }
-
-    async *[Symbol.asyncIterator](): AsyncGenerator<Response, undefined, void> {
-        while (true) {
-            if (this.buffer.length > 0) {
-                yield this.buffer.shift() as Response;
-            } else {
-                if (this.socket.ws.readyState === WebSocket.CLOSED) return;
-                await this.socket.hasUpdate();
-            }
-        }
-    }
-}
-
-export class StreamOut<Request, Response> {
-    public socket: WebSocketConnection;
-    private responseValue: Promise<Response>;
-
-    constructor(url: string, headers?: Record<string, string>) {
-        let responseResolver: (_: any) => void;
-        this.responseValue = new Promise((resolve) => responseResolver = resolve);
-
-        this.socket = new WebSocketConnection(url, headers);
-        this.socket.on("message", (event: any) => {
-            responseResolver(JSON.parse(event.data))
-        });
-    }
-
-    async response(): Promise<Response> {
-        return this.responseValue;
-    }
-
-    close() {
-        this.socket.close();
-    }
-
-    async send(msg: Request) {
-        if (this.socket.ws.readyState === WebSocket.CONNECTING) {
-            // await that the socket is opened
-            await new Promise((resolve) => {
-                this.socket.ws.addEventListener("open", resolve, { once: true });
-            });
-        }
-
-        return this.socket.ws.send(JSON.stringify(msg));
-    }
-}
 // CallParameters is the type of the parameters to a method call, but require headers to be a Record type
 type CallParameters = Omit<RequestInit, "method" | "body" | "headers"> & {
     /** Headers to be sent with the request */
@@ -1093,69 +795,6 @@ class BaseClient {
         }
 
         return undefined;
-    }
-
-    // createStreamInOut sets up a stream to a streaming API endpoint.
-    async createStreamInOut<Request, Response>(path: string, params?: CallParameters): Promise<StreamInOut<Request, Response>> {
-        let { query, headers } = params ?? {};
-
-        // Fetch auth data if there is any
-        const authData = await this.getAuthData();
-
-        // If we now have authentication data, add it to the request
-        if (authData) {
-            if (authData.query) {
-                query = {...query, ...authData.query};
-            }
-            if (authData.headers) {
-                headers = {...headers, ...authData.headers};
-            }
-        }
-
-        const queryString = query ? '?' + encodeQuery(query) : ''
-        return new StreamInOut(this.baseURL + path + queryString, headers);
-    }
-
-    // createStreamIn sets up a stream to a streaming API endpoint.
-    async createStreamIn<Response>(path: string, params?: CallParameters): Promise<StreamIn<Response>> {
-        let { query, headers } = params ?? {};
-
-        // Fetch auth data if there is any
-        const authData = await this.getAuthData();
-
-        // If we now have authentication data, add it to the request
-        if (authData) {
-            if (authData.query) {
-                query = {...query, ...authData.query};
-            }
-            if (authData.headers) {
-                headers = {...headers, ...authData.headers};
-            }
-        }
-
-        const queryString = query ? '?' + encodeQuery(query) : ''
-        return new StreamIn(this.baseURL + path + queryString, headers);
-    }
-
-    // createStreamOut sets up a stream to a streaming API endpoint.
-    async createStreamOut<Request, Response>(path: string, params?: CallParameters): Promise<StreamOut<Request, Response>> {
-        let { query, headers } = params ?? {};
-
-        // Fetch auth data if there is any
-        const authData = await this.getAuthData();
-
-        // If we now have authentication data, add it to the request
-        if (authData) {
-            if (authData.query) {
-                query = {...query, ...authData.query};
-            }
-            if (authData.headers) {
-                headers = {...headers, ...authData.headers};
-            }
-        }
-
-        const queryString = query ? '?' + encodeQuery(query) : ''
-        return new StreamOut(this.baseURL + path + queryString, headers);
     }
 
     // callTypedAPI makes an API call, defaulting content type to "application/json"

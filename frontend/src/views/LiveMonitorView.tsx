@@ -152,9 +152,9 @@ export const LiveMonitorView: React.FC = () => {
     const latestStationUpdate = stationHistory[0]?.updated_at ?? 'empty';
 
     return (
-        <div className="min-h-screen bg-brand-bg text-brand-text">
-            <header className="border-b border-brand-border bg-brand-surface/95 backdrop-blur">
-                <div className="mx-auto flex max-w-[1800px] flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-8">
+        <div className={`${stationRowMode ? 'flex min-h-screen flex-col lg:h-dvh lg:overflow-hidden' : 'min-h-screen'} bg-brand-bg text-brand-text`}>
+            <header className="shrink-0 border-b border-brand-border bg-brand-surface/95 backdrop-blur">
+                <div className={`mx-auto flex max-w-[1800px] flex-wrap items-center justify-between gap-4 px-5 sm:px-8 ${stationRowMode ? 'py-[clamp(0.55rem,1.35vh,1rem)]' : 'py-4'}`}>
                     <div className="flex items-center gap-3">
                         <div className="grid size-10 place-items-center rounded-xl border border-brand-accent/30 bg-brand-accent/10 text-brand-accent"><Tv size={20}/></div>
                         <div>
@@ -189,8 +189,8 @@ export const LiveMonitorView: React.FC = () => {
                     </div>
                 </div>
             </header>
-            <main className="mx-auto max-w-[1800px] px-5 py-6 sm:px-8">
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300" id="live-monitor-container">
+            <main className={`mx-auto w-full max-w-[1800px] px-5 sm:px-8 ${stationRowMode ? 'lg:min-h-0 lg:flex-1 lg:py-[clamp(0.55rem,1.45vh,1.5rem)]' : 'py-6'}`}>
+        <div className={`${stationRowMode ? 'lg:h-full lg:min-h-0' : 'space-y-6'} animate-in fade-in slide-in-from-bottom-4 duration-300`} id="live-monitor-container">
             {/* Global summary is useful only when several projects are being compared. */}
             {showAll && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -299,7 +299,7 @@ export const LiveMonitorView: React.FC = () => {
                 <div
                     key={showAll ? 'all-projects' : latestStationUpdate}
                     className={stationRowMode
-                        ? 'flex flex-col gap-3'
+                        ? 'grid gap-3 lg:h-full lg:min-h-0 lg:grid-rows-3 lg:gap-[clamp(0.5rem,1.2vh,0.85rem)]'
                         : 'grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'}
                 >
                     {visibleProjects.map((proj: ProjectStats, index) => {
@@ -314,21 +314,21 @@ export const LiveMonitorView: React.FC = () => {
                         return (
                             <div
                                 key={proj.name}
-                                className={`group relative overflow-hidden rounded-xl border border-brand-border bg-brand-surface transition-all duration-300 hover:shadow-lg ${theme.borderAccent} ${stationRowMode ? 'min-h-60 p-5 sm:p-6' : 'flex min-h-64 flex-col justify-between p-5'} ${stationRowMode ? 'live-project-card' : ''} ${isNewest ? 'live-project-card-newest' : ''}`}
+                                className={`group relative overflow-hidden rounded-xl border border-brand-border bg-brand-surface transition-all duration-300 hover:shadow-lg ${theme.borderAccent} ${stationRowMode ? 'min-h-60 p-4 lg:h-full lg:min-h-0 lg:p-[clamp(0.65rem,1.35vh,1.25rem)]' : 'flex min-h-64 flex-col justify-between p-5'} ${stationRowMode ? 'live-project-card' : ''} ${isNewest ? 'live-project-card-newest' : ''}`}
                                 style={!showAll ? {animationDelay: `${Math.min(index * 70, 350)}ms`} : undefined}
                             >
                                 {stationRowMode ? (
-                                    <div className="grid h-full gap-5 lg:grid-cols-[minmax(260px,0.7fr)_minmax(340px,0.9fr)_minmax(0,1.8fr)] lg:items-center lg:gap-7">
-                                        <div className="flex flex-col items-center justify-center border-b border-brand-border/60 pb-5 text-center lg:h-full lg:border-r lg:border-b-0 lg:pr-7 lg:pb-0">
-                                            <span className="text-xs font-bold uppercase tracking-[0.2em] text-brand-text-muted">{t('project')}</span>
-                                            <h4 className="mt-2 w-full truncate text-4xl font-black leading-none text-brand-text transition-colors group-hover:text-brand-accent xl:text-5xl">{proj.name}</h4>
-                                            <div className={`mt-5 inline-flex items-center gap-2.5 rounded-xl border px-4 py-3 font-mono text-5xl font-black leading-none xl:text-6xl ${theme.badgeBg}`}>
+                                    <div className="grid h-full min-h-0 gap-4 lg:grid-cols-[minmax(220px,0.7fr)_minmax(300px,0.9fr)_minmax(0,1.8fr)] lg:items-center lg:gap-[clamp(0.75rem,1.4vw,1.75rem)]">
+                                        <div className="flex min-h-0 flex-col items-center justify-center border-b border-brand-border/60 pb-4 text-center lg:h-full lg:border-r lg:border-b-0 lg:pr-[clamp(0.75rem,1.4vw,1.75rem)] lg:pb-0">
+                                            <span className="text-[clamp(0.65rem,1.35vh,0.75rem)] font-bold uppercase tracking-[0.2em] text-brand-text-muted">{t('project')}</span>
+                                            <h4 className="mt-[clamp(0.3rem,0.7vh,0.5rem)] w-full truncate text-[clamp(1.75rem,4vh,3rem)] font-black leading-none text-brand-text transition-colors group-hover:text-brand-accent">{proj.name}</h4>
+                                            <div className={`mt-[clamp(0.4rem,1vh,1.25rem)] inline-flex items-center gap-2.5 rounded-xl border px-[clamp(0.65rem,1vh,1rem)] py-[clamp(0.4rem,0.8vh,0.75rem)] font-mono text-[clamp(2.25rem,5vh,3.75rem)] font-black leading-none ${theme.badgeBg}`}>
                                                 {theme.icon}<span>{total > 0 ? `${roundedPercentage}%` : '—'}</span>
                                             </div>
                                         </div>
 
-                                        <div className="flex min-w-0 items-center gap-4 rounded-xl border border-brand-accent/20 bg-brand-bg/60 px-5 py-5">
-                                            <div className="grid size-14 shrink-0 place-items-center rounded-xl border border-brand-accent/25 bg-brand-accent/10 text-brand-accent">
+                                        <div className="flex min-h-0 min-w-0 items-center gap-[clamp(0.65rem,1vw,1rem)] rounded-xl border border-brand-accent/20 bg-brand-bg/60 px-[clamp(0.75rem,1.2vw,1.25rem)] py-[clamp(0.55rem,1.1vh,1.25rem)]">
+                                            <div className="grid size-[clamp(2.5rem,5vh,3.5rem)] shrink-0 place-items-center rounded-xl border border-brand-accent/25 bg-brand-accent/10 text-brand-accent">
                                                 <ScanBarcode size={28}/>
                                             </div>
                                             <div className="min-w-0 flex-1">
@@ -336,33 +336,33 @@ export const LiveMonitorView: React.FC = () => {
                                                     <span className="text-[10px] font-black uppercase tracking-[0.15em] text-brand-accent">{t('dashboard_last_scanned_pallet')}</span>
                                                     {isNewest && <span className="rounded bg-emerald-400/10 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-emerald-400">{t('dashboard_newest')}</span>}
                                                 </div>
-                                                <p className="mt-2 truncate font-mono text-3xl font-black tracking-[0.06em] text-brand-text xl:text-4xl">{stationEntry?.pallet_id ?? '—'}</p>
-                                                <p className="mt-1 truncate text-xs font-semibold uppercase tracking-wide text-brand-text-muted">
+                                                <p className="mt-[clamp(0.25rem,0.65vh,0.5rem)] truncate font-mono text-[clamp(1.5rem,3.5vh,2.25rem)] font-black tracking-[0.06em] text-brand-text">{stationEntry?.pallet_id ?? '—'}</p>
+                                                <p className="mt-1 truncate text-[clamp(0.65rem,1.4vh,0.75rem)] font-semibold uppercase tracking-wide text-brand-text-muted">
                                                     {stationEntry?.model ?? '—'} · {formatLastScanTime(stationEntry?.updated_at, language)}
                                                 </p>
                                             </div>
                                         </div>
 
                                         <div className="min-w-0">
-                                            <div className="grid grid-cols-4 gap-2 sm:gap-3">
+                                            <div className="grid h-[clamp(6.25rem,14vh,8.75rem)] grid-cols-4 gap-2 sm:gap-[clamp(0.5rem,0.8vw,0.75rem)]">
                                                 {[
                                                     {label: t('status_active'), value: ready, color: 'text-emerald-400', panel: 'border-emerald-500/20 bg-emerald-500/[0.07]', icon: <CheckCircle2 size={24}/>},
                                                     {label: t('status_washing_required'), value: proj.washing, color: 'text-cyan-400', panel: 'border-cyan-500/20 bg-cyan-500/[0.07]', icon: <RefreshCw size={24}/>},
                                                     {label: t('damaged_status'), value: proj.damaged, color: 'text-rose-400', panel: 'border-rose-500/20 bg-rose-500/[0.07]', icon: <Wrench size={24}/>},
                                                     {label: t('status_blocked'), value: proj.blocked, color: 'text-orange-400', panel: 'border-orange-500/20 bg-orange-500/[0.07]', icon: <ShieldAlert size={24}/>},
                                                 ].map((metric) => (
-                                                    <div key={metric.label} className={`grid min-h-32 min-w-0 grid-rows-[4rem_2rem_2.75rem] place-items-center overflow-hidden rounded-xl border px-2 py-3 text-center sm:px-3 ${metric.panel}`}>
-                                                        <p className={`flex h-16 items-center justify-center font-mono text-5xl font-black leading-none xl:text-6xl ${metric.color}`}>{metric.value}</p>
-                                                        <div className={`flex h-8 items-center justify-center ${metric.color}`}>{metric.icon}</div>
-                                                        <p className={`flex h-11 w-full items-center justify-center break-words text-[11px] font-black uppercase leading-tight tracking-[0.03em] md:text-xs 2xl:text-sm ${metric.color}`}>{metric.label}</p>
+                                                    <div key={metric.label} className={`grid min-h-0 min-w-0 grid-rows-[minmax(2.25rem,1fr)_clamp(1.25rem,2.6vh,2rem)_clamp(1.75rem,3.8vh,2.75rem)] place-items-center overflow-hidden rounded-xl border px-2 py-[clamp(0.3rem,0.7vh,0.65rem)] text-center sm:px-3 ${metric.panel}`}>
+                                                        <p className={`flex min-h-0 items-center justify-center font-mono text-[clamp(2.1rem,4.8vh,3.75rem)] font-black leading-none ${metric.color}`}>{metric.value}</p>
+                                                        <div className={`flex items-center justify-center ${metric.color}`}>{metric.icon}</div>
+                                                        <p className={`flex min-h-0 w-full items-center justify-center break-words text-[clamp(0.58rem,1.3vh,0.875rem)] font-black uppercase leading-tight tracking-[0.03em] ${metric.color}`}>{metric.label}</p>
                                                     </div>
                                                 ))}
                                             </div>
-                                            <div className="mt-3 flex items-center gap-4">
+                                            <div className="mt-[clamp(0.35rem,0.8vh,0.75rem)] flex items-center gap-4">
                                                 <div className="h-2.5 min-w-0 flex-1 overflow-hidden rounded-full border border-brand-border/30 bg-brand-bg p-px">
                                                     <div className={`h-full rounded-full transition-all duration-700 ${theme.barBg}`} style={{width: total > 0 ? `${roundedPercentage}%` : '0%'}}/>
                                                 </div>
-                                                <span className={`shrink-0 font-mono text-2xl font-black xl:text-3xl ${theme.textColor}`}>{ready} / {total}</span>
+                                                <span className={`shrink-0 font-mono text-[clamp(1.35rem,3vh,1.875rem)] font-black ${theme.textColor}`}>{ready} / {total}</span>
                                             </div>
                                         </div>
                                     </div>
