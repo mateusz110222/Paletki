@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, Box, ChevronRight, Edit3, Layers, Scan, WashingMachine, X } from 'lucide-react';
+import { AlertTriangle, Box, ChevronRight, Edit3, Layers, Scan, Volume2, VolumeX, WashingMachine, X } from 'lucide-react';
 import { useTranslation } from '../i18n/LanguageContext.tsx';
 import { PalletStatus } from '@backend/shared/types';
 import { useOperatorPanel } from '../hooks/useOperatorPanel.ts';
@@ -7,12 +7,12 @@ import { PalletStatusSpan } from "../components/PalletStatusSpan.tsx";
 import { GlobalErrorModal } from "../components/GlobalErrorModal.tsx";
 import { useEscapeKey } from "../hooks/useEscapeKey.ts";
 import { ModalFormActions } from "../components/ModalFormActions.tsx";
-import {ModalPresence, ModalTransition} from '../components/ModalTransition.tsx';
-import {OPERATOR_OTHER_FAULT_STATUS} from '@backend/shared/permissions';
+import { ModalPresence, ModalTransition } from '../components/ModalTransition.tsx';
+import { OPERATOR_OTHER_FAULT_STATUS } from '@backend/shared/permissions';
 
 export const OperatorPanelView: React.FC = () => {
     const { data, actions } = useOperatorPanel();
-    const { t, language } = useTranslation();
+    const { t } = useTranslation();
 
     const currentCycles = data.activePallet?.current_cycles ?? 0;
     const maxCycles = data.activePallet?.max_cycles || 1;
@@ -38,26 +38,81 @@ export const OperatorPanelView: React.FC = () => {
 
     return (
         <div className="w-full min-w-0 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300" id="operator-panel-container">
-            <div className="flex justify-end"><button type="button" aria-pressed={data.soundEnabled} onClick={actions.toggleSound} className="rounded-xl border border-brand-border px-4 py-2 text-sm">{language === 'pl' ? 'Dźwięk skanera' : 'Scanner sound'}: {data.soundEnabled ? 'ON' : 'OFF'}</button></div>
-            {data.scanFeedback && <div role={data.scanFeedback.tone === 'error' ? 'alert' : 'status'} className={`rounded-2xl border p-6 text-xl font-black sm:text-2xl ${data.scanFeedback.tone === 'error' ? 'border-rose-400/50 bg-rose-400/10 text-rose-200' : 'border-emerald-400/40 bg-emerald-400/10 text-emerald-200'}`}>
-                {data.scanFeedback.tone === 'error' ? '✕ ' : '✓ '}{data.scanFeedback.message}
-            </div>}
+            {/* Pasek narzędziowy: Przycisk włączania / wyłączania dźwięków skanera */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-1">
+                <div className="flex items-center gap-2">
+                    <span className="text-xs font-black uppercase tracking-wider text-brand-text-muted">
+                        {t('op_station_title')}
+                    </span>
+                </div>
+                <button
+                    id="operator-sound-toggle-btn"
+                    type="button"
+                    role="switch"
+                    aria-checked={data.soundEnabled}
+                    onClick={actions.toggleSound}
+                    className={`group relative inline-flex items-center gap-3 px-4 py-2.5 rounded-xl border font-bold text-sm transition-all duration-200 shadow-sm active:scale-95 cursor-pointer ${data.soundEnabled
+                            ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/60 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
+                            : 'bg-brand-surface border-brand-border text-brand-text-muted hover:text-brand-text hover:border-brand-text-muted/60'
+                        }`}
+                    title={data.soundEnabled ? t('op_sound_turn_off_tooltip') : t('op_sound_turn_on_tooltip')}
+                >
+                    <span className={`p-1.5 rounded-lg transition-colors ${data.soundEnabled ? 'bg-emerald-500/20 text-emerald-400' : 'bg-brand-bg text-brand-text-muted group-hover:text-brand-text'
+                        }`}>
+                        {data.soundEnabled ? <Volume2 size={18} className="animate-pulse" /> : <VolumeX size={18} />}
+                    </span>
+                    <span className="flex flex-col text-left">
+                        <span className="text-[0.6875rem] uppercase tracking-wider font-extrabold opacity-75">
+                            {t('op_scanner_sound')}
+                        </span>
+                        <span className="text-xs font-black flex items-center gap-1.5">
+                            <span className={`inline-block w-2 h-2 rounded-full ${data.soundEnabled ? 'bg-emerald-400 shadow-[0_0_6px_#34d399]' : 'bg-zinc-500'
+                                }`} />
+                            {data.soundEnabled ? t('op_sound_enabled') : t('op_sound_disabled')}
+                        </span>
+                    </span>
+                </button>
+            </div>
+            {data.scanFeedback && (
+                <div
+                    role={data.scanFeedback.tone === 'error' ? 'alert' : 'status'}
+                    className={`rounded-2xl border p-5 sm:p-6 text-lg sm:text-xl font-black flex items-center gap-3 shadow-lg transition-all animate-in fade-in duration-200 ${data.scanFeedback.tone === 'error'
+                            ? 'border-rose-400/50 bg-rose-400/10 text-rose-200 shadow-rose-950/30'
+                            : data.scanFeedback.tone === 'warning'
+                                ? 'border-amber-400/50 bg-amber-400/10 text-amber-200 shadow-amber-950/30'
+                                : 'border-emerald-400/40 bg-emerald-400/10 text-emerald-200 shadow-emerald-950/30'
+                        }`}
+                >
+                    {data.scanFeedback.tone === 'error' && <span className="text-2xl font-bold">✕</span>}
+                    {data.scanFeedback.tone === 'warning' && <AlertTriangle size={24} className="text-amber-400 shrink-0" />}
+                    {data.scanFeedback.tone === 'success' && <span className="text-2xl font-bold">✓</span>}
+                    <span>{data.scanFeedback.message}</span>
+                </div>
+            )}
             {/* 1. SEKCJA SKANERA (Gdy brak aktywnej palety) */}
             {!data.activePallet && (
                 <section
                     className="bg-brand-surface border border-brand-border/80 rounded-2xl overflow-hidden shadow-2xl relative">
                     <div
-                        className={`h-1.5 transition-colors duration-500 ${data.scanStatus === 'SUCCESS' ? 'bg-green-500 shadow-[0_0_10px_#22c55e]' : data.scanStatus === 'ERROR' ? 'bg-red-500 shadow-[0_0_10px_#ef4444]' : 'bg-brand-accent/40'
+                        className={`h-1.5 transition-colors duration-500 ${data.scanStatus === 'SUCCESS'
+                                ? 'bg-green-500 shadow-[0_0_10px_#22c55e]'
+                                : data.scanStatus === 'WARNING'
+                                    ? 'bg-amber-500 shadow-[0_0_10px_#f59e0b]'
+                                    : data.scanStatus === 'ERROR'
+                                        ? 'bg-red-500 shadow-[0_0_10px_#ef4444]'
+                                        : 'bg-brand-accent/40'
                             }`}
                     ></div>
 
                     <div className="p-8 md:p-14 flex flex-col items-center text-center space-y-6">
                         <div
                             className={`w-24 h-24 rounded-2xl flex items-center justify-center transition-all duration-300 border ${data.scanStatus === 'SUCCESS'
-                                ? 'bg-green-500/10 border-green-500/40 text-green-400 scale-105'
-                                : data.scanStatus === 'ERROR'
-                                    ? 'bg-red-500/10 border-red-500/40 text-red-400 animate-in shake'
-                                    : 'bg-brand-accent/10 border-brand-accent/20 text-brand-accent'
+                                    ? 'bg-green-500/10 border-green-500/40 text-green-400 scale-105'
+                                    : data.scanStatus === 'WARNING'
+                                        ? 'bg-amber-500/10 border-amber-500/40 text-amber-400 scale-105'
+                                        : data.scanStatus === 'ERROR'
+                                            ? 'bg-red-500/10 border-red-500/40 text-red-400 animate-in shake'
+                                            : 'bg-brand-accent/10 border-brand-accent/20 text-brand-accent'
                                 }`}
                         >
                             <Scan size={48} className="animate-pulse" />
@@ -92,12 +147,6 @@ export const OperatorPanelView: React.FC = () => {
                                 role="status"
                                 aria-live="polite"
                                 className={`flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider pt-1 ${data.scanStatus === 'ERROR' ? 'text-red-400' : 'text-brand-text-muted'}`}>
-                                <span className="relative flex h-2.5 w-2.5">
-                                    <span
-                                        className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${data.scanStatus === 'ERROR' ? 'bg-red-400' : 'bg-brand-accent'}`}></span>
-                                    <span
-                                        className={`relative inline-flex rounded-full h-2.5 w-2.5 ${data.scanStatus === 'ERROR' ? 'bg-red-400' : 'bg-brand-accent'}`}></span>
-                                </span>
                                 {data.isScanning
                                     ? t('op_scanning')
                                     : data.scanStatus === 'ERROR'
@@ -286,48 +335,48 @@ export const OperatorPanelView: React.FC = () => {
 
             {/* MODAL: INNA USTERKA */}
             <ModalPresence>
-            {data.isOtherFaultOpen && (
-                <ModalTransition
-                    onBackdropClick={() => actions.setIsOtherFaultOpen(false)}
-                    backdropClassName="bg-black/80 backdrop-blur-sm"
-                >
-                    <div
-                        className="relative bg-brand-surface border border-brand-border w-full max-w-md rounded-2xl overflow-hidden shadow-2xl z-10">
+                {data.isOtherFaultOpen && (
+                    <ModalTransition
+                        onBackdropClick={() => actions.setIsOtherFaultOpen(false)}
+                        backdropClassName="bg-black/80 backdrop-blur-sm"
+                    >
                         <div
-                            className="p-5 border-b border-brand-border/80 flex justify-between items-center bg-brand-bg/40">
-                            <h3 className="font-black text-brand-text uppercase tracking-tight text-sm flex items-center gap-2">
-                                <AlertTriangle size={18} className="text-red-400" />
-                                {t('op_describe_fault')}
-                            </h3>
-                            <button onClick={() => actions.setIsOtherFaultOpen(false)}
-                                title={t('btn_close')}
-                                aria-label={t('btn_close')}
-                                className="text-brand-text-muted hover:text-white transition-colors">
-                                <X size={20} />
-                            </button>
+                            className="relative bg-brand-surface border border-brand-border w-full max-w-md rounded-2xl overflow-hidden shadow-2xl z-10">
+                            <div
+                                className="p-5 border-b border-brand-border/80 flex justify-between items-center bg-brand-bg/40">
+                                <h3 className="font-black text-brand-text uppercase tracking-tight text-sm flex items-center gap-2">
+                                    <AlertTriangle size={18} className="text-red-400" />
+                                    {t('op_describe_fault')}
+                                </h3>
+                                <button onClick={() => actions.setIsOtherFaultOpen(false)}
+                                    title={t('btn_close')}
+                                    aria-label={t('btn_close')}
+                                    className="text-brand-text-muted hover:text-white transition-colors">
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <div className="p-6 space-y-4">
+                                <textarea
+                                    autoFocus
+                                    className="w-full bg-brand-bg border border-brand-border/80 rounded-xl p-4 text-brand-text text-sm focus:ring-4 focus:ring-red-500/10 outline-none min-h-27.5 transition-all resize-none"
+                                    placeholder={t('op_fault_description_placeholder')}
+                                    value={data.customFaultText}
+                                    onChange={(e) => actions.setCustomFaultText(e.target.value)}
+                                />
+                                <ModalFormActions
+                                    onCancel={() => actions.setIsOtherFaultOpen(false)}
+                                    submitType="button"
+                                    onSubmit={() => actions.handleReportFault(data.customFaultText, OPERATOR_OTHER_FAULT_STATUS)}
+                                    submitLabel={t('op_report_damage')}
+                                    submittingLabel={t('saving')}
+                                    isSubmitting={data.isSubmitting}
+                                    submitDisabled={!data.customFaultText.trim()}
+                                    variant="danger"
+                                />
+                            </div>
                         </div>
-                        <div className="p-6 space-y-4">
-                            <textarea
-                                autoFocus
-                                className="w-full bg-brand-bg border border-brand-border/80 rounded-xl p-4 text-brand-text text-sm focus:ring-4 focus:ring-red-500/10 outline-none min-h-27.5 transition-all resize-none"
-                                placeholder={t('op_fault_description_placeholder')}
-                                value={data.customFaultText}
-                                onChange={(e) => actions.setCustomFaultText(e.target.value)}
-                            />
-                            <ModalFormActions
-                                onCancel={() => actions.setIsOtherFaultOpen(false)}
-                                submitType="button"
-                                onSubmit={() => actions.handleReportFault(data.customFaultText, OPERATOR_OTHER_FAULT_STATUS)}
-                                submitLabel={t('op_report_damage')}
-                                submittingLabel={t('saving')}
-                                isSubmitting={data.isSubmitting}
-                                submitDisabled={!data.customFaultText.trim()}
-                                variant="danger"
-                            />
-                        </div>
-                    </div>
-                </ModalTransition>
-            )}
+                    </ModalTransition>
+                )}
             </ModalPresence>
 
 

@@ -7,9 +7,17 @@ import {useSearchParams} from "react-router-dom";
 import {useAuth} from "../auth/AuthContext.tsx";
 import {asPallet} from "../lib/api.ts";
 import {useQueryClient} from '@tanstack/react-query';
-import {prepareScanAudio, playScanErrorSound, playScanSuccessSound} from '../lib/audio.ts';
+import {
+    initAudioUnlock,
+    prepareScanAudio,
+    playScanErrorSound,
+    playScanSuccessSound,
+    playScanWarningSound
+} from '../lib/audio.ts';
 import {getErrorMessage} from '../lib/errors.ts';
 import {canOpenPalletInOperatorPanel} from '@backend/shared/permissions';
+
+export type ScanFeedbackTone = 'success' | 'warning' | 'error';
 
 export const useOperatorPanel = () => {
     const {t, language} = useTranslation();
@@ -20,7 +28,7 @@ export const useOperatorPanel = () => {
     const [scannedId, setScannedId] = useState('');
     const [lastScannedId, setLastScannedId] = useState('');
     const [activePallet, setActivePallet] = useState<Pallet | null>(null);
-    const [scanStatus, setScanStatus] = useState<'IDLE' | 'SUCCESS' | 'ERROR'>('IDLE');
+    const [scanStatus, setScanStatus] = useState<'IDLE' | 'SUCCESS' | 'WARNING' | 'ERROR'>('IDLE');
 
     const [isOtherFaultOpen, setIsOtherFaultOpen] = useState(false);
     const [customFaultText, setCustomFaultText] = useState('');
@@ -34,6 +42,11 @@ export const useOperatorPanel = () => {
 
     const [searchParams, setSearchParams] = useSearchParams();
     const palletIDFromUrl = searchParams.get('palletID') || '';
+
+    // Initialize audio unlock listeners on mount so scanner input or clicks wake AudioContext
+    useEffect(() => {
+        initAudioUnlock();
+    }, []);
 
     // Handle body click to keep barcode scanner focused without stealing focus from interactive elements
     useEffect(() => {
@@ -62,14 +75,26 @@ export const useOperatorPanel = () => {
 
     const triggerToast = useToast();
     const [soundEnabled, setSoundEnabled] = useState(() => {
-        try { return localStorage.getItem('palletx.scan-sound') === 'true'; } catch { return false; }
+        try {
+            const saved = localStorage.getItem('palletx.scan-sound');
+            return saved === null ? true : saved !== 'false';
+        } catch {
+            return true;
+        }
     });
-    const [scanFeedback, setScanFeedback] = useState<{tone: 'success' | 'error'; message: string} | null>(null);
+    const [scanFeedback, setScanFeedback] = useState<{tone: ScanFeedbackTone; message: string} | null>(null);
     const toggleSound = () => {
         const next = !soundEnabled;
         setSoundEnabled(next);
-        try { localStorage.setItem('palletx.scan-sound', String(next)); } catch { /* Optional preference. */ }
-        if (next) prepareScanAudio();
+        try {
+            localStorage.setItem('palletx.scan-sound', String(next));
+        } catch {
+            // Optional preference.
+        }
+        if (next) {
+            prepareScanAudio();
+            void playScanSuccessSound();
+        }
     };
 
     const handleScanSubmit = useCallback(async (e?: React.SyntheticEvent<HTMLFormElement>, idToScan?: string) => {
@@ -97,18 +122,36 @@ export const useOperatorPanel = () => {
             if (requestId !== scanRequestRef.current) return;
 
             if (!canOpenPalletInOperatorPanel(pallet.status)) {
-                if (soundEnabled) playScanErrorSound();
+                if (soundEnabled) void playScanErrorSound();
                 setActivePallet(null);
                 setScanStatus('ERROR');
                 setScanFeedback({tone: 'error', message: `${palletUpper}: ${t('op_blocked_pallet_unavailable')}`});
                 return;
             }
 
-            if (soundEnabled) playScanSuccessSound();
+            const isExceededCycles = pallet.max_cycles > 0 && pallet.current_cycles >= pallet.max_cycles;
+            const isDamaged = pallet.status === 'Damaged';
+            const isWashing = pallet.status === 'Washing_Required';
+            const isWarningCondition = isDamaged || isWashing || isExceededCycles;
+
+            if (isWarningCondition) {
+                if (soundEnabled) void playScanWarningSound();
+                setScanStatus('WARNING');
+                let warningMsg = t('op_scan_warning_damaged');
+                if (isWashing) {
+                    warningMsg = t('op_scan_warning_washing');
+                } else if (isExceededCycles) {
+                    warningMsg = t('op_scan_warning_cycles');
+                }
+                setScanFeedback({tone: 'warning', message: `${pallet.pallet_id}: ${warningMsg}`});
+            } else {
+                if (soundEnabled) void playScanSuccessSound();
+                setScanStatus('SUCCESS');
+                setScanFeedback({tone: 'success', message: t('op_scan_success_with_id', {palletId: pallet.pallet_id})});
+            }
+
             setActivePallet(pallet);
             setLastScannedId(pallet.pallet_id);
-            setScanStatus('SUCCESS');
-            setScanFeedback({tone: 'success', message: t('op_scan_success_with_id', {palletId: pallet.pallet_id})});
 
             processedUrlIdRef.current = pallet.pallet_id;
             const newParams = new URLSearchParams(searchParams);
@@ -117,7 +160,7 @@ export const useOperatorPanel = () => {
         } catch (error: unknown) {
             if (controller.signal.aborted || requestId !== scanRequestRef.current) return;
             console.error('Błąd skanowania:', error);
-            if (soundEnabled) playScanErrorSound();
+            if (soundEnabled) void playScanErrorSound();
             setScanStatus('ERROR');
             setActivePallet(null);
             setScanFeedback({tone: 'error', message: `${palletUpper}: ${getErrorMessage(error, t('error_connecting_to_encore'))}`});
