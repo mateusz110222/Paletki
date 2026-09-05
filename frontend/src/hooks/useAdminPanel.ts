@@ -1,4 +1,6 @@
-import React, {useCallback, useMemo, useState} from 'react';
+import {parseTableSort, readPreference, savePreference, sortPallets, type TableSort} from '../lib/tablePreferences';
+import {useToast} from '../components/ToastProvider';
+import React, {useCallback, useMemo, useRef, useState} from 'react';
 import {getErrorMessage} from '../lib/errors';
 import {Pallet, PalletModel, PalletStatus, Project} from '@backend/shared/types';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
@@ -32,6 +34,7 @@ export const useAdminPanel = ({
                                   projects,
                                   models,
                               }: UseAdminPanelProps) => {
+    const notify = useToast();
     const {t, language} = useTranslation();
     const {apiClient} = useAuth();
     const queryClient = useQueryClient();
@@ -50,6 +53,9 @@ export const useAdminPanel = ({
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [selectedPalletForBlock, setSelectedPalletForBlock] = useState<Pallet | null>(null);
     const [selectedPalletForEdit, setSelectedPalletForEdit] = useState<Pallet | null>(null);
+    const [selectedPalletForUnblock, setSelectedPalletForUnblock] = useState<Pallet | null>(null);
+    const [unblockError, setUnblockError] = useState('');
+    const unblockRunningRef = useRef(false);
     const [selectedPalletForDelete, setSelectedPalletForDelete] = useState<Pallet | null>(null);
 
     // Form inputs state
@@ -80,6 +86,8 @@ export const useAdminPanel = ({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
 
+    const [sort, setSort] = useState(() => parseTableSort(readPreference('palletx.admin.sort')));
+    const updateSort = (value: TableSort) => {setSort(value);savePreference('palletx.admin.sort', value);setCurrentPage(1);};
     const [pageSize, setPageSize] = useState(50);
     const [currentPage, setCurrentPage] = useState(1);
 
@@ -119,13 +127,14 @@ export const useAdminPanel = ({
         return matchesSearch && matchesProject && matchesModel && matchesStatus;
     }), [pallets, searchTerm, selectedModel, selectedProject, selectedStatus]);
 
+    const sortedPallets = useMemo(() => sortPallets(filteredPallets, sort, language), [filteredPallets, sort, language]);
     const totalPages = Math.max(1, Math.ceil(filteredPallets.length / pageSize));
     const safeCurrentPage = Math.min(currentPage, totalPages);
 
     const paginatedPallets = useMemo(() => {
         const start = (safeCurrentPage - 1) * pageSize;
-        return filteredPallets.slice(start, start + pageSize);
-    }, [filteredPallets, safeCurrentPage, pageSize]);
+        return sortedPallets.slice(start, start + pageSize);
+    }, [sortedPallets, safeCurrentPage, pageSize]);
 
     const availableModels = useMemo(() => {
         const relevantModels = selectedProject === 'ALL'
@@ -255,6 +264,7 @@ export const useAdminPanel = ({
 
             await fetchPallets();
             resetAddPalletForm();
+            notify(language === 'pl' ? 'Operacja zakończona pomyślnie.' : 'Operation completed successfully.');
             setIsAddOpen(false);
         } catch (error) {
             console.error('Error adding pallet:', error);
@@ -282,6 +292,7 @@ export const useAdminPanel = ({
             await queryClient.invalidateQueries({queryKey: ['projects']});
 
             setNewProjectName('');
+            notify(language === 'pl' ? 'Operacja zakończona pomyślnie.' : 'Operation completed successfully.');
             setIsAddProjectOpen(false);
         } catch (error) {
             console.error('Error adding project:', error);
@@ -314,6 +325,7 @@ export const useAdminPanel = ({
             });
             await queryClient.invalidateQueries({queryKey: ['models']});
             setNewModelName('');
+            notify(language === 'pl' ? 'Operacja zakończona pomyślnie.' : 'Operation completed successfully.');
             setNewModelProject('');
             setIsAddModelOpen(false);
         } catch (error) {
@@ -352,6 +364,7 @@ export const useAdminPanel = ({
 
             await fetchPallets();
             setIsBlockOpen(false);
+            notify(language === 'pl' ? 'Operacja zakończona pomyślnie.' : 'Operation completed successfully.');
             setSelectedPalletForBlock(null);
             setBlockReason("");
         } catch (err) {
@@ -362,19 +375,28 @@ export const useAdminPanel = ({
         }
     };
 
-    const handleUnblock = async (pallet: Pallet) => {
-        if (!window.confirm(t('confirm_unblock_message'))) return;
-
+    const handleUnblock = (pallet: Pallet) => {
+        setUnblockError('');
+        setSelectedPalletForUnblock(pallet);
+    };
+    const closeUnblock = () => {
+        if (!unblockRunningRef.current) setSelectedPalletForUnblock(null);
+    };
+    const handleConfirmUnblock = async () => {
+        if (!selectedPalletForUnblock || unblockRunningRef.current) return;
+        unblockRunningRef.current = true;
+        setIsSubmitting(true);
+        setUnblockError('');
         try {
-            await apiClient.pallet.UnblockPallet({
-                pallet_id: pallet.pallet_id,
-                acceptLanguage: language,
-            });
-
+            await apiClient.pallet.UnblockPallet({pallet_id: selectedPalletForUnblock.pallet_id, acceptLanguage: language});
+            setSelectedPalletForUnblock(null);
+            notify(language === 'pl' ? 'Paleta została odblokowana.' : 'Pallet unblocked.');
             await fetchPallets();
-        } catch (err) {
-            console.error('Error unblocking pallet:', err);
-            showGlobalError(t('error_unblocking_pallet_title'), getErrorMessage(err, t('error_connecting_to_encore')));
+        } catch (error) {
+            setUnblockError(getErrorMessage(error, t('error_connecting_to_encore')));
+        } finally {
+            unblockRunningRef.current = false;
+            setIsSubmitting(false);
         }
     };
 
@@ -388,6 +410,7 @@ export const useAdminPanel = ({
 
             await fetchPallets();
             setSelectedPalletForDelete(null);
+            notify(language === 'pl' ? 'Operacja zakończona pomyślnie.' : 'Operation completed successfully.');
         } catch (err) {
             console.error('Error deleting pallet:', err);
             showGlobalError(t('error_deleting_pallet_title'), getErrorMessage(err, t('error_connecting_to_encore')));
@@ -457,6 +480,7 @@ export const useAdminPanel = ({
 
             await fetchPallets();
             setIsEditOpen(false);
+            notify(language === 'pl' ? 'Operacja zakończona pomyślnie.' : 'Operation completed successfully.');
             setSelectedPalletForEdit(null);
         } catch (err) {
             console.error('Error updating pallet:', err);
@@ -491,6 +515,7 @@ export const useAdminPanel = ({
             document.body.appendChild(downloadAnchor);
             downloadAnchor.click();
             downloadAnchor.remove();
+            notify(language === 'pl' ? 'Operacja zakończona pomyślnie.' : 'Operation completed successfully.');
         } catch (error) {
             console.error('Error exporting audit trail:', error);
             showGlobalError(t('error_fetching_audit_history_title'), getErrorMessage(error, t('error_connecting_to_encore')));
@@ -514,6 +539,8 @@ export const useAdminPanel = ({
             blockReason,
             selectedPalletForEdit,
             selectedPalletForDelete,
+            selectedPalletForUnblock,
+            unblockError,
             editFis,
             editNests,
             editMaxCycles,
@@ -531,6 +558,7 @@ export const useAdminPanel = ({
             validationError,
             blockError,
             filteredPallets,
+            sort,
             totalPallets,
             availableStock,
             blockedOrMaint,
@@ -553,6 +581,7 @@ export const useAdminPanel = ({
             setSelectedModel: updateSelectedModel,
             setSelectedStatus: updateSelectedStatus,
             setCurrentPage,
+            setSort: updateSort,
             setIsAddOpen: (open: boolean) => {
                 setValidationError('');
                 setIsAddOpen(open);
@@ -606,6 +635,8 @@ export const useAdminPanel = ({
             handleBlockClick,
             handleConfirmBlock,
             handleUnblock,
+            handleConfirmUnblock,
+            closeUnblock,
             handleConfirmDeletePallet,
             handleOpenEditModal,
             handleUpdatePallet,

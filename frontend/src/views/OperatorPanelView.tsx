@@ -1,5 +1,4 @@
 import React from 'react';
-import {createPortal} from 'react-dom';
 import { AlertTriangle, Box, ChevronRight, Edit3, Layers, Scan, WashingMachine, X } from 'lucide-react';
 import { useTranslation } from '../i18n/LanguageContext.tsx';
 import { PalletStatus } from '@backend/shared/types';
@@ -13,7 +12,7 @@ import {OPERATOR_OTHER_FAULT_STATUS} from '@backend/shared/permissions';
 
 export const OperatorPanelView: React.FC = () => {
     const { data, actions } = useOperatorPanel();
-    const { t } = useTranslation();
+    const { t, language } = useTranslation();
 
     const currentCycles = data.activePallet?.current_cycles ?? 0;
     const maxCycles = data.activePallet?.max_cycles || 1;
@@ -38,7 +37,11 @@ export const OperatorPanelView: React.FC = () => {
     };
 
     return (
-        <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300" id="operator-panel-container">
+        <div className="w-full min-w-0 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300" id="operator-panel-container">
+            <div className="flex justify-end"><button type="button" aria-pressed={data.soundEnabled} onClick={actions.toggleSound} className="rounded-xl border border-brand-border px-4 py-2 text-sm">{language === 'pl' ? 'Dźwięk skanera' : 'Scanner sound'}: {data.soundEnabled ? 'ON' : 'OFF'}</button></div>
+            {data.scanFeedback && <div role={data.scanFeedback.tone === 'error' ? 'alert' : 'status'} className={`rounded-2xl border p-6 text-xl font-black sm:text-2xl ${data.scanFeedback.tone === 'error' ? 'border-rose-400/50 bg-rose-400/10 text-rose-200' : 'border-emerald-400/40 bg-emerald-400/10 text-emerald-200'}`}>
+                {data.scanFeedback.tone === 'error' ? '✕ ' : '✓ '}{data.scanFeedback.message}
+            </div>}
             {/* 1. SEKCJA SKANERA (Gdy brak aktywnej palety) */}
             {!data.activePallet && (
                 <section
@@ -53,7 +56,7 @@ export const OperatorPanelView: React.FC = () => {
                             className={`w-24 h-24 rounded-2xl flex items-center justify-center transition-all duration-300 border ${data.scanStatus === 'SUCCESS'
                                 ? 'bg-green-500/10 border-green-500/40 text-green-400 scale-105'
                                 : data.scanStatus === 'ERROR'
-                                    ? 'bg-red-500/10 border-red-500/40 text-red-400 animate-bounce'
+                                    ? 'bg-red-500/10 border-red-500/40 text-red-400 animate-in shake'
                                     : 'bg-brand-accent/10 border-brand-accent/20 text-brand-accent'
                                 }`}
                         >
@@ -128,7 +131,7 @@ export const OperatorPanelView: React.FC = () => {
                                 className="flex justify-between items-start gap-4 pb-6 border-b border-brand-border/60">
                                 <div>
                                     <span
-                                        className="text-[11px] font-black text-brand-accent uppercase tracking-[0.2em] mb-1 block">
+                                        className="text-[0.6875rem] font-black text-brand-accent uppercase tracking-[0.2em] mb-1 block">
                                         {t('op_technical_data')}
                                     </span>
                                     <h3 className="text-4xl md:text-5xl font-black text-brand-text tracking-tight uppercase font-mono">
@@ -145,7 +148,7 @@ export const OperatorPanelView: React.FC = () => {
                                         aria-label={`${t('btn_cancel')} [ESC]`}
                                     >
                                         <X size={20} />
-                                        <span className="hidden sm:inline text-[10px] font-mono font-bold bg-brand-surface-high border border-brand-border px-1.5 py-0.5 rounded text-brand-text-muted">ESC</span>
+                                        <span className="hidden sm:inline text-[0.625rem] font-mono font-bold bg-brand-surface-high border border-brand-border px-1.5 py-0.5 rounded text-brand-text-muted">ESC</span>
                                     </button>
                                 </div>
                             </div>
@@ -159,7 +162,7 @@ export const OperatorPanelView: React.FC = () => {
                                         <Layers size={20} />
                                     </div>
                                     <div className="min-w-0">
-                                        <p className="text-[10px] font-extrabold text-brand-text-muted uppercase tracking-wider">{t('col_project')}</p>
+                                        <p className="text-[0.625rem] font-extrabold text-brand-text-muted uppercase tracking-wider">{t('col_project')}</p>
                                         <p className="text-lg font-black text-brand-text truncate">{data.activePallet.project || '-'}</p>
                                     </div>
                                 </div>
@@ -171,7 +174,7 @@ export const OperatorPanelView: React.FC = () => {
                                         <Box size={20} />
                                     </div>
                                     <div className="min-w-0">
-                                        <p className="text-[10px] font-extrabold text-brand-text-muted uppercase tracking-wider">{t('op_project_model')}</p>
+                                        <p className="text-[0.625rem] font-extrabold text-brand-text-muted uppercase tracking-wider">{t('op_project_model')}</p>
                                         <p className="text-lg font-black text-brand-text truncate">{data.activePallet.model || '-'}</p>
                                     </div>
                                 </div>
@@ -214,7 +217,7 @@ export const OperatorPanelView: React.FC = () => {
                                     <AlertTriangle size={18} className="text-red-400 animate-pulse" />
                                     {t('op_report_fault')}
                                 </h4>
-                                <span className="text-[10px] font-mono font-bold text-brand-text-muted bg-brand-surface-high border border-brand-border px-2 py-0.5 rounded">
+                                <span className="text-[0.625rem] font-mono font-bold text-brand-text-muted bg-brand-surface-high border border-brand-border px-2 py-0.5 rounded">
                                     {t('op_hotkeys_hint')}
                                 </span>
                             </div>
@@ -258,7 +261,7 @@ export const OperatorPanelView: React.FC = () => {
                                                 className="text-xs font-bold text-brand-text group-hover:text-white transition-colors">{fault.label}</span>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-brand-surface border border-brand-border text-brand-text-muted group-hover:border-red-500/40 group-hover:text-red-400">
+                                            <span className="font-mono text-[0.625rem] font-bold px-1.5 py-0.5 rounded bg-brand-surface border border-brand-border text-brand-text-muted group-hover:border-red-500/40 group-hover:text-red-400">
                                                 [{fault.keyNum}]
                                             </span>
                                             <ChevronRight size={16}
@@ -327,16 +330,7 @@ export const OperatorPanelView: React.FC = () => {
             )}
             </ModalPresence>
 
-            {createPortal(<div
-                className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 transform ${data.isToastOpen ? 'translate-y-0 opacity-100' : 'translate-y-12 opacity-0 pointer-events-none'
-                    }`}
-            >
-                <div
-                    className="bg-brand-text text-brand-bg px-6 py-3.5 rounded-full shadow-2xl flex items-center gap-3 border border-white/10">
-                    <div className="w-2.5 h-2.5 rounded-full bg-brand-accent animate-ping"></div>
-                    <span className="text-xs font-black uppercase tracking-wider">{data.toastMsg}</span>
-                </div>
-            </div>, document.body)}
+
 
             <GlobalErrorModal
                 isOpen={data.errorModalState.isOpen}

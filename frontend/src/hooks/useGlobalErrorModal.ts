@@ -1,3 +1,4 @@
+import {useToast} from '../components/ToastProvider';
 import { useState, useCallback } from 'react';
 
 interface GlobalErrorModalState {
@@ -7,6 +8,7 @@ interface GlobalErrorModalState {
 }
 
 export function useGlobalErrorModal() {
+  const notify = useToast();
   const [errorModalState, setErrorModalState] = useState<GlobalErrorModalState>({
     isOpen: false,
     title: '',
@@ -14,12 +16,8 @@ export function useGlobalErrorModal() {
   });
 
   const showGlobalError = useCallback((title: string, message: string) => {
-    setErrorModalState({
-      isOpen: true,
-      title,
-      message,
-    });
-  }, []);
+    notify(`${title}: ${message}`, 'error');
+  }, [notify]);
 
   const hideGlobalError = useCallback(() => {
     setErrorModalState((prevState) => ({

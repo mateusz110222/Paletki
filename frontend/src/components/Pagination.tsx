@@ -76,7 +76,7 @@ export const Pagination: React.FC<PaginationProps> = ({
             )}
 
             {totalPages > 1 && (
-                <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap justify-center items-center gap-1.5">
                     <button
                         type="button"
                         onClick={() => onPageChange(currentPage - 1)}

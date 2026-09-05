@@ -41,11 +41,11 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300" id="maintenance-panel-container">
             {/* Top statistics section in Bento Grid Style */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
                 <div
-                    className="md:col-span-1 bg-brand-surface p-6 rounded-xl border-l-4 border-brand-accent border-y border-r flex flex-col justify-between">
+                    className="sm:col-span-1 bg-brand-surface p-6 rounded-xl border-l-4 border-brand-accent border-y border-r flex flex-col justify-between">
                     <span
-                        className="text-[10px] font-bold text-brand-text-muted uppercase tracking-wider">{t('maintenance_queue')}</span>
+                        className="text-[0.625rem] font-bold text-brand-text-muted uppercase tracking-wider">{t('maintenance_queue')}</span>
                     <div className="flex items-baseline gap-2 mt-2">
                         <span
                             className="text-4xl font-black text-brand-text">{data.repairPallets.length + data.routinePallets.length}</span>
@@ -54,54 +54,54 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
                     <div
                         className="mt-4 py-1 px-2 bg-brand-accent/10 border border-brand-accent/20 rounded inline-flex items-center gap-2 w-fit">
                         <div className="w-1.5 h-1.5 rounded-full bg-brand-accent animate-pulse"></div>
-                        <span className="text-[9px] font-bold text-brand-accent uppercase">{t('priority_high')}</span>
+                        <span className="text-[0.5625rem] font-bold text-brand-accent uppercase">{t('priority_high')}</span>
                     </div>
                 </div>
 
                 <div
-                    className="md:col-span-1 bg-brand-surface p-6 rounded-xl border border-brand-border flex flex-col justify-between">
+                    className="sm:col-span-1 bg-brand-surface p-6 rounded-xl border border-brand-border flex flex-col justify-between">
                     <span
-                        className="text-[10px] font-bold text-brand-text-muted uppercase tracking-wider">{t('for_repair')}</span>
+                        className="text-[0.625rem] font-bold text-brand-text-muted uppercase tracking-wider">{t('for_repair')}</span>
                     <div className="flex items-baseline gap-2 mt-2">
                         <span className="text-4xl font-black text-red-500">{data.repairPallets.length}</span>
                         <div className="flex flex-col">
                             <span
-                                className="text-[10px] font-bold text-red-500/70 uppercase leading-tight">{t('intervention_required_line1')}</span>
+                                className="text-[0.625rem] font-bold text-red-500/70 uppercase leading-tight">{t('intervention_required_line1')}</span>
                             <span
-                                className="text-[10px] font-bold text-red-500/70 uppercase leading-tight">{t('intervention_required_line2')}</span>
+                                className="text-[0.625rem] font-bold text-red-500/70 uppercase leading-tight">{t('intervention_required_line2')}</span>
                         </div>
                     </div>
                     <div className="mt-4 flex items-center gap-1.5">
                         <AlertTriangle size={14} className="text-red-500"/>
                         <span
-                            className="text-[10px] font-medium text-brand-text-muted italic">{t('reported_damage')}</span>
+                            className="text-[0.625rem] font-medium text-brand-text-muted italic">{t('reported_damage')}</span>
                     </div>
                 </div>
 
                 <div
-                    className="md:col-span-1 bg-brand-surface p-6 rounded-xl border border-brand-border flex flex-col justify-between">
+                    className="sm:col-span-1 bg-brand-surface p-6 rounded-xl border border-brand-border flex flex-col justify-between">
                     <span
-                        className="text-[10px] font-bold text-brand-text-muted uppercase tracking-wider">{t('routine_inspections')}</span>
+                        className="text-[0.625rem] font-bold text-brand-text-muted uppercase tracking-wider">{t('routine_inspections')}</span>
                     <div className="flex items-baseline gap-2 mt-2">
                         <span className="text-4xl font-black text-yellow-500">{data.routinePallets.length}</span>
                         <div className="flex flex-col">
                             <span
-                                className="text-[10px] font-bold text-yellow-500/70 uppercase leading-tight">{t('awaiting_service_line1')}</span>
+                                className="text-[0.625rem] font-bold text-yellow-500/70 uppercase leading-tight">{t('awaiting_service_line1')}</span>
                             <span
-                                className="text-[10px] font-bold text-yellow-500/70 uppercase leading-tight">{t('awaiting_service_line2')}</span>
+                                className="text-[0.625rem] font-bold text-yellow-500/70 uppercase leading-tight">{t('awaiting_service_line2')}</span>
                         </div>
                     </div>
                     <div className="mt-4 flex items-center gap-1.5">
                         <RefreshCw size={14} className="text-yellow-500"/>
                         <span
-                            className="text-[10px] font-medium text-brand-text-muted italic">{t('cycle_limit_exceeded')}</span>
+                            className="text-[0.625rem] font-medium text-brand-text-muted italic">{t('cycle_limit_exceeded')}</span>
                     </div>
                 </div>
 
                 <div
-                    className="md:col-span-1 bg-brand-surface p-6 rounded-xl border border-brand-border flex flex-col justify-between">
+                    className="sm:col-span-1 bg-brand-surface p-6 rounded-xl border border-brand-border flex flex-col justify-between">
                     <span
-                        className="text-[10px] font-bold text-brand-text-muted uppercase tracking-wider">{t('technician_status')}</span>
+                        className="text-[0.625rem] font-bold text-brand-text-muted uppercase tracking-wider">{t('technician_status')}</span>
                     <div className="flex items-center gap-3 mt-2">
                         <div
                             className="w-10 h-10 rounded-full bg-brand-accent/20 border border-brand-accent/30 flex items-center justify-center">
@@ -109,13 +109,13 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
                         </div>
                         <div>
                             <p className="text-xs font-bold text-brand-text">{data.Operator}</p>
-                            <p className="text-[10px] font-medium text-green-400">{t('online_active')}</p>
+                            <p className="text-[0.625rem] font-medium text-green-400">{t('online_active')}</p>
                         </div>
                     </div>
                     <div className="mt-4 flex items-center gap-1.5">
                         <ShieldCheck size={14} className="text-brand-accent"/>
                         <span
-                            className="text-[10px] font-medium text-brand-text-muted italic">{t('service_permissions_ok')}</span>
+                            className="text-[0.625rem] font-medium text-brand-text-muted italic">{t('service_permissions_ok')}</span>
                     </div>
                 </div>
             </div>
@@ -138,7 +138,7 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
                         {t('repairs_tab')}
                         {data.filteredRepairPallets.length > 0 && (
                             <span
-                                className="ml-2 px-1.5 py-0.5 bg-red-500 text-white text-[9px] rounded-full">{data.filteredRepairPallets.length}</span>
+                                className="ml-2 px-1.5 py-0.5 bg-red-500 text-white text-[0.5625rem] rounded-full">{data.filteredRepairPallets.length}</span>
                         )}
                     </button>
                     <button
@@ -152,7 +152,7 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
                         {t('routine_tab')}
                         {data.filteredRoutinePallets.length > 0 && (
                             <span
-                                className="ml-2 px-1.5 py-0.5 bg-yellow-500 text-brand-bg text-[9px] rounded-full">{data.filteredRoutinePallets.length}</span>
+                                className="ml-2 px-1.5 py-0.5 bg-yellow-500 text-brand-bg text-[0.5625rem] rounded-full">{data.filteredRoutinePallets.length}</span>
                         )}
                     </button>
                     <span
@@ -181,12 +181,12 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
                                         </div>
                                         {data.activeTab === 'repairs' ? (
                                             <span
-                                                className="text-[10px] font-black text-red-500 uppercase flex items-center gap-1">
+                                                className="text-[0.625rem] font-black text-red-500 uppercase flex items-center gap-1">
                                                 <AlertTriangle size={12}/> {t('damaged_status')}
                                             </span>
                                         ) : (
                                             <span
-                                                className="text-[10px] font-black text-yellow-500 uppercase flex items-center gap-1">
+                                                className="text-[0.625rem] font-black text-yellow-500 uppercase flex items-center gap-1">
                                                 <RefreshCw size={12}/> {t('cyclic_service')}
                                             </span>
                                         )}
@@ -194,11 +194,11 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
 
                                     <div className="space-y-3 mb-6">
                                         <div>
-                                            <p className="text-[10px] font-bold text-brand-text-muted uppercase tracking-tighter">{t('project_model')}</p>
+                                            <p className="text-[0.625rem] font-bold text-brand-text-muted uppercase tracking-tighter">{t('project_model')}</p>
                                             <p className="text-xs font-bold text-brand-text">{p.project} • {p.model}</p>
                                         </div>
                                         <div>
-                                            <p className="text-[10px] font-bold text-brand-text-muted uppercase tracking-tighter">{t('mileage')}</p>
+                                            <p className="text-[0.625rem] font-bold text-brand-text-muted uppercase tracking-tighter">{t('mileage')}</p>
                                             <p className="text-xs font-mono font-bold text-brand-text">
                                                 {p.current_cycles} <span
                                                 className="text-brand-text-muted/60">/ {p.max_cycles}</span>
@@ -206,10 +206,10 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
                                         </div>
                                         {p.block_reason && (
                                             <div className="p-2 bg-red-500/5 border border-red-500/20 rounded">
-                                                <p className="text-[10px] font-bold text-red-400 uppercase mb-1 flex items-center gap-1">
+                                                <p className="text-[0.625rem] font-bold text-red-400 uppercase mb-1 flex items-center gap-1">
                                                     <FileText size={10}/> {t('reason_for_reporting')}:
                                                 </p>
-                                                <p className="text-[11px] text-brand-text leading-tight italic">"{p.block_reason}"</p>
+                                                <p className="text-[0.6875rem] text-brand-text leading-tight italic">"{p.block_reason}"</p>
                                             </div>
                                         )}
                                     </div>
@@ -217,7 +217,7 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
 
                                 <button
                                     onClick={() => actions.handleOpenServiceLog(p)}
-                                    className="w-full py-3 bg-brand-surface-high border border-brand-border text-brand-text font-black text-[10px] uppercase tracking-widest rounded hover:bg-brand-accent hover:text-brand-bg hover:border-brand-accent transition-all flex items-center justify-center gap-2"
+                                    className="w-full py-3 bg-brand-surface-high border border-brand-border text-brand-text font-black text-[0.625rem] uppercase tracking-widest rounded hover:bg-brand-accent hover:text-brand-bg hover:border-brand-accent transition-all flex items-center justify-center gap-2"
                                 >
                                     <CheckSquare size={14}/>
                                     {t('start_servicing')}
@@ -300,7 +300,7 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
 
                             <div className="space-y-2">
                                 <label
-                                    className="text-[10px] font-black text-brand-text-muted uppercase tracking-widest">{t('maint_comment')}</label>
+                                    className="text-[0.625rem] font-black text-brand-text-muted uppercase tracking-widest">{t('maint_comment')}</label>
                                 <textarea
                                     rows={3}
                                     className="w-full bg-brand-bg border border-brand-border rounded-xl p-4 text-xs text-brand-text focus:ring-2 focus:ring-brand-accent/20 outline-none transition-all"

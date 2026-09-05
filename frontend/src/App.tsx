@@ -1,3 +1,4 @@
+import {ToastProvider} from './components/ToastProvider';
 import React from 'react';
 import {BrowserRouter} from 'react-router-dom';
 import {AuthProvider} from './auth/AuthContext.tsx';
@@ -7,11 +8,11 @@ import {AppRoutes} from './routes/AppRoutes.tsx';
 export default function App() {
     return (
         <LanguageProvider>
-            <AuthProvider>
+            <ToastProvider><AuthProvider>
                 <BrowserRouter>
                     <AppRoutes/>
                 </BrowserRouter>
-            </AuthProvider>
+            </AuthProvider></ToastProvider>
         </LanguageProvider>
     );
 }

@@ -1,3 +1,4 @@
+import {useToast} from '../components/ToastProvider';
 import React, {useEffect, useMemo, useState} from 'react';
 import {
     ArrowLeft,
@@ -50,6 +51,7 @@ export const PalletHistoryView: React.FC = () => {
     const [operator, setOperator] = useState('ALL');
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(25);
+    const notify = useToast();
     const [isCopied, setIsCopied] = useState(false);
 
     useEffect(() => {
@@ -152,6 +154,7 @@ export const PalletHistoryView: React.FC = () => {
         try {
             await navigator.clipboard.writeText(pallet.pallet_id);
             setIsCopied(true);
+            notify(language === 'pl' ? 'Skopiowano ID palety.' : 'Pallet ID copied.');
             setTimeout(() => setIsCopied(false), 2000);
         } catch {
             // fallback
@@ -162,6 +165,7 @@ export const PalletHistoryView: React.FC = () => {
             document.execCommand('copy');
             document.body.removeChild(input);
             setIsCopied(true);
+            notify(language === 'pl' ? 'Skopiowano ID palety.' : 'Pallet ID copied.');
             setTimeout(() => setIsCopied(false), 2000);
         }
     };
@@ -210,7 +214,7 @@ export const PalletHistoryView: React.FC = () => {
             return <PalletStatusSpan status={status as PalletStatus} block_reason={description}/>;
         }
         return (
-            <span className="inline-flex rounded-full border border-brand-border bg-brand-surface-high px-2 py-1 text-[10px] font-bold uppercase text-brand-text-muted">
+            <span className="inline-flex rounded-full border border-brand-border bg-brand-surface-high px-2 py-1 text-[0.625rem] font-bold uppercase text-brand-text-muted">
                 {status}
             </span>
         );
@@ -269,13 +273,13 @@ export const PalletHistoryView: React.FC = () => {
 
             <section className="relative overflow-hidden rounded-2xl border border-brand-border bg-brand-surface p-6">
                 <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-brand-accent/10 blur-3xl"/>
-                <div className="relative flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
+                <div className="relative flex flex-col gap-6 2xl:flex-row xl:items-center xl:justify-between">
                     <div className="flex items-start gap-4">
                         <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-brand-accent/30 bg-brand-accent/15 text-brand-accent">
                             <FileClock size={27}/>
                         </div>
                         <div>
-                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-text-muted">{t('audit_trail_title')}</p>
+                            <p className="text-[0.625rem] font-black uppercase tracking-[0.2em] text-brand-text-muted">{t('audit_trail_title')}</p>
                             <div className="mt-1 flex flex-wrap items-center gap-3">
                                 {fisHistoryUrl ? (
                                     <a
@@ -299,7 +303,7 @@ export const PalletHistoryView: React.FC = () => {
                                     className="inline-flex items-center gap-1.5 rounded-lg border border-brand-border bg-brand-bg px-2.5 py-1 text-xs font-semibold text-brand-text-muted transition-colors hover:border-brand-accent hover:text-brand-accent"
                                 >
                                     {isCopied ? <Check size={14} className="text-green-400"/> : <Copy size={14}/>}
-                                    <span className="text-[10px]">{isCopied ? t('pallet_id_copied') : t('copy_pallet_id')}</span>
+                                    <span className="text-[0.625rem]">{isCopied ? t('pallet_id_copied') : t('copy_pallet_id')}</span>
                                 </button>
 
                                 {pallet.status && <PalletStatusSpan status={pallet.status}/>}
@@ -310,26 +314,26 @@ export const PalletHistoryView: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:min-w-155">
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 min-w-0">
                         <div className="rounded-xl border border-brand-border bg-brand-bg/70 p-4">
-                            <p className="text-[9px] font-bold uppercase tracking-wider text-brand-text-muted">{t('col_total_cycles')}</p>
+                            <p className="text-[0.5625rem] font-bold uppercase tracking-wider text-brand-text-muted">{t('col_total_cycles')}</p>
                             <p className="mt-1 font-mono text-lg font-black text-brand-text">{pallet.total_cycles ?? 0}</p>
-                            <p className="text-[10px] text-brand-text-muted">{t('cycles_unit')}</p>
+                            <p className="text-[0.625rem] text-brand-text-muted">{t('cycles_unit')}</p>
                         </div>
                         <div className="rounded-xl border border-brand-border bg-brand-bg/70 p-4">
-                            <p className="text-[9px] font-bold uppercase tracking-wider text-brand-text-muted">{t('col_fis')}</p>
+                            <p className="text-[0.5625rem] font-bold uppercase tracking-wider text-brand-text-muted">{t('col_fis')}</p>
                             <p className="mt-1 font-mono text-lg font-black text-brand-text">FIS {pallet.fis ?? '—'}</p>
-                            {fisHistoryUrl && <p className="text-[10px] text-brand-accent">{t('history_fis_link_available')}</p>}
+                            {fisHistoryUrl && <p className="text-[0.625rem] text-brand-accent">{t('history_fis_link_available')}</p>}
                         </div>
                         <div className="rounded-xl border border-brand-border bg-brand-bg/70 p-4">
-                            <p className="text-[9px] font-bold uppercase tracking-wider text-brand-text-muted">{t('history_entries')}</p>
+                            <p className="text-[0.5625rem] font-bold uppercase tracking-wider text-brand-text-muted">{t('history_entries')}</p>
                             <p className="mt-1 font-mono text-lg font-black text-brand-text">{history.length}</p>
-                            <p className="text-[10px] text-brand-text-muted">{formatHistoryEntries(history.length, language, false)}</p>
+                            <p className="text-[0.625rem] text-brand-text-muted">{formatHistoryEntries(history.length, language, false)}</p>
                         </div>
                         <div className="rounded-xl border border-brand-border bg-brand-bg/70 p-4">
-                            <p className="text-[9px] font-bold uppercase tracking-wider text-brand-text-muted">{t('history_operators')}</p>
+                            <p className="text-[0.5625rem] font-bold uppercase tracking-wider text-brand-text-muted">{t('history_operators')}</p>
                             <p className="mt-1 font-mono text-lg font-black text-brand-text">{operators.length}</p>
-                            <p className="truncate text-[10px] text-brand-text-muted">
+                            <p className="truncate text-[0.625rem] text-brand-text-muted">
                                 {formatOperatorsCount(operators.length, language, false)}
                             </p>
                         </div>
@@ -339,7 +343,7 @@ export const PalletHistoryView: React.FC = () => {
 
             {/* Filters bar */}
             <section className="rounded-2xl border border-brand-border bg-brand-surface p-4">
-                <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-[minmax(240px,1fr)_180px_180px_210px_170px_auto]">
+                <div className="staff-filter-grid grid gap-3">
                     <label className="relative block">
                         <span className="sr-only">{t('history_search_placeholder')}</span>
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-text-muted" size={16}/>
@@ -418,7 +422,7 @@ export const PalletHistoryView: React.FC = () => {
                         type="button"
                         onClick={clearFilters}
                         disabled={!hasFilters}
-                        className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-brand-border px-4 text-[10px] font-bold uppercase tracking-wider text-brand-text-muted transition-colors hover:border-brand-accent hover:text-brand-accent disabled:cursor-not-allowed disabled:opacity-30"
+                        className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-brand-border px-4 text-[0.625rem] font-bold uppercase tracking-wider text-brand-text-muted transition-colors hover:border-brand-accent hover:text-brand-accent disabled:cursor-not-allowed disabled:opacity-30"
                     >
                         <RotateCcw size={14}/> {t('history_clear_filters')}
                     </button>
@@ -429,7 +433,7 @@ export const PalletHistoryView: React.FC = () => {
                 <p className="text-xs text-brand-text-muted">
                     {t('history_showing_results', {shown: visibleHistory.length, total: filteredHistory.length})}
                 </p>
-                <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-brand-text-muted">
+                <label className="flex items-center gap-2 text-[0.625rem] font-bold uppercase tracking-wider text-brand-text-muted">
                     {t('history_rows_per_page')}
                     <select
                         value={pageSize}
@@ -466,7 +470,7 @@ export const PalletHistoryView: React.FC = () => {
                                 <div className="group rounded-xl border border-brand-border bg-brand-surface p-5 transition-all hover:-translate-y-0.5 hover:border-brand-accent/40 hover:shadow-[0_12px_30px_rgba(0,0,0,0.18)]">
                                     <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                                         <div className="min-w-0">
-                                            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-brand-accent">
+                                            <p className="text-[0.625rem] font-black uppercase tracking-[0.16em] text-brand-accent">
                                                 {isStatusChange ? t('status_change') : t('status_on_modification')}
                                             </p>
                                             <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -479,7 +483,7 @@ export const PalletHistoryView: React.FC = () => {
                                                 )}
                                             </div>
                                         </div>
-                                        <div className="flex shrink-0 items-center gap-2 text-[11px] font-mono text-brand-text-muted">
+                                        <div className="flex shrink-0 items-center gap-2 text-[0.6875rem] font-mono text-brand-text-muted">
                                             <CalendarClock size={14}/>
                                             {new Date(entry.timestamp).toLocaleString(language)}
                                         </div>
@@ -491,7 +495,7 @@ export const PalletHistoryView: React.FC = () => {
                                         </p>
                                     )}
 
-                                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-brand-border/50 pt-3 text-[10px] text-brand-text-muted">
+                                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-brand-border/50 pt-3 text-[0.625rem] text-brand-text-muted">
                                         <span className="inline-flex items-center gap-1.5">
                                             <UserRound size={13}/>
                                             {t('audit_operator_label')}: <strong className="text-brand-text">{entry.operator_id}</strong>

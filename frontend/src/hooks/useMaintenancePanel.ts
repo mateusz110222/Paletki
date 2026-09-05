@@ -1,3 +1,4 @@
+import {useToast} from '../components/ToastProvider';
 import React, {useCallback, useMemo, useState} from 'react';
 import {getErrorMessage} from '../lib/errors.ts';
 import {Pallet, PalletStatus} from '@backend/shared/types';
@@ -10,6 +11,7 @@ interface UseMaintenancePanelProps {
 }
 
 export function useMaintenancePanel({pallets}: UseMaintenancePanelProps) {
+    const notify = useToast();
     const {t, language} = useTranslation();
     const {user, apiClient} = useAuth();
     const queryClient = useQueryClient();
@@ -92,6 +94,7 @@ export function useMaintenancePanel({pallets}: UseMaintenancePanelProps) {
 
             await fetchPallets();
             setSelectedPallet(null);
+            notify(language === 'pl' ? 'Zapisano obsługę palety.' : 'Pallet service saved.');
         } catch (error: unknown) {
             console.error('Error returning pallet to production:', error);
             setModalError(getErrorMessage(error, t('error_connecting_to_encore')));

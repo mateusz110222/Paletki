@@ -1,4 +1,6 @@
-import React, {useEffect} from 'react';
+import {BulkPalletActions} from '../components/BulkPalletActions';
+import {readHiddenColumns, savePreference, type OptionalColumn, type SortKey} from '../lib/tablePreferences';
+import React, {useEffect, useState} from 'react';
 import {
     AlertCircle,
     Copy,
@@ -47,6 +49,18 @@ const ErrorAlert: React.FC<{ message: string }> = ({message}) => {
 export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
     const {data, status, actions} = useAdminPanel(props);
     const {t, language} = useTranslation();
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [hiddenColumns, setHiddenColumns] = useState(readHiddenColumns);
+    const selectedPallets = props.pallets.filter(p => selectedIds.includes(p.pallet_id));
+    const toggleSelected = (id: string) => setSelectedIds(ids => ids.includes(id) ? ids.filter(value => value !== id) : [...ids, id]);
+    const pageIds = data.paginatedPallets.map(p => p.pallet_id);
+    const allPageSelected = pageIds.length > 0 && pageIds.every(id => selectedIds.includes(id));
+    const togglePage = () => setSelectedIds(ids => allPageSelected ? ids.filter(id => !pageIds.includes(id)) : [...new Set([...ids, ...pageIds])]);
+    const toggleColumn = (key: OptionalColumn) => {
+        const next = hiddenColumns.includes(key) ? hiddenColumns.filter(value => value !== key) : [...hiddenColumns, key];
+        setHiddenColumns(next); savePreference('palletx.admin.columns', next);
+    };
+    const sortBy = (key: SortKey) => actions.setSort({key, direction: data.sort.key === key && data.sort.direction === 'asc' ? 'desc' : 'asc'});
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const selectedProjectFromUrl = searchParams.get('project') || 'ALL';
@@ -102,11 +116,13 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
         setSearchTerm(searchTermFromURL);
     }, [searchTermFromURL, setSearchTerm]);
 
-    const hasOpenModal = data.errorModalState.isOpen || data.selectedPalletForDelete !== null ||
+    const hasOpenModal = data.selectedPalletForUnblock !== null || data.errorModalState.isOpen || data.selectedPalletForDelete !== null ||
         data.isBlockOpen || data.isEditOpen || data.isAddProjectOpen || data.isAddModelOpen || data.isAddOpen;
 
     useEscapeKey(hasOpenModal, () => {
-        if (data.errorModalState.isOpen) {
+        if (data.selectedPalletForUnblock) {
+            actions.closeUnblock();
+        } else if (data.errorModalState.isOpen) {
             actions.hideGlobalError();
         } else if (!status.isSubmitting && data.selectedPalletForDelete) {
             actions.setSelectedPalletForDelete(null);
@@ -126,14 +142,14 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300" id="admin-panel-container">
             {/* Quick Stats & Actions */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
                 {/* Available Card */}
                 <div
                     className="bg-brand-surface p-6 rounded-xl border border-brand-border flex flex-col justify-between relative overflow-hidden group hover:border-brand-accent/50 transition-colors">
                     <span
                         className="text-xs font-bold uppercase tracking-wider text-brand-text-muted">{t('stats_available_pallets')}</span>
                     <span className="text-4xl font-extrabold text-brand-accent mt-2">{data.availableStock}</span>
-                    <div className="flex items-center gap-1 text-[10px] text-green-400 mt-2">
+                    <div className="flex items-center gap-1 text-[0.625rem] text-green-400 mt-2">
                         <span>● {data.avaliblePalletes_Percenetege} % {t('availability_ok_suffix')}</span>
                     </div>
                 </div>
@@ -144,39 +160,39 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                     <span
                         className="text-xs font-bold uppercase tracking-wider text-brand-text-muted">{t('stats_service_blocked')}</span>
                     <span className="text-4xl font-extrabold text-red-400 mt-2">{data.blockedOrMaint}</span>
-                    <div className="flex items-center gap-1 text-[10px] text-red-400 mt-2">
+                    <div className="flex items-center gap-1 text-[0.625rem] text-red-400 mt-2">
                         <ShieldAlert size={12}/>
                         <span>{t('maintenance_abbreviation')}</span>
                     </div>
                 </div>
 
                 {/* Action Buttons */}
-                <div className="md:col-span-2 flex flex-col gap-3 justify-center">
-                    <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+                <div className="sm:col-span-2 flex flex-col gap-3 justify-center">
+                    <div className="staff-action-grid grid gap-3">
                         <button
                             onClick={actions.handleOpenAddPallet}
-                            className="flex-1 bg-brand-accent text-brand-bg font-bold uppercase text-xs h-14 px-6 flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.98] transition-all rounded"
+                            className="flex-1 bg-brand-accent text-brand-bg font-bold uppercase text-xs min-h-14 px-3 py-3 flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.98] transition-all rounded"
                         >
                             <PlusCircle size={18}/>
                             {t('btn_add_pallet')}
                         </button>
                         <button
                             onClick={() => actions.setIsAddProjectOpen(true)}
-                            className="flex-1 border border-brand-accent/50 bg-brand-accent/10 text-brand-accent font-bold uppercase text-xs h-14 px-6 flex items-center justify-center gap-2 hover:bg-brand-accent/20 active:scale-[0.98] transition-all rounded"
+                            className="flex-1 border border-brand-accent/50 bg-brand-accent/10 text-brand-accent font-bold uppercase text-xs min-h-14 px-3 py-3 flex items-center justify-center gap-2 hover:bg-brand-accent/20 active:scale-[0.98] transition-all rounded"
                         >
                             <PlusCircle size={18}/>
                             {t('btn_add_project')}
                         </button>
                         <button
                             onClick={() => actions.setIsAddModelOpen(true)}
-                            className="flex-1 border border-brand-accent/50 bg-brand-accent/10 text-brand-accent font-bold uppercase text-xs h-14 px-6 flex items-center justify-center gap-2 hover:bg-brand-accent/20 active:scale-[0.98] transition-all rounded"
+                            className="flex-1 border border-brand-accent/50 bg-brand-accent/10 text-brand-accent font-bold uppercase text-xs min-h-14 px-3 py-3 flex items-center justify-center gap-2 hover:bg-brand-accent/20 active:scale-[0.98] transition-all rounded"
                         >
                             <PlusCircle size={18}/>
                             {t('btn_add_model')}
                         </button>
                         <button
                             onClick={actions.handleExportAuditTrail}
-                            className="flex-1 border border-brand-border text-brand-text font-bold uppercase text-xs h-14 px-6 flex items-center justify-center gap-2 hover:bg-brand-surface-high active:scale-[0.98] transition-all rounded"
+                            className="flex-1 border border-brand-border text-brand-text font-bold uppercase text-xs min-h-14 px-3 py-3 flex items-center justify-center gap-2 hover:bg-brand-surface-high active:scale-[0.98] transition-all rounded"
                         >
                             <Download size={18}/>
                             {t('btn_export_audit')}
@@ -194,7 +210,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                 <div className="flex flex-wrap items-start gap-4">
                     {/* FILTR: PROJEKT */}
                     <div className="flex flex-col gap-1">
-                        <label htmlFor="admin-filter-project" className="text-[10px] uppercase font-bold text-brand-text-muted">
+                        <label htmlFor="admin-filter-project" className="text-[0.625rem] uppercase font-bold text-brand-text-muted">
                             {t('filter_by_project')}
                         </label>
                         <select
@@ -225,7 +241,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
 
                     {/* FILTR: MODEL (Zależny od wybranego projektu) */}
                     <div className="flex flex-col gap-1">
-                        <label htmlFor="admin-filter-model" className="text-[10px] uppercase font-bold text-brand-text-muted">
+                        <label htmlFor="admin-filter-model" className="text-[0.625rem] uppercase font-bold text-brand-text-muted">
                             {t('filter_by_model')}
                         </label>
                         <select
@@ -252,7 +268,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                             ))}
                         </select>
                         {selectedProjectFromUrl === 'ALL' && (
-                            <span id="admin-filter-model-hint" className="max-w-40 text-[9px] leading-tight text-brand-text-muted">
+                            <span id="admin-filter-model-hint" className="max-w-40 text-[0.5625rem] leading-tight text-brand-text-muted">
                                 {t('filter_model_hint')}
                             </span>
                         )}
@@ -260,7 +276,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
 
                     {/* FILTR: STATUS */}
                     <div className="flex flex-col gap-1">
-                        <label htmlFor="admin-filter-status" className="text-[10px] uppercase font-bold text-brand-text-muted">
+                        <label htmlFor="admin-filter-status" className="text-[0.625rem] uppercase font-bold text-brand-text-muted">
                             {t('filter_by_status')}
                         </label>
                         <select
@@ -290,7 +306,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
 
                     {/* PAGINACJA: ILOŚĆ NA STRONĘ */}
                     <div className="flex flex-col gap-1">
-                        <label htmlFor="admin-page-size" className="text-[10px] uppercase font-bold text-brand-text-muted">
+                        <label htmlFor="admin-page-size" className="text-[0.625rem] uppercase font-bold text-brand-text-muted">
                             {t('rows_per_page')}
                         </label>
                         <select
@@ -308,7 +324,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                         type="button"
                         onClick={clearFilters}
                         disabled={!hasActiveFilters}
-                        className="mt-4 inline-flex h-9 items-center justify-center gap-2 rounded border border-brand-border px-3 text-[10px] font-bold uppercase tracking-wider text-brand-text-muted transition-colors hover:border-brand-accent hover:text-brand-accent disabled:cursor-not-allowed disabled:opacity-30"
+                        className="mt-4 inline-flex h-9 items-center justify-center gap-2 rounded border border-brand-border px-3 text-[0.625rem] font-bold uppercase tracking-wider text-brand-text-muted transition-colors hover:border-brand-accent hover:text-brand-accent disabled:cursor-not-allowed disabled:opacity-30"
                     >
                         <RotateCcw size={14} aria-hidden="true"/>
                         {t('filter_clear')}
@@ -324,7 +340,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
             {/* Pallet Inventory Table */}
             <div className="bg-brand-surface rounded-xl border border-brand-border overflow-hidden">
                 <div
-                    className="px-6 py-4 border-b border-brand-border flex justify-between items-center bg-brand-surface/50">
+                    className="px-6 py-4 border-b border-brand-border flex flex-wrap gap-3 justify-between items-center bg-brand-surface/50">
                     <h3 className="text-base font-bold text-brand-text">{t('pallet_inventory_title')}</h3>
                     <button
                         onClick={actions.handleRefreshPallets}
@@ -337,24 +353,30 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                         <span>{t('btn_refresh_pallets')}</span>
                     </button>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="space-y-4 border-b border-brand-border p-4">
+                    <details className="text-sm"><summary className="w-fit cursor-pointer rounded-lg border border-brand-border px-3 py-2">{language === 'pl' ? 'Widoczne kolumny' : 'Visible columns'}</summary><div className="mt-3 flex flex-wrap gap-4">{([
+                        ['project', 'col_project'], ['model', 'col_model'], ['fis', 'col_fis'], ['current_cycles', 'col_cycles'], ['status', 'col_status'], ['created_by', 'col_operator'],
+                    ] as const).map(([key, label]) => <label key={key} className="flex items-center gap-2"><input type="checkbox" checked={!hiddenColumns.includes(key)} onChange={() => toggleColumn(key)}/>{t(label)}</label>)}</div></details>
+                    <BulkPalletActions pallets={selectedPallets} onClear={() => setSelectedIds([])} onCompleted={ids => setSelectedIds(current => current.filter(id => !ids.includes(id)))}/>
+                </div>
+                <div className="admin-table-scroll relative max-h-[65dvh] overflow-auto">
                     <table className="w-full border-collapse">
                         <thead>
-                        <tr className="bg-brand-surface-high/30 border-b border-brand-border text-left">
-                            <th className="px-6 py-3 text-[10px] uppercase font-bold tracking-wider text-brand-text-muted">{t('col_pallet_id')}</th>
-                            <th className="px-6 py-3 text-[10px] uppercase font-bold tracking-wider text-brand-text-muted">{t('col_project')}</th>
-                            <th className="px-6 py-3 text-[10px] uppercase font-bold tracking-wider text-brand-text-muted">{t('col_model')}</th>
-                            <th className="px-6 py-3 text-[10px] uppercase font-bold tracking-wider text-brand-text-muted">{t('col_fis')}</th>
-                            <th className="px-6 py-3 text-[10px] uppercase font-bold tracking-wider text-brand-text-muted">{t('col_cycles')}</th>
-                            <th className="px-6 py-3 text-[10px] uppercase font-bold tracking-wider text-brand-text-muted">{t('col_status')}</th>
-                            <th className="px-6 py-3 text-[10px] uppercase font-bold tracking-wider text-brand-text-muted">{t('col_operator')}</th>
-                            <th className="px-6 py-3 text-[10px] uppercase font-bold tracking-wider text-brand-text-muted text-right">{t('col_actions')}</th>
+                        <tr className="bg-brand-surface-high/30 border-b border-brand-border text-left"><th className="px-4 py-3"><input type="checkbox" aria-label={language === 'pl' ? 'Zaznacz bieżącą stronę' : 'Select current page'} checked={allPageSelected} disabled={!pageIds.length} ref={node => {if(node) node.indeterminate = !allPageSelected && pageIds.some(id => selectedIds.includes(id));}} onChange={togglePage}/></th>
+                            <th aria-sort={data.sort.key === 'pallet_id' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('pallet_id')} className="flex items-center gap-2 whitespace-nowrap">{t('col_pallet_id')}<span aria-hidden="true">{data.sort.key === 'pallet_id' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
+                            <th hidden={hiddenColumns.includes('project')} aria-sort={data.sort.key === 'project' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('project')} className="flex items-center gap-2 whitespace-nowrap">{t('col_project')}<span aria-hidden="true">{data.sort.key === 'project' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
+                            <th hidden={hiddenColumns.includes('model')} aria-sort={data.sort.key === 'model' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('model')} className="flex items-center gap-2 whitespace-nowrap">{t('col_model')}<span aria-hidden="true">{data.sort.key === 'model' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
+                            <th hidden={hiddenColumns.includes('fis')} aria-sort={data.sort.key === 'fis' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('fis')} className="flex items-center gap-2 whitespace-nowrap">{t('col_fis')}<span aria-hidden="true">{data.sort.key === 'fis' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
+                            <th hidden={hiddenColumns.includes('current_cycles')} aria-sort={data.sort.key === 'current_cycles' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('current_cycles')} className="flex items-center gap-2 whitespace-nowrap">{t('col_cycles')}<span aria-hidden="true">{data.sort.key === 'current_cycles' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
+                            <th hidden={hiddenColumns.includes('status')} aria-sort={data.sort.key === 'status' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('status')} className="flex items-center gap-2 whitespace-nowrap">{t('col_status')}<span aria-hidden="true">{data.sort.key === 'status' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
+                            <th hidden={hiddenColumns.includes('created_by')} aria-sort={data.sort.key === 'created_by' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('created_by')} className="flex items-center gap-2 whitespace-nowrap">{t('col_operator')}<span aria-hidden="true">{data.sort.key === 'created_by' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
+                            <th className="px-6 py-3 text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted text-right">{t('col_actions')}</th>
                         </tr>
                         </thead>
                         <tbody className="divide-y divide-brand-border">
                         {data.paginatedPallets.length === 0 ? (
                             <tr>
-                                <td colSpan={8} className="px-6 py-10 text-center text-brand-text-muted">
+                                <td colSpan={9 - hiddenColumns.length} className="px-6 py-10 text-center text-brand-text-muted">
                                     {t('no_pallets_found')}
                                 </td>
                             </tr>
@@ -366,7 +388,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 const isLimitExceeded = currC >= maxC;
 
                                 return (
-                                    <tr key={p.pallet_id} className="hover:bg-brand-surface-high/30 transition-colors">
+                                    <tr key={p.pallet_id} className="hover:bg-brand-surface-high/30 transition-colors"><td className="px-4 py-4"><input type="checkbox" aria-label={`${language === 'pl' ? 'Zaznacz' : 'Select'} ${p.pallet_id}`} checked={selectedIds.includes(p.pallet_id)} onChange={() => toggleSelected(p.pallet_id)}/></td>
                                         <td className="px-6 py-4 font-mono text-xs font-semibold">
                                             <button
                                                 type="button"
@@ -378,19 +400,19 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                                 {p.pallet_id}
                                             </button>
                                         </td>
-                                        <td className="px-6 py-4 text-xs font-medium text-brand-text">{p.project}</td>
-                                        <td className="px-6 py-4 text-xs font-medium text-brand-text">{p.model}</td>
-                                        <td className="px-6 py-4">
+                                        <td hidden={hiddenColumns.includes('project')} className="px-6 py-4 text-xs font-medium text-brand-text">{p.project}</td>
+                                        <td hidden={hiddenColumns.includes('model')} className="px-6 py-4 text-xs font-medium text-brand-text">{p.model}</td>
+                                        <td hidden={hiddenColumns.includes('fis')} className="px-6 py-4">
                                             <div className="flex flex-wrap gap-1">
                                                     <span
-                                                        className="bg-brand-surface-high text-[9px] px-2 py-0.5 rounded border border-brand-border font-mono text-brand-text">
+                                                        className="bg-brand-surface-high text-[0.5625rem] px-2 py-0.5 rounded border border-brand-border font-mono text-brand-text">
                                                         FIS: {p.fis ?? t('value_not_available')}
                                                     </span>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4">
+                                        <td hidden={hiddenColumns.includes('current_cycles')} className="px-6 py-4">
                                             <div className="w-32 flex flex-col gap-1">
-                                                <div className="flex justify-between text-[10px] font-mono">
+                                                <div className="flex justify-between text-[0.625rem] font-mono">
                                                         <span
                                                             className={isLimitExceeded ? "text-red-400 font-bold" : "text-brand-text-muted"}>
                                                             {currC}
@@ -411,15 +433,15 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4">
+                                        <td hidden={hiddenColumns.includes('status')} className="px-6 py-4">
                                             <PalletStatusSpan status={p.status as PalletStatus}
                                                               block_reason={p.block_reason}/>
                                         </td>
-                                        <td className="px-6 py-4">
+                                        <td hidden={hiddenColumns.includes('created_by')} className="px-6 py-4">
                                             <div className="flex flex-col">
                                                     <span
                                                         className="text-xs font-medium text-brand-text">{p.created_by}</span>
-                                                <span className="text-[9px] text-brand-text-muted font-mono">
+                                                <span className="text-[0.5625rem] text-brand-text-muted font-mono">
                                                         {p.created_at ? new Date(p.created_at).toLocaleDateString(language) : t('value_not_available')}
                                                     </span>
                                             </div>
@@ -476,7 +498,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                                     >
                                                         <ShieldAlert size={16}/>
                                                         <span className="sr-only">{t('btn_block')}: {p.pallet_id}</span>
-                                                        <span className="hidden 2xl:inline text-[10px] font-bold uppercase">{t('btn_block')}</span>
+                                                        <span className="hidden 2xl:inline text-[0.625rem] font-bold uppercase">{t('btn_block')}</span>
                                                     </button>
                                                 )}
 
@@ -488,7 +510,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                                 >
                                                     <Trash2 size={16}/>
                                                     <span className="sr-only">{t('btn_delete')}: {p.pallet_id}</span>
-                                                    <span className="hidden 2xl:inline text-[10px] font-bold uppercase">{t('btn_delete')}</span>
+                                                    <span className="hidden 2xl:inline text-[0.625rem] font-bold uppercase">{t('btn_delete')}</span>
                                                 </button>
                                             </div>
                                         </td>
@@ -549,14 +571,14 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 <button
                                     type="button"
                                     onClick={() => actions.setAddMode('single')}
-                                    className={`rounded-lg px-3 py-2.5 text-[11px] font-black uppercase tracking-wide transition-colors ${data.addMode === 'single' ? 'bg-brand-accent text-brand-bg' : 'text-brand-text-muted hover:text-brand-text'}`}
+                                    className={`rounded-lg px-3 py-2.5 text-[0.6875rem] font-black uppercase tracking-wide transition-colors ${data.addMode === 'single' ? 'bg-brand-accent text-brand-bg' : 'text-brand-text-muted hover:text-brand-text'}`}
                                 >
                                     {t('add_mode_single')}
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => actions.setAddMode('range')}
-                                    className={`rounded-lg px-3 py-2.5 text-[11px] font-black uppercase tracking-wide transition-colors ${data.addMode === 'range' ? 'bg-brand-accent text-brand-bg' : 'text-brand-text-muted hover:text-brand-text'}`}
+                                    className={`rounded-lg px-3 py-2.5 text-[0.6875rem] font-black uppercase tracking-wide transition-colors ${data.addMode === 'range' ? 'bg-brand-accent text-brand-bg' : 'text-brand-text-muted hover:text-brand-text'}`}
                                 >
                                     {t('add_mode_range')}
                                 </button>
@@ -600,7 +622,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 </SelectField>
 
                                 {data.addMode === 'range' && (
-                                    <p className="col-span-2 -mt-1 text-[10px] leading-relaxed text-brand-text-muted">
+                                    <p className="col-span-2 -mt-1 text-[0.625rem] leading-relaxed text-brand-text-muted">
                                         {t('pallet_range_hint')}
                                     </p>
                                 )}
@@ -624,7 +646,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                             <div className="grid grid-cols-3 gap-3">
                                 <InputField
                                     label={t('label_max_cycles')}
-                                    labelClassName="text-[11px] font-bold text-brand-text-muted uppercase tracking-wider block truncate"
+                                    labelClassName="text-[0.6875rem] font-bold text-brand-text-muted uppercase tracking-wider block truncate"
                                     type="number"
                                     value={data.newMaxCycles}
                                     onChange={(e) => actions.setNewMaxCycles(e.target.value)}
@@ -634,7 +656,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
 
                                 <InputField
                                     label={t('label_nests')}
-                                    labelClassName="text-[11px] font-bold text-brand-text-muted uppercase tracking-wider block truncate"
+                                    labelClassName="text-[0.6875rem] font-bold text-brand-text-muted uppercase tracking-wider block truncate"
                                     type="number"
                                     value={data.newNests}
                                     onChange={(e) => actions.setNewNests(e.target.value)}
@@ -644,7 +666,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
 
                                 <SelectField
                                     label={t('label_fis')}
-                                    labelClassName="text-[11px] font-bold text-brand-text-muted uppercase tracking-wider block truncate"
+                                    labelClassName="text-[0.6875rem] font-bold text-brand-text-muted uppercase tracking-wider block truncate"
                                     monospace
                                     value={data.newFis}
                                     onChange={(e) => actions.setNewFis(e.target.value)}
@@ -655,7 +677,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 </SelectField>
                             </div>
 
-                            <p className="text-[10px] text-brand-text-muted leading-relaxed tracking-wide">
+                            <p className="text-[0.625rem] text-brand-text-muted leading-relaxed tracking-wide">
                                 {t('required_fields_hint')}
                             </p>
 
@@ -698,7 +720,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                             <InputField
                                 label={t('label_project_name')}
                                 fieldClassName="flex flex-col gap-1"
-                                labelClassName="text-[10px] uppercase font-bold text-brand-text-muted"
+                                labelClassName="text-[0.625rem] uppercase font-bold text-brand-text-muted"
                                 type="text"
                                 autoFocus
                                 placeholder={t('placeholder_project_name')}
@@ -707,7 +729,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 required
                             />
 
-                            <p className="text-[10px] text-brand-text-muted leading-relaxed">
+                            <p className="text-[0.625rem] text-brand-text-muted leading-relaxed">
                                 {t('required_fields_hint')}
                             </p>
 
@@ -768,7 +790,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 required
                             />
 
-                            <p className="text-[10px] text-brand-text-muted leading-relaxed">
+                            <p className="text-[0.625rem] text-brand-text-muted leading-relaxed">
                                 {t('required_fields_hint')}
                             </p>
 
@@ -824,19 +846,19 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 className="grid grid-cols-3 gap-3 bg-brand-bg p-3 rounded-xl border border-brand-border">
                                 <div>
                                     <span
-                                        className="text-[10px] uppercase font-bold text-brand-text-muted block">{t('col_pallet_id')}</span>
+                                        className="text-[0.625rem] uppercase font-bold text-brand-text-muted block">{t('col_pallet_id')}</span>
                                     <span
                                         className="font-mono text-xs font-bold text-brand-accent">{data.selectedPalletForEdit.pallet_id}</span>
                                 </div>
                                 <div>
                                     <span
-                                        className="text-[10px] uppercase font-bold text-brand-text-muted block">{t('col_project')}</span>
+                                        className="text-[0.625rem] uppercase font-bold text-brand-text-muted block">{t('col_project')}</span>
                                     <span
                                         className="text-xs font-semibold text-brand-text">{data.selectedPalletForEdit.project}</span>
                                 </div>
                                 <div>
                                     <span
-                                        className="text-[10px] uppercase font-bold text-brand-text-muted block">{t('col_model')}</span>
+                                        className="text-[0.625rem] uppercase font-bold text-brand-text-muted block">{t('col_model')}</span>
                                     <span
                                         className="text-xs font-semibold text-brand-text">{data.selectedPalletForEdit.model}</span>
                                 </div>
@@ -846,7 +868,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                             <div className="grid grid-cols-3 gap-3">
                                 <SelectField
                                     label={t('label_fis')}
-                                    labelClassName="text-[11px] font-bold text-brand-text-muted uppercase tracking-wider block truncate"
+                                    labelClassName="text-[0.6875rem] font-bold text-brand-text-muted uppercase tracking-wider block truncate"
                                     monospace
                                     value={data.editFis}
                                     onChange={(e) => actions.setEditFis(e.target.value)}
@@ -858,7 +880,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
 
                                 <InputField
                                     label={<>{t('label_nests')} *</>}
-                                    labelClassName="text-[11px] font-bold text-brand-text-muted uppercase tracking-wider block truncate"
+                                    labelClassName="text-[0.6875rem] font-bold text-brand-text-muted uppercase tracking-wider block truncate"
                                     type="number"
                                     value={data.editNests}
                                     onChange={(e) => actions.setEditNests(e.target.value)}
@@ -868,7 +890,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
 
                                 <InputField
                                     label={<>{t('label_max_cycles')} *</>}
-                                    labelClassName="text-[11px] font-bold text-brand-text-muted uppercase tracking-wider block truncate"
+                                    labelClassName="text-[0.6875rem] font-bold text-brand-text-muted uppercase tracking-wider block truncate"
                                     type="number"
                                     value={data.editMaxCycles}
                                     onChange={(e) => actions.setEditMaxCycles(e.target.value)}
@@ -1014,6 +1036,32 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
             )}
             </ModalPresence>
 
+            <ModalPresence>
+                {data.selectedPalletForUnblock && <ModalTransition onBackdropClick={actions.closeUnblock}>
+                    <section role="dialog" aria-modal="true" aria-labelledby="unblock-title" aria-describedby="unblock-description"
+                        onKeyDown={event => {
+                            if (event.key !== 'Tab') return;
+                            const buttons = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')];
+                            const first = buttons[0], last = buttons[buttons.length - 1];
+                            if (!first) {event.preventDefault(); return;}
+                            if (event.shiftKey && document.activeElement === first) {event.preventDefault(); last.focus();}
+                            if (!event.shiftKey && document.activeElement === last) {event.preventDefault(); first.focus();}
+                        }}
+                        className="w-full max-w-md space-y-4 rounded-2xl border border-emerald-400/30 bg-brand-surface p-6 shadow-2xl">
+                        <h2 id="unblock-title" className="text-xl font-black text-emerald-300">{t('btn_unblock')} · {data.selectedPalletForUnblock.pallet_id}</h2>
+                        <p id="unblock-description" className="text-sm text-brand-text-muted">{t('confirm_unblock_message')}</p>
+                        <div className="rounded-xl border border-brand-border bg-brand-bg p-4 text-sm">
+                            <p className="font-semibold">{data.selectedPalletForUnblock.project} · {data.selectedPalletForUnblock.model}</p>
+                            {data.selectedPalletForUnblock.block_reason && <p className="mt-2 break-words text-brand-text-muted">{t('block_reason')}: {data.selectedPalletForUnblock.block_reason}</p>}
+                        </div>
+                        {data.unblockError && <p role="alert" className="rounded-lg border border-rose-400/30 bg-rose-400/10 p-3 text-sm text-rose-200">{data.unblockError}</p>}
+                        <div className="flex gap-3 border-t border-brand-border pt-4">
+                            <button autoFocus type="button" disabled={status.isSubmitting} onClick={actions.closeUnblock} className="min-h-12 flex-1 rounded-xl border border-brand-border px-4 text-sm font-bold disabled:opacity-50">{t('btn_cancel')}</button>
+                            <button type="button" disabled={status.isSubmitting} onClick={() => void actions.handleConfirmUnblock()} className="min-h-12 flex-1 rounded-xl bg-emerald-400 px-4 text-sm font-black text-brand-bg disabled:opacity-50">{status.isSubmitting ? t('saving') : t('btn_unblock')}</button>
+                        </div>
+                    </section>
+                </ModalTransition>}
+            </ModalPresence>
             {/* Global Error Modal */}
             <GlobalErrorModal
                 isOpen={data.errorModalState.isOpen}

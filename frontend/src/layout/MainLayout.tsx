@@ -43,20 +43,20 @@ export const MainLayout: React.FC = () => {
 
     return (
         <div
-            className="flex flex-col md:flex-row min-h-screen bg-brand-bg text-brand-text font-sans selection:bg-brand-accent selection:text-brand-bg">
+            className="staff-screen flex flex-col lg:flex-row min-h-screen bg-brand-bg text-brand-text font-sans selection:bg-brand-accent selection:text-brand-bg">
             <Sidebar hasITDepartmentAccess={hasITDepartmentAccess} canManagePallets={canManagePallets} isMaintenanceOnly={isMaintenanceOnly}
                      canAccessMaintenance={canAccessMaintenance} onLogout={logout}
                      mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)}/>
 
-            <main className="flex-1 p-6 md:p-8 space-y-6 overflow-y-auto max-w-[1600px] mx-auto w-full">
+            <main className="staff-main min-w-0 flex-1 p-4 sm:p-6 xl:p-8 space-y-6 w-full">
                 {/* Top Header */}
                 <div
-                    className="flex flex-col md:flex-row justify-between md:items-center gap-4 pb-4 border-b border-brand-border/50">
+                    className="flex flex-wrap justify-between items-center gap-4 pb-4 border-b border-brand-border/50">
                     <div className="flex items-start gap-3">
                         <button
                             type="button"
                             onClick={() => setMobileNavOpen(true)}
-                            className="md:hidden mt-0.5 flex size-11 shrink-0 items-center justify-center rounded-xl border border-brand-border bg-brand-surface text-brand-accent transition-colors hover:bg-brand-surface-high"
+                            className="lg:hidden mt-0.5 flex size-11 shrink-0 items-center justify-center rounded-xl border border-brand-border bg-brand-surface text-brand-accent transition-colors hover:bg-brand-surface-high"
                             aria-label={t('nav_open')}
                             aria-controls="mobile-navigation"
                             aria-expanded={mobileNavOpen}
@@ -69,16 +69,16 @@ export const MainLayout: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-4 shrink-0">
+                    <div className="flex min-w-0 flex-wrap items-center gap-4">
                         <LanguageSwitcher/>
                         {user && (
                             <div
-                                className="flex items-center gap-3 bg-brand-surface border border-brand-border px-4 py-2 rounded-xl">
+                                className="flex min-w-0 max-w-full items-center gap-3 bg-brand-surface border border-brand-border px-4 py-2 rounded-xl">
                                 <div
                                     className="w-8 h-8 rounded-lg bg-brand-accent/15 border border-brand-accent/30 flex items-center justify-center text-brand-accent font-bold text-xs">
                                     <UserCheck size={16}/>
                                 </div>
-                                <div className="text-left">
+                                <div className="min-w-0 break-words text-left">
                                     <p className="text-xs font-black text-brand-text leading-tight">
                                         {user.FullName}
                                     </p>

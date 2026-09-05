@@ -49,14 +49,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         to={item.path}
                         onClick={onNavigate}
                         className={({isActive}) =>
-                            `w-full flex items-center gap-3 px-4 py-3 rounded text-xs font-bold uppercase tracking-wider transition-all ${
+                            `app-nav-link w-full flex items-center gap-3 px-4 py-3 rounded text-xs font-bold uppercase tracking-wider transition-all ${
                                 isActive
                                     ? 'bg-brand-accent/15 text-brand-accent border-l-4 border-brand-accent'
                                     : 'text-brand-text-muted hover:bg-brand-surface-high hover:text-brand-text'
                             }`
                         }
                     >
-                        <Icon size={16}/>
+                        <Icon size={16} className="shrink-0"/>
                         {item.label}
                     </NavLink>
                 );
@@ -80,7 +80,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     );
 
     return <>
-        <aside className="hidden md:flex flex-col w-64 bg-brand-surface border-r border-brand-border h-screen sticky top-0 shrink-0">
+        <aside className="hidden lg:flex flex-col w-64 bg-brand-surface border-r border-brand-border h-dvh sticky top-0 shrink-0">
             <div className="p-6 border-b border-brand-border">
                 <span className="text-lg font-black tracking-wider text-brand-accent">{t('app_name')}</span>
             </div>
@@ -89,7 +89,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </aside>
 
         {mobileOpen && (
-            <div className="md:hidden">
+            <div className="lg:hidden">
                 <button
                     type="button"
                     className="fixed inset-0 z-40 bg-black/65 backdrop-blur-sm"

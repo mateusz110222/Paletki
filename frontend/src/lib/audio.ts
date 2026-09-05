@@ -12,7 +12,7 @@ function getAudioContext(): AudioContext | null {
             }
         }
         if (audioContext && audioContext.state === 'suspended') {
-            void audioContext.resume();
+            void audioContext.resume().catch(() => {});
         }
         return audioContext;
     } catch {
@@ -84,3 +84,5 @@ export function playScanErrorSound(): void {
         // Silently ignore audio playback errors
     }
 }
+
+export function prepareScanAudio() { getAudioContext(); }

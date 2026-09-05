@@ -1,3 +1,4 @@
+import {useToast} from '../components/ToastProvider';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Pallet, PalletStatus} from '@backend/shared/types';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
@@ -6,7 +7,7 @@ import {useSearchParams} from "react-router-dom";
 import {useAuth} from "../auth/AuthContext.tsx";
 import {asPallet} from "../lib/api.ts";
 import {useQueryClient} from '@tanstack/react-query';
-import {playScanErrorSound, playScanSuccessSound} from '../lib/audio.ts';
+import {prepareScanAudio, playScanErrorSound, playScanSuccessSound} from '../lib/audio.ts';
 import {getErrorMessage} from '../lib/errors.ts';
 import {canOpenPalletInOperatorPanel} from '@backend/shared/permissions';
 
@@ -24,13 +25,10 @@ export const useOperatorPanel = () => {
     const [isOtherFaultOpen, setIsOtherFaultOpen] = useState(false);
     const [customFaultText, setCustomFaultText] = useState('');
 
-    const [isToastOpen, setIsToastOpen] = useState(false);
-    const [toastMsg, setToastMsg] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isScanning, setIsScanning] = useState(false);
 
     const barcodeInputRef = useRef<HTMLInputElement>(null);
-    const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scanAbortRef = useRef<AbortController | null>(null);
     const scanRequestRef = useRef(0);
 
@@ -57,21 +55,22 @@ export const useOperatorPanel = () => {
     }, [activePallet, isOtherFaultOpen]);
 
     useEffect(() => () => {
-        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
         scanAbortRef.current?.abort();
     }, []);
 
     const processedUrlIdRef = useRef<string | null>(null);
 
-    const triggerToast = useCallback((msg: string) => {
-        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-        setToastMsg(msg);
-        setIsToastOpen(true);
-        toastTimerRef.current = setTimeout(() => {
-            setIsToastOpen(false);
-            toastTimerRef.current = null;
-        }, 4000);
-    }, []);
+    const triggerToast = useToast();
+    const [soundEnabled, setSoundEnabled] = useState(() => {
+        try { return localStorage.getItem('palletx.scan-sound') === 'true'; } catch { return false; }
+    });
+    const [scanFeedback, setScanFeedback] = useState<{tone: 'success' | 'error'; message: string} | null>(null);
+    const toggleSound = () => {
+        const next = !soundEnabled;
+        setSoundEnabled(next);
+        try { localStorage.setItem('palletx.scan-sound', String(next)); } catch { /* Optional preference. */ }
+        if (next) prepareScanAudio();
+    };
 
     const handleScanSubmit = useCallback(async (e?: React.SyntheticEvent<HTMLFormElement>, idToScan?: string) => {
         if (e) e.preventDefault();
@@ -85,6 +84,9 @@ export const useOperatorPanel = () => {
         scanAbortRef.current = controller;
         const requestId = ++scanRequestRef.current;
         setIsScanning(true);
+        setScanStatus('IDLE');
+        setScanFeedback(null);
+        if (soundEnabled) prepareScanAudio();
 
         try {
             const scanApi = apiClient.with({
@@ -95,37 +97,37 @@ export const useOperatorPanel = () => {
             if (requestId !== scanRequestRef.current) return;
 
             if (!canOpenPalletInOperatorPanel(pallet.status)) {
-                playScanErrorSound();
+                if (soundEnabled) playScanErrorSound();
                 setActivePallet(null);
                 setScanStatus('ERROR');
-                triggerToast(t('op_blocked_pallet_unavailable'));
-                setTimeout(() => setScanStatus('IDLE'), 1500);
+                setScanFeedback({tone: 'error', message: `${palletUpper}: ${t('op_blocked_pallet_unavailable')}`});
                 return;
             }
 
-            playScanSuccessSound();
+            if (soundEnabled) playScanSuccessSound();
             setActivePallet(pallet);
             setLastScannedId(pallet.pallet_id);
             setScanStatus('SUCCESS');
-            triggerToast(t('op_scan_success_with_id', {palletId: pallet.pallet_id}));
+            setScanFeedback({tone: 'success', message: t('op_scan_success_with_id', {palletId: pallet.pallet_id})});
 
+            processedUrlIdRef.current = pallet.pallet_id;
             const newParams = new URLSearchParams(searchParams);
             newParams.set('palletID', pallet.pallet_id);
             setSearchParams(newParams);
-            setTimeout(() => setScanStatus('IDLE'), 1000);
         } catch (error: unknown) {
             if (controller.signal.aborted || requestId !== scanRequestRef.current) return;
             console.error('Błąd skanowania:', error);
-            playScanErrorSound();
+            if (soundEnabled) playScanErrorSound();
             setScanStatus('ERROR');
             setActivePallet(null);
-            triggerToast(getErrorMessage(error, t('error_connecting_to_encore')));
-
-            setTimeout(() => setScanStatus('IDLE'), 1500);
+            setScanFeedback({tone: 'error', message: `${palletUpper}: ${getErrorMessage(error, t('error_connecting_to_encore'))}`});
         } finally {
-            if (requestId === scanRequestRef.current) setIsScanning(false);
+            if (requestId === scanRequestRef.current) {
+                setIsScanning(false);
+                requestAnimationFrame(() => barcodeInputRef.current?.focus());
+            }
         }
-    }, [apiClient, language, scannedId, searchParams, setSearchParams, t, triggerToast]);
+    }, [apiClient, language, scannedId, searchParams, setSearchParams, soundEnabled, t]);
 
     useEffect(() => {
         const upperUrlId = palletIDFromUrl.trim().toUpperCase();
@@ -168,7 +170,7 @@ export const useOperatorPanel = () => {
             setScannedId('');
         } catch (error: unknown) {
             console.error('Błąd zgłaszania usterki:', error);
-            triggerToast(getErrorMessage(error, t('error_connecting_to_encore')));
+            triggerToast(getErrorMessage(error, t('error_connecting_to_encore')), 'error');
         } finally {
             setIsSubmitting(false);
         }
@@ -217,15 +219,16 @@ export const useOperatorPanel = () => {
             lastScannedId,
             activePallet,
             scanStatus,
+            scanFeedback,
+            soundEnabled,
             isOtherFaultOpen,
             customFaultText,
-            isToastOpen,
-            toastMsg,
             isSubmitting,
             isScanning,
             errorModalState,
         },
         actions: {
+            toggleSound,
             setScannedId,
             setIsOtherFaultOpen,
             setCustomFaultText,

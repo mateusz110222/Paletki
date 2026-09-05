@@ -62,6 +62,41 @@ body {
     #090d16;
 }
 
+/* Public displays scale with the viewport: 16px at Full HD, 32px at 4K.
+   Keeping rem units respects browser zoom and leaves staff views unchanged. */
+html:has(.dashboard-screen) {
+  font-size: clamp(1rem, 0.833333vw, 2rem);
+}
+
+.dashboard-screen > header > div,
+.dashboard-screen > main {
+  padding-inline: clamp(1rem, 2vw, 5rem);
+}
+
+.station-pallet-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+}
+
+/* Working views keep laptop density, with gentler growth on large monitors. */
+html:has(.staff-screen) {
+  font-size: clamp(1rem, 0.625vw, 1.5rem);
+}
+
+.staff-main > *,
+.staff-main .grid > *,
+.staff-main input,
+.staff-main select {
+  min-width: 0;
+}
+
+.staff-action-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+}
+
+.staff-filter-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+}
+
 .dashboard-panel {
   border: 1px solid rgba(255, 255, 255, 0.075);
   background: linear-gradient(145deg, rgba(18, 25, 39, 0.96), rgba(13, 19, 30, 0.96));
@@ -248,3 +283,161 @@ body {
 }
 
 
+
+/* Scrollbars shared by the application shell and scrollable panels. */
+:root {
+  --scrollbar-track: #334155;
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-thumb-hover: #e0e7ff;
+}
+
+*::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+  background: transparent;
+}
+
+*::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: var(--scrollbar-track);
+}
+
+*::-webkit-scrollbar-track:vertical {
+  margin-block: 8px;
+}
+
+*::-webkit-scrollbar-track:horizontal {
+  margin-inline: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+  min-height: 48px;
+  border: 3px solid var(--scrollbar-track);
+  border-radius: 999px;
+  background: var(--scrollbar-thumb);
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-button,
+*::-webkit-scrollbar-button:single-button,
+*::-webkit-scrollbar-button:vertical:decrement,
+*::-webkit-scrollbar-button:vertical:increment,
+*::-webkit-scrollbar-button:horizontal:decrement,
+*::-webkit-scrollbar-button:horizontal:increment {
+  display: none !important;
+  width: 0;
+  height: 0;
+  border: 0;
+  background: transparent;
+  appearance: none;
+}
+
+
+/* Firefox fallback; Chromium uses the rounded thumb defined above. */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
+}
+
+html { scrollbar-gutter: stable; }
+
+@layer base {
+  :where(button, a, input, select, textarea) {
+    transition-property: color, background-color, border-color, box-shadow;
+    transition-duration: 180ms;
+    transition-timing-function: ease-out;
+  }
+
+  :where(button, a, input, select, textarea):focus-visible {
+    outline: 2px solid #a5b4fc;
+    outline-offset: 3px;
+  }
+}
+
+@keyframes section-reveal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Opacity keeps fixed dialogs and sticky elements in their normal coordinates. */
+  .staff-main > .animate-in > :not(.fixed),
+  .dashboard-screen > main > section {
+    animation: section-reveal 360ms ease-out backwards;
+  }
+
+  .staff-main > .animate-in > :nth-child(2),
+  .dashboard-screen > main > section:nth-of-type(2) { animation-delay: 45ms; }
+  .staff-main > .animate-in > :nth-child(3),
+  .dashboard-screen > main > section:nth-of-type(3) { animation-delay: 90ms; }
+  .staff-main > .animate-in > :nth-child(n + 4),
+  .dashboard-screen > main > section:nth-of-type(n + 4) { animation-delay: 135ms; }
+
+  :where(button:not(:disabled), .app-nav-link) {
+    transition: color 180ms ease-out, background-color 180ms ease-out,
+      border-color 180ms ease-out, box-shadow 180ms ease-out, translate 180ms ease-out;
+  }
+
+  button:not(:disabled):active { translate: 0 1px; }
+
+  .app-nav-link svg { transition: translate 180ms ease-out; }
+
+  @media (hover: hover) and (pointer: fine) {
+    button:not(:disabled):hover { translate: 0 -1px; }
+    button:not(:disabled):active { translate: 0 1px; }
+    .app-nav-link:hover svg { translate: 2px 0; }
+    .dashboard-panel { transition: border-color 220ms ease-out, box-shadow 220ms ease-out; }
+    .dashboard-panel:hover {
+      border-color: rgb(165 180 252 / 0.2);
+      box-shadow: 0 16px 38px rgb(0 0 0 / 0.2);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    /* Preserve animationend for modal cleanup while disabling visible motion. */
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Scroll the inventory independently so column titles remain visible. */
+.admin-table-scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--color-brand-surface-high);
+  box-shadow: 0 1px 0 var(--color-brand-border);
+}
+.admin-table-scroll input[type='checkbox'] { width: 1rem; height: 1rem; accent-color: var(--color-brand-accent); }
+
+html.tv-mode:has(.dashboard-screen) { font-size: clamp(1.25rem, 1.041667vw, 2.5rem); }
+.tv-mode .dashboard-screen > header { display: none; }
+.tv-mode .dashboard-screen > main { padding: clamp(0.75rem, 1.5vw, 2rem); }
+.tv-mode .tv-toggle { opacity: 0.35; }
+.tv-mode .tv-toggle:hover, .tv-mode .tv-toggle:focus-visible { opacity: 1; }
+@media (min-width: 1024px) {
+  .tv-mode .live-project-name { font-size: clamp(2rem, 4.8vh, 4rem); }
+  .tv-mode .live-metrics { height: clamp(8rem, 18vh, 12rem); }
+  .tv-mode .live-metric-value { font-size: clamp(2.5rem, 5.5vh, 5rem); }
+}
+
+/* Paint the viewport gutter too; fullscreen must not reserve an empty strip. */
+html { background-color: var(--color-brand-bg); color-scheme: dark; }
+html.tv-mode, html:fullscreen { scrollbar-gutter: auto; }
+html::backdrop { background: var(--color-brand-bg); }
