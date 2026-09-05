@@ -7,7 +7,9 @@ import {
     playScanWarningSound,
     playScanErrorSound,
     prepareScanAudio,
-    initAudioUnlock
+    initAudioUnlock,
+    getVolumeMultiplier,
+    addSoundListener
 } from '../src/lib/audio.ts';
 
 test('operator panel translation keys parity between PL and EN', () => {
@@ -22,6 +24,12 @@ test('operator panel translation keys parity between PL and EN', () => {
     // Verify critical sound-related keys exist
     for (const key of [
         'op_station_title',
+        'op_network_online',
+        'op_network_offline',
+        'op_volume_label',
+        'op_volume_low',
+        'op_volume_normal',
+        'op_volume_loud',
         'op_scanner_sound',
         'op_sound_enabled',
         'op_sound_disabled',
@@ -34,6 +42,26 @@ test('operator panel translation keys parity between PL and EN', () => {
         assert.ok(plDict[key], `PL dictionary missing ${key}`);
         assert.ok(enDict[key], `EN dictionary missing ${key}`);
     }
+});
+
+test('volume multiplier maps correctly to sound levels', () => {
+    assert.equal(getVolumeMultiplier('low'), 0.5);
+    assert.equal(getVolumeMultiplier('normal'), 1.0);
+    assert.equal(getVolumeMultiplier('loud'), 2.0);
+});
+
+test('sound listeners stay silent when audio is unavailable', async () => {
+    const tonesReceived: string[] = [];
+    const unsubscribe = addSoundListener((tone) => {
+        tonesReceived.push(tone);
+    });
+
+    await playScanSuccessSound();
+    await playScanWarningSound();
+    await playScanErrorSound();
+
+    assert.deepEqual(tonesReceived, []);
+    unsubscribe();
 });
 
 test('sound preference defaults to enabled unless explicitly set to false', () => {
@@ -114,3 +142,73 @@ test('operator sound button attributes and accessible role semantics', () => {
     assert.ok(enOn.includes('ENABLED'));
 });
 
+
+test('real audio implementation drops stale signals and reports only scheduled playback', async () => {
+    const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+    const previousStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+    const pendingResumes: (() => void)[] = [];
+    const started: number[] = [];
+    const gains: number[] = [];
+    const events: string[] = [];
+    let failOscillator = false;
+    class FakeAudioContext {
+        static instance: FakeAudioContext;
+        state = 'suspended';
+        currentTime = 10;
+        destination = {};
+        constructor() { FakeAudioContext.instance = this; }
+        resume() { return new Promise<void>(resolve => pendingResumes.push(resolve)); }
+        createOscillator() {
+            if (failOscillator) throw new Error('Audio device unavailable');
+            return {
+                type: 'sine', frequency: {setValueAtTime() {}, exponentialRampToValueAtTime() {}},
+                connect() {}, start(time: number) { started.push(time); }, stop() {},
+            };
+        }
+        createGain() {
+            return {gain: {setValueAtTime(value: number) {gains.push(value);}, exponentialRampToValueAtTime() {}}, connect() {}};
+        }
+    }
+    Object.defineProperty(globalThis, 'window', {configurable: true, value: {AudioContext: FakeAudioContext, addEventListener() {}}});
+    Object.defineProperty(globalThis, 'localStorage', {configurable: true, value: {getItem() {throw new Error('Storage denied');}, setItem() {throw new Error('Storage denied');}}});
+    const unsubscribe = addSoundListener(tone => events.push(tone));
+    try {
+        // These calls must complete even when the browser never resolves resume().
+        await Promise.race([
+            Promise.all([playScanSuccessSound(), playScanWarningSound(), playScanErrorSound()]),
+            new Promise((_, reject) => {const timer = setTimeout(() => reject(new Error('Audio queued behind resume')), 200); timer.unref();}),
+        ]);
+        assert.deepEqual(started, []);
+        assert.deepEqual(events, []);
+        FakeAudioContext.instance.state = 'running';
+        pendingResumes.splice(0).forEach(resolve => resolve());
+        await Promise.resolve();
+        assert.deepEqual(started, [], 'Unlocking audio must not replay old scans');
+
+        const {setAudioVolumeLevel, getAudioVolumeLevel} = await import('../src/lib/audio.ts');
+        setAudioVolumeLevel('loud');
+        assert.equal(getAudioVolumeLevel(), 'loud');
+        assert.equal(getVolumeMultiplier(), 2);
+        await playScanSuccessSound();
+        assert.equal(started.length, 1);
+        assert.equal(gains[0], 0.48, 'Selected volume must work even if storage throws');
+        await playScanWarningSound();
+        await playScanErrorSound();
+        assert.deepEqual(events, ['success', 'warning', 'error']);
+        assert.equal(started.length, 5);
+
+        failOscillator = true;
+        await playScanSuccessSound();
+        assert.equal(events.length, 3, 'Audio device failure must not trigger the sound animation');
+        failOscillator = false;
+        FakeAudioContext.instance.state = 'closed';
+        await playScanSuccessSound();
+        assert.equal(FakeAudioContext.instance.state, 'suspended', 'Closed contexts must be recreated');
+        assert.equal(events.length, 3);
+    } finally {
+        unsubscribe();
+        FakeAudioContext.instance.state = 'closed';
+        if (previousWindow) Object.defineProperty(globalThis, 'window', previousWindow); else Reflect.deleteProperty(globalThis, 'window');
+        if (previousStorage) Object.defineProperty(globalThis, 'localStorage', previousStorage); else Reflect.deleteProperty(globalThis, 'localStorage');
+    }
+});

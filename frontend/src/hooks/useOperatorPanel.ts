@@ -12,7 +12,12 @@ import {
     prepareScanAudio,
     playScanErrorSound,
     playScanSuccessSound,
-    playScanWarningSound
+    playScanWarningSound,
+    getAudioVolumeLevel,
+    setAudioVolumeLevel,
+    addSoundListener,
+    AudioVolumeLevel,
+    SoundToneType
 } from '../lib/audio.ts';
 import {getErrorMessage} from '../lib/errors.ts';
 import {canOpenPalletInOperatorPanel} from '@backend/shared/permissions';
@@ -35,6 +40,41 @@ export const useOperatorPanel = () => {
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isScanning, setIsScanning] = useState(false);
+
+    // Network connectivity status (Online / Offline)
+    const [isOnline, setIsOnline] = useState(() => (typeof navigator !== 'undefined' ? navigator.onLine : true));
+
+    useEffect(() => {
+        const handleOnline = () => setIsOnline(true);
+        const handleOffline = () => setIsOnline(false);
+
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, []);
+
+    // Visual soundwave ripple state triggered whenever a sound is played
+    const [audioRipple, setAudioRipple] = useState<SoundToneType | null>(null);
+
+    useEffect(() => {
+        let timer: number;
+        const unsubscribe = addSoundListener((tone) => {
+            setAudioRipple(tone);
+            window.clearTimeout(timer);
+            timer = window.setTimeout(() => {
+                setAudioRipple(null);
+            }, 600);
+        });
+
+        return () => {
+            unsubscribe();
+            window.clearTimeout(timer);
+        };
+    }, []);
 
     const barcodeInputRef = useRef<HTMLInputElement>(null);
     const scanAbortRef = useRef<AbortController | null>(null);
@@ -82,9 +122,30 @@ export const useOperatorPanel = () => {
             return true;
         }
     });
+
+    const soundEnabledRef = useRef(soundEnabled);
+
+    const [volumeLevel, setVolumeLevel] = useState<AudioVolumeLevel>(() => getAudioVolumeLevel());
+
+    const updateVolumeLevel = (level: AudioVolumeLevel) => {
+        setVolumeLevel(level);
+        setAudioVolumeLevel(level);
+        if (soundEnabled) {
+            prepareScanAudio();
+            void playScanSuccessSound();
+        }
+    };
+
+    const cycleVolumeLevel = () => {
+        const order: AudioVolumeLevel[] = ['normal', 'loud', 'low'];
+        const nextIdx = (order.indexOf(volumeLevel) + 1) % order.length;
+        updateVolumeLevel(order[nextIdx]);
+    };
+
     const [scanFeedback, setScanFeedback] = useState<{tone: ScanFeedbackTone; message: string} | null>(null);
     const toggleSound = () => {
         const next = !soundEnabled;
+        soundEnabledRef.current = next;
         setSoundEnabled(next);
         try {
             localStorage.setItem('palletx.scan-sound', String(next));
@@ -122,7 +183,7 @@ export const useOperatorPanel = () => {
             if (requestId !== scanRequestRef.current) return;
 
             if (!canOpenPalletInOperatorPanel(pallet.status)) {
-                if (soundEnabled) void playScanErrorSound();
+                if (soundEnabledRef.current) void playScanErrorSound();
                 setActivePallet(null);
                 setScanStatus('ERROR');
                 setScanFeedback({tone: 'error', message: `${palletUpper}: ${t('op_blocked_pallet_unavailable')}`});
@@ -135,7 +196,7 @@ export const useOperatorPanel = () => {
             const isWarningCondition = isDamaged || isWashing || isExceededCycles;
 
             if (isWarningCondition) {
-                if (soundEnabled) void playScanWarningSound();
+                if (soundEnabledRef.current) void playScanWarningSound();
                 setScanStatus('WARNING');
                 let warningMsg = t('op_scan_warning_damaged');
                 if (isWashing) {
@@ -145,7 +206,7 @@ export const useOperatorPanel = () => {
                 }
                 setScanFeedback({tone: 'warning', message: `${pallet.pallet_id}: ${warningMsg}`});
             } else {
-                if (soundEnabled) void playScanSuccessSound();
+                if (soundEnabledRef.current) void playScanSuccessSound();
                 setScanStatus('SUCCESS');
                 setScanFeedback({tone: 'success', message: t('op_scan_success_with_id', {palletId: pallet.pallet_id})});
             }
@@ -160,7 +221,7 @@ export const useOperatorPanel = () => {
         } catch (error: unknown) {
             if (controller.signal.aborted || requestId !== scanRequestRef.current) return;
             console.error('Błąd skanowania:', error);
-            if (soundEnabled) void playScanErrorSound();
+            if (soundEnabledRef.current) void playScanErrorSound();
             setScanStatus('ERROR');
             setActivePallet(null);
             setScanFeedback({tone: 'error', message: `${palletUpper}: ${getErrorMessage(error, t('error_connecting_to_encore'))}`});
@@ -264,6 +325,9 @@ export const useOperatorPanel = () => {
             scanStatus,
             scanFeedback,
             soundEnabled,
+            volumeLevel,
+            audioRipple,
+            isOnline,
             isOtherFaultOpen,
             customFaultText,
             isSubmitting,
@@ -272,6 +336,8 @@ export const useOperatorPanel = () => {
         },
         actions: {
             toggleSound,
+            setVolumeLevel: updateVolumeLevel,
+            cycleVolumeLevel,
             setScannedId,
             setIsOtherFaultOpen,
             setCustomFaultText,

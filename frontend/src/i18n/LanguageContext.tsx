@@ -150,6 +150,14 @@ export const dictionaries = {
 
         // Operator - komunikaty skanera
         op_station_title: 'Stanowisko Operatora',
+        op_network_online: 'ONLINE',
+        op_network_offline: 'BRAK SIECI',
+        op_network_offline_alert: 'Brak połączenia z siecią. Skanowanie może być niemożliwe.',
+        op_volume_label: 'Głośność',
+        op_volume_low: 'Cicho',
+        op_volume_normal: 'Normalnie',
+        op_volume_loud: 'Hala (Głośno)',
+        op_volume_tooltip: 'Kliknij, aby zmienić poziom głośności (Cicho / Normalnie / Hala)',
         op_scanner_sound: 'Dźwięk skanera',
         op_sound_enabled: 'WŁĄCZONY',
         op_sound_disabled: 'WYŁĄCZONY',
@@ -562,6 +570,14 @@ export const dictionaries = {
 
         // Operator - scanner messages
         op_station_title: 'Operator Station',
+        op_network_online: 'ONLINE',
+        op_network_offline: 'OFFLINE',
+        op_network_offline_alert: 'No network connection. Scanning may fail.',
+        op_volume_label: 'Volume',
+        op_volume_low: 'Low',
+        op_volume_normal: 'Normal',
+        op_volume_loud: 'Loud (Floor)',
+        op_volume_tooltip: 'Click to change sound volume level (Low / Normal / Floor)',
         op_scanner_sound: 'Scanner Sound',
         op_sound_enabled: 'ENABLED',
         op_sound_disabled: 'DISABLED',

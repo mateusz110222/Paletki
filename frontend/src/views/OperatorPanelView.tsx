@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, Box, ChevronRight, Edit3, Layers, Scan, Volume2, VolumeX, WashingMachine, X } from 'lucide-react';
+import { AlertTriangle, Box, ChevronRight, Edit3, Layers, Scan, Volume1, Volume2, VolumeX, WashingMachine, Wifi, WifiOff, X } from 'lucide-react';
 import { useTranslation } from '../i18n/LanguageContext.tsx';
 import { PalletStatus } from '@backend/shared/types';
 import { useOperatorPanel } from '../hooks/useOperatorPanel.ts';
@@ -38,40 +38,121 @@ export const OperatorPanelView: React.FC = () => {
 
     return (
         <div className="w-full min-w-0 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300" id="operator-panel-container">
-            {/* Pasek narzędziowy: Przycisk włączania / wyłączania dźwięków skanera */}
+            {/* Pasek narzędziowy: Status sieci, regulacja głośności i przycisk włączania dźwięków */}
             <div className="flex flex-wrap items-center justify-between gap-3 pb-1">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                     <span className="text-xs font-black uppercase tracking-wider text-brand-text-muted">
                         {t('op_station_title')}
                     </span>
-                </div>
-                <button
-                    id="operator-sound-toggle-btn"
-                    type="button"
-                    role="switch"
-                    aria-checked={data.soundEnabled}
-                    onClick={actions.toggleSound}
-                    className={`group relative inline-flex items-center gap-3 px-4 py-2.5 rounded-xl border font-bold text-sm transition-all duration-200 shadow-sm active:scale-95 cursor-pointer ${data.soundEnabled
-                            ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/60 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
-                            : 'bg-brand-surface border-brand-border text-brand-text-muted hover:text-brand-text hover:border-brand-text-muted/60'
+
+                    {/* Wskaźnik stanu sieci / łączności */}
+                    <div
+                        id="operator-network-status"
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[0.6875rem] font-black border transition-all duration-300 ${
+                            data.isOnline
+                                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                                : 'bg-rose-500/15 border-rose-500/50 text-rose-300 animate-pulse'
                         }`}
-                    title={data.soundEnabled ? t('op_sound_turn_off_tooltip') : t('op_sound_turn_on_tooltip')}
-                >
-                    <span className={`p-1.5 rounded-lg transition-colors ${data.soundEnabled ? 'bg-emerald-500/20 text-emerald-400' : 'bg-brand-bg text-brand-text-muted group-hover:text-brand-text'
-                        }`}>
-                        {data.soundEnabled ? <Volume2 size={18} className="animate-pulse" /> : <VolumeX size={18} />}
-                    </span>
-                    <span className="flex flex-col text-left">
-                        <span className="text-[0.6875rem] uppercase tracking-wider font-extrabold opacity-75">
-                            {t('op_scanner_sound')}
-                        </span>
-                        <span className="text-xs font-black flex items-center gap-1.5">
-                            <span className={`inline-block w-2 h-2 rounded-full ${data.soundEnabled ? 'bg-emerald-400 shadow-[0_0_6px_#34d399]' : 'bg-zinc-500'
-                                }`} />
-                            {data.soundEnabled ? t('op_sound_enabled') : t('op_sound_disabled')}
-                        </span>
-                    </span>
-                </button>
+                        title={data.isOnline ? t('op_network_online') : t('op_network_offline_alert')}
+                    >
+                        <span
+                            className={`w-2 h-2 rounded-full ${
+                                data.isOnline
+                                    ? 'bg-emerald-400 shadow-[0_0_6px_#34d399]'
+                                    : 'bg-rose-500 shadow-[0_0_8px_#f43f5e]'
+                            }`}
+                        />
+                        {data.isOnline ? <Wifi size={13} /> : <WifiOff size={13} className="text-rose-400" />}
+                        <span>{data.isOnline ? t('op_network_online') : t('op_network_offline')}</span>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-2.5">
+                    {/* Regulacja poziomu głośności (Cicho / Normalnie / Hala) */}
+                    {data.soundEnabled && (
+                        <button
+                            id="operator-volume-cycle-btn"
+                            type="button"
+                            onClick={actions.cycleVolumeLevel}
+                            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-brand-border bg-brand-surface text-brand-text-muted hover:text-brand-text hover:border-brand-text-muted/60 transition-all text-xs font-bold active:scale-95 cursor-pointer shadow-sm"
+                            title={t('op_volume_tooltip')}
+                        >
+                            <Volume1 size={16} className="text-brand-accent" />
+                            <span className="text-[0.6875rem] opacity-75 font-semibold">{t('op_volume_label')}:</span>
+                            <span className="font-mono font-black text-brand-text">
+                                {data.volumeLevel === 'low'
+                                    ? t('op_volume_low')
+                                    : data.volumeLevel === 'loud'
+                                    ? t('op_volume_loud')
+                                    : t('op_volume_normal')}
+                            </span>
+                        </button>
+                    )}
+
+                    {/* Przycisk włączania / wyłączania dźwięków z wizualną falą dźwiękową (Soundwave Ripple) */}
+                    <div className="relative">
+                        {data.audioRipple && data.soundEnabled && (
+                            <span
+                                className={`absolute -inset-1.5 rounded-2xl pointer-events-none animate-ping opacity-60 border-2 ${
+                                    data.audioRipple === 'error'
+                                        ? 'border-rose-400'
+                                        : data.audioRipple === 'warning'
+                                        ? 'border-amber-400'
+                                        : 'border-emerald-400'
+                                }`}
+                            />
+                        )}
+                        <button
+                            id="operator-sound-toggle-btn"
+                            type="button"
+                            role="switch"
+                            aria-checked={data.soundEnabled}
+                            onClick={actions.toggleSound}
+                            className={`group relative inline-flex items-center gap-3 px-4 py-2.5 rounded-xl border font-bold text-sm transition-all duration-200 shadow-sm active:scale-95 cursor-pointer ${
+                                data.soundEnabled
+                                    ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/60 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
+                                    : 'bg-brand-surface border-brand-border text-brand-text-muted hover:text-brand-text hover:border-brand-text-muted/60'
+                            }`}
+                            title={data.soundEnabled ? t('op_sound_turn_off_tooltip') : t('op_sound_turn_on_tooltip')}
+                        >
+                            <span
+                                className={`relative p-1.5 rounded-lg transition-colors ${
+                                    data.soundEnabled ? 'bg-emerald-500/20 text-emerald-400' : 'bg-brand-bg text-brand-text-muted group-hover:text-brand-text'
+                                }`}
+                            >
+                                {data.audioRipple && data.soundEnabled && (
+                                    <span
+                                        className={`absolute inset-0 rounded-lg animate-ping opacity-75 ${
+                                            data.audioRipple === 'error'
+                                                ? 'bg-rose-400/40'
+                                                : data.audioRipple === 'warning'
+                                                ? 'bg-amber-400/40'
+                                                : 'bg-emerald-400/40'
+                                        }`}
+                                    />
+                                )}
+                                {data.soundEnabled ? (
+                                    <Volume2 size={18} className={data.audioRipple ? 'scale-125 transition-transform duration-150' : 'animate-pulse'} />
+                                ) : (
+                                    <VolumeX size={18} />
+                                )}
+                            </span>
+                            <span className="flex flex-col text-left">
+                                <span className="text-[0.6875rem] uppercase tracking-wider font-extrabold opacity-75">
+                                    {t('op_scanner_sound')}
+                                </span>
+                                <span className="text-xs font-black flex items-center gap-1.5">
+                                    <span
+                                        className={`inline-block w-2 h-2 rounded-full ${
+                                            data.soundEnabled ? 'bg-emerald-400 shadow-[0_0_6px_#34d399]' : 'bg-zinc-500'
+                                        }`}
+                                    />
+                                    {data.soundEnabled ? t('op_sound_enabled') : t('op_sound_disabled')}
+                                </span>
+                            </span>
+                        </button>
+                    </div>
+                </div>
             </div>
             {data.scanFeedback && (
                 <div
