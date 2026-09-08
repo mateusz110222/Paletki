@@ -19,6 +19,8 @@ export const MainLayout: React.FC = () => {
             return {title: t('history_page_title'), sub: t('history_page_subtitle')};
         }
         switch (pathname) {
+            case '/catalog':
+                return {title: t('nav_catalog'), sub: t('catalog_subtitle')};
             case '/directory':
                 return {title: t('directory_title'), sub: t('directory_subtitle')};
             case '/admin':

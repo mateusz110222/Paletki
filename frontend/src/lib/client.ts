@@ -361,6 +361,7 @@ export namespace pallet {
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
+            this.ManageCatalog = this.ManageCatalog.bind(this)
             this.AddModel = this.AddModel.bind(this)
             this.AddPallet = this.AddPallet.bind(this)
             this.AddPalletRange = this.AddPalletRange.bind(this)
@@ -376,6 +377,12 @@ export namespace pallet {
             this.GetPalletHistory = this.GetPalletHistory.bind(this)
             this.UnblockPallet = this.UnblockPallet.bind(this)
             this.UpdatePallet = this.UpdatePallet.bind(this)
+        }
+
+        public async ManageCatalog(params: {kind: "project" | "model"; id: number; newName?: string; acceptLanguage?: string}): Promise<void> {
+            const {acceptLanguage, ...body} = params
+            const headers = makeRecord<string, string>({"accept-language": acceptLanguage})
+            await this.baseClient.callTypedAPI("POST", "/catalog/manage", JSON.stringify(body), {headers})
         }
 
         public async AddModel(params: AddModelParams): Promise<void> {
@@ -659,6 +666,8 @@ export namespace shared {
     }
 
     export interface PalletModel {
+    id: number;
+    project_id: number;
         name: string
         project: string
     }
@@ -668,6 +677,7 @@ export namespace shared {
     export type PalletStatus = "Active" | "Washing_Required" | "Damaged" | "Blocked"
 
     export interface Project {
+    id: number;
         name: string
     }
 

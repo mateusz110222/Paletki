@@ -1,3 +1,20 @@
+CREATE TABLE IF NOT EXISTS pallet_audit_logs
+(
+    id              SERIAL PRIMARY KEY,
+    pallet_id       VARCHAR(50)  NOT NULL REFERENCES pallets (pallet_id) ON DELETE RESTRICT,
+    timestamp       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    operator_id     VARCHAR(100) NOT NULL,
+    previous_status VARCHAR(50)  NOT NULL,
+    new_status      VARCHAR(50)  NOT NULL,
+    description     TEXT         NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_pallet_timestamp ON pallet_audit_logs (pallet_id, timestamp DESC);
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON pallet_audit_logs (timestamp DESC);
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_operator ON pallet_audit_logs (operator_id);
+
 -- Automatically move a pallet to washing when it reaches its cycle limit.
 CREATE OR REPLACE FUNCTION check_pallet_cycles_and_status()
     RETURNS TRIGGER AS
@@ -62,8 +79,8 @@ BEGIN
             COALESCE(NEW.last_operation_description, 'i18n:{"key":"audit_registered"}')
         );
     ELSIF TG_OP = 'UPDATE' AND (
-        OLD.project IS DISTINCT FROM NEW.project OR
-        OLD.model IS DISTINCT FROM NEW.model OR
+        OLD.project_id IS DISTINCT FROM NEW.project_id OR
+        OLD.model_id IS DISTINCT FROM NEW.model_id OR
         OLD.max_cycles IS DISTINCT FROM NEW.max_cycles OR
         OLD.nests IS DISTINCT FROM NEW.nests OR
         OLD.status IS DISTINCT FROM NEW.status OR

@@ -93,7 +93,7 @@ export const OperatorPanelView: React.FC = () => {
                     <div className="relative">
                         {data.audioRipple && data.soundEnabled && (
                             <span
-                                className={`absolute -inset-1.5 rounded-2xl pointer-events-none animate-ping opacity-60 border-2 ${
+                                className={`operator-sound-ripple absolute inset-0 rounded-xl pointer-events-none border-2 ${
                                     data.audioRipple === 'error'
                                         ? 'border-rose-400'
                                         : data.audioRipple === 'warning'

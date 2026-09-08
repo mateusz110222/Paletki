@@ -47,8 +47,6 @@ export const useAdminPanel = ({
 
     // Modals state
     const [isAddOpen, setIsAddOpen] = useState(false);
-    const [isAddProjectOpen, setIsAddProjectOpen] = useState(false);
-    const [isAddModelOpen, setIsAddModelOpen] = useState(false);
     const [isBlockOpen, setIsBlockOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [selectedPalletForBlock, setSelectedPalletForBlock] = useState<Pallet | null>(null);
@@ -59,9 +57,6 @@ export const useAdminPanel = ({
     const [selectedPalletForDelete, setSelectedPalletForDelete] = useState<Pallet | null>(null);
 
     // Form inputs state
-    const [newProjectName, setNewProjectName] = useState('');
-    const [newModelName, setNewModelName] = useState('');
-    const [newModelProject, setNewModelProject] = useState('');
     const [blockReason, setBlockReason] = useState('');
     const [newId, setNewId] = useState('');
     const [newLastId, setNewLastId] = useState('');
@@ -274,67 +269,6 @@ export const useAdminPanel = ({
         }
     };
 
-    const handleAddProject = async (e: React.SyntheticEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        setValidationError('');
-
-        const projectName = newProjectName.trim();
-
-        if (!projectName) {
-            setValidationError(t('project_name_empty'));
-            return;
-        }
-
-        try {
-            setIsSubmitting(true);
-
-            await apiClient.pallet.AddProject({name: projectName, acceptLanguage: language});
-            await queryClient.invalidateQueries({queryKey: ['projects']});
-
-            setNewProjectName('');
-            notify(language === 'pl' ? 'Operacja zakończona pomyślnie.' : 'Operation completed successfully.');
-            setIsAddProjectOpen(false);
-        } catch (error) {
-            console.error('Error adding project:', error);
-            setValidationError(getErrorMessage(error, t('error_connecting_to_encore')));
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const handleAddModel = async (e: React.SyntheticEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        setValidationError('');
-
-        const modelName = newModelName.trim();
-        if (!newModelProject) {
-            setValidationError(t('project_required'));
-            return;
-        }
-        if (!modelName) {
-            setValidationError(t('model_name_empty'));
-            return;
-        }
-
-        try {
-            setIsSubmitting(true);
-            await apiClient.pallet.AddModel({
-                project: newModelProject,
-                name: modelName,
-                acceptLanguage: language,
-            });
-            await queryClient.invalidateQueries({queryKey: ['models']});
-            setNewModelName('');
-            notify(language === 'pl' ? 'Operacja zakończona pomyślnie.' : 'Operation completed successfully.');
-            setNewModelProject('');
-            setIsAddModelOpen(false);
-        } catch (error) {
-            console.error('Error adding model:', error);
-            setValidationError(getErrorMessage(error, t('error_connecting_to_encore')));
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
 
     const handleBlockClick = (pallet: Pallet) => {
         setSelectedPalletForBlock(pallet);
@@ -528,11 +462,6 @@ export const useAdminPanel = ({
             projects,
             models,
             isAddOpen,
-            isAddProjectOpen,
-            isAddModelOpen,
-            newProjectName,
-            newModelName,
-            newModelProject,
             isBlockOpen,
             isEditOpen,
             selectedPalletForBlock,
@@ -586,21 +515,10 @@ export const useAdminPanel = ({
                 setValidationError('');
                 setIsAddOpen(open);
             },
-            setIsAddProjectOpen: (open: boolean) => {
-                setValidationError('');
-                setIsAddProjectOpen(open);
-            },
-            setIsAddModelOpen: (open: boolean) => {
-                setValidationError('');
-                setIsAddModelOpen(open);
-            },
             setIsEditOpen: (open: boolean) => {
                 setEditError('');
                 setIsEditOpen(open);
             },
-            setNewProjectName,
-            setNewModelName,
-            setNewModelProject,
             setIsBlockOpen: (open: boolean) => {
                 setBlockError('');
                 setIsBlockOpen(open);
@@ -628,8 +546,6 @@ export const useAdminPanel = ({
             setNewFis,
             setValidationError,
             handleAddPallet,
-            handleAddProject,
-            handleAddModel,
             handleOpenAddPallet,
             handleCopyPallet,
             handleBlockClick,

@@ -114,6 +114,22 @@ html:has(.staff-screen) {
   box-shadow: 0 0 20px rgba(239, 68, 68, 0.15);
 }
 
+/* Expands only up to the sound button bounds, so playback cannot create page overflow. */
+@keyframes operator-sound-ripple {
+  from {
+    opacity: 0.75;
+    transform: scale(0.86);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+.operator-sound-ripple {
+  animation: operator-sound-ripple 600ms cubic-bezier(0, 0, 0.2, 1) both;
+}
+
 @keyframes ui-enter {
   from {
     opacity: var(--ui-enter-opacity, 1);
@@ -266,7 +282,8 @@ html:has(.staff-screen) {
   .live-project-card-newest::after,
   .login-card-enter,
   .login-fields-enter,
-  .login-glow {
+  .login-glow,
+  .operator-sound-ripple {
     animation: none !important;
   }
 
@@ -425,6 +442,26 @@ html { scrollbar-gutter: stable; }
   box-shadow: 0 1px 0 var(--color-brand-border);
 }
 .admin-table-scroll input[type='checkbox'] { width: 1rem; height: 1rem; accent-color: var(--color-brand-accent); }
+
+/* Keep the native scrollbar below the sticky header, including its gutter. */
+@supports selector(::-webkit-scrollbar) {
+  .admin-table-scroll::-webkit-scrollbar-track:vertical {
+    margin-top: var(--admin-header-height, 3rem);
+  }
+
+  .admin-table-frame::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 21;
+    width: var(--admin-scrollbar-width, 0px);
+    height: var(--admin-header-height, 3rem);
+    background: var(--color-brand-surface-high);
+    border-bottom: 1px solid var(--color-brand-border);
+    pointer-events: none;
+  }
+}
 
 html.tv-mode:has(.dashboard-screen) { font-size: clamp(1.25rem, 1.041667vw, 2.5rem); }
 .tv-mode .dashboard-screen > header { display: none; }

@@ -40,10 +40,13 @@ export interface Pallet {
 }
 
 export interface Project {
+    id: number;
     name: string;
 }
 
 export interface PalletModel {
+    id: number;
+    project_id: number;
     name: string;
     project: string;
 }

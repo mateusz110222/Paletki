@@ -138,7 +138,7 @@ export const GetAllPallets = api(
         const status = params.status && params.status !== "ALL" ? params.status : null;
 
         const rows = await db.queryAll<PalletRecord>`
-            SELECT * FROM pallets
+            SELECT * FROM pallet_details
             WHERE deleted_at IS NULL
               AND (${afterId}::bigint IS NULL OR id > ${afterId})
               AND (${project}::text IS NULL OR project = ${project})
@@ -167,7 +167,7 @@ export const GetPallet = api(
         if (!palletId) throw APIError.invalidArgument(t("pallet_id_empty", params.acceptLanguage));
 
         const pallet = await db.queryRow<PalletRecord>`
-            SELECT * FROM pallets WHERE pallet_id = ${palletId} AND deleted_at IS NULL
+            SELECT * FROM pallet_details WHERE pallet_id = ${palletId} AND deleted_at IS NULL
         `;
         if (!pallet) throw APIError.notFound(t("pallet_not_found", params.acceptLanguage));
 
@@ -183,7 +183,7 @@ export const GetPalletHistory = api(
         if (!palletId) throw APIError.invalidArgument(t("pallet_id_empty", params.acceptLanguage));
 
         const exists = await db.queryRow<{exists: boolean}>`
-            SELECT EXISTS(SELECT 1 FROM pallets WHERE pallet_id = ${palletId}) AS exists
+            SELECT EXISTS(SELECT 1 FROM pallet_details WHERE pallet_id = ${palletId}) AS exists
         `;
         if (!exists?.exists) throw APIError.notFound(t("pallet_not_found", params.acceptLanguage));
 
@@ -255,20 +255,20 @@ export const AddPallet = api(
             throw APIError.invalidArgument(t("integer_required", lang));
         }
 
-        const catalogEntry = await db.queryRow<{project: string; model: string}>`
-            SELECT projects.name AS project, pallet_models.name AS model
-            FROM pallet_models
-            JOIN projects ON projects.id = pallet_models.project_id
-            WHERE LOWER(TRIM(projects.name)) = LOWER(TRIM(${requestedProject}))
-              AND LOWER(TRIM(pallet_models.name)) = LOWER(TRIM(${requestedModel}))
-        `;
-        if (!catalogEntry) throw APIError.invalidArgument(t("model_not_registered", lang));
-        const {project, model} = catalogEntry;
-
         try {
             await using tx = await db.begin();
+            await tx.exec`LOCK TABLE projects, pallet_models IN SHARE MODE`;
+            const catalogEntry = await tx.queryRow<{project: string; model: string; project_id: number; model_id: number}>`
+                SELECT projects.name AS project, pallet_models.name AS model, projects.id AS project_id, pallet_models.id AS model_id
+                FROM pallet_models
+                JOIN projects ON projects.id = pallet_models.project_id
+                WHERE LOWER(TRIM(projects.name)) = LOWER(TRIM(${requestedProject}))
+                  AND LOWER(TRIM(pallet_models.name)) = LOWER(TRIM(${requestedModel}))
+            `;
+            if (!catalogEntry) throw APIError.invalidArgument(t("model_not_registered", lang));
+            const {project, model, project_id, model_id} = catalogEntry;
             const existing = await tx.queryRow<PalletRecord>`
-                SELECT * FROM pallets WHERE pallet_id = ${palletId} FOR UPDATE
+                SELECT * FROM pallet_details WHERE pallet_id = ${palletId} FOR UPDATE
             `;
 
             if (existing) {
@@ -278,8 +278,8 @@ export const AddPallet = api(
 
                 await tx.exec`
                     UPDATE pallets
-                    SET project = ${project},
-                        model = ${model},
+                    SET project_id = ${project_id},
+                        model_id = ${model_id},
                         max_cycles = ${params.max_cycles},
                         current_cycles = 0,
                         total_cycles = 0,
@@ -299,10 +299,10 @@ export const AddPallet = api(
             } else {
                 await tx.exec`
                     INSERT INTO pallets (
-                        pallet_id, project, model, max_cycles, nests, status, block_reason,
+                        pallet_id, project_id, model_id, max_cycles, nests, status, block_reason,
                         fis, created_by, updated_by, last_operation_description
                     ) VALUES (
-                        ${palletId}, ${project}, ${model}, ${params.max_cycles}, ${params.nests}, ${status},
+                        ${palletId}, ${project_id}, ${model_id}, ${params.max_cycles}, ${params.nests}, ${status},
                         ${params.block_reason?.trim() ?? null}, ${fis}, ${operator}, ${operator},
                         ${encodeAuditDescription("audit_registered")}
                     )
@@ -355,21 +355,21 @@ export const AddPalletRange = api(
             throw APIError.invalidArgument(t("integer_required", lang));
         }
 
-        const catalogEntry = await db.queryRow<{project: string; model: string}>`
-            SELECT projects.name AS project, pallet_models.name AS model
-            FROM pallet_models
-            JOIN projects ON projects.id = pallet_models.project_id
-            WHERE LOWER(TRIM(projects.name)) = LOWER(TRIM(${requestedProject}))
-              AND LOWER(TRIM(pallet_models.name)) = LOWER(TRIM(${requestedModel}))
-        `;
-        if (!catalogEntry) throw APIError.invalidArgument(t("model_not_registered", lang));
-        const {project, model} = catalogEntry;
-
         try {
             await using tx = await db.begin();
+            await tx.exec`LOCK TABLE projects, pallet_models IN SHARE MODE`;
+            const catalogEntry = await tx.queryRow<{project: string; model: string; project_id: number; model_id: number}>`
+                SELECT projects.name AS project, pallet_models.name AS model, projects.id AS project_id, pallet_models.id AS model_id
+                FROM pallet_models
+                JOIN projects ON projects.id = pallet_models.project_id
+                WHERE LOWER(TRIM(projects.name)) = LOWER(TRIM(${requestedProject}))
+                  AND LOWER(TRIM(pallet_models.name)) = LOWER(TRIM(${requestedModel}))
+            `;
+            if (!catalogEntry) throw APIError.invalidArgument(t("model_not_registered", lang));
+            const {project, model, project_id, model_id} = catalogEntry;
             for (const palletId of palletIds) {
                 const existing = await tx.queryRow<PalletRecord>`
-                    SELECT * FROM pallets WHERE pallet_id = ${palletId} FOR UPDATE
+                    SELECT * FROM pallet_details WHERE pallet_id = ${palletId} FOR UPDATE
                 `;
                 if (existing?.deleted_at === null) {
                     throw APIError.alreadyExists(t("pallet_exists", lang));
@@ -378,7 +378,7 @@ export const AddPalletRange = api(
                 if (existing) {
                     await tx.exec`
                         UPDATE pallets
-                        SET project = ${project}, model = ${model}, max_cycles = ${params.max_cycles},
+                        SET project_id = ${project_id}, model_id = ${model_id}, max_cycles = ${params.max_cycles},
                             current_cycles = 0, total_cycles = 0, nests = ${params.nests}, status = ${status},
                             block_reason = ${params.block_reason?.trim() ?? null}, fis = ${fis},
                             created_at = NOW(), created_by = ${operator}, updated_at = NOW(), updated_by = ${operator},
@@ -389,10 +389,10 @@ export const AddPalletRange = api(
                 } else {
                     await tx.exec`
                         INSERT INTO pallets (
-                            pallet_id, project, model, max_cycles, nests, status, block_reason,
+                            pallet_id, project_id, model_id, max_cycles, nests, status, block_reason,
                             fis, created_by, updated_by, last_operation_description
                         ) VALUES (
-                            ${palletId}, ${project}, ${model}, ${params.max_cycles}, ${params.nests}, ${status},
+                            ${palletId}, ${project_id}, ${model_id}, ${params.max_cycles}, ${params.nests}, ${status},
                             ${params.block_reason?.trim() ?? null}, ${fis}, ${operator}, ${operator},
                             ${encodeAuditDescription("audit_registered")}
                         )
@@ -425,7 +425,7 @@ export const UpdatePallet = api(
         try {
             await using tx = await db.begin();
             const existing = await tx.queryRow<PalletRecord>`
-                SELECT * FROM pallets
+                SELECT * FROM pallet_details
                 WHERE pallet_id = ${palletId} AND deleted_at IS NULL
                 FOR UPDATE
             `;
@@ -493,7 +493,7 @@ export const DeletePallet = api(
         try {
             await using tx = await db.begin();
             const pallet = await tx.queryRow<PalletRecord>`
-                SELECT * FROM pallets
+                SELECT * FROM pallet_details
                 WHERE pallet_id = ${palletId} AND deleted_at IS NULL
                 FOR UPDATE
             `;

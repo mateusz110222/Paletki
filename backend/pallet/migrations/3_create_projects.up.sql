@@ -1,5 +1,0 @@
-CREATE TABLE IF NOT EXISTS projects
-(
-    id      SERIAL PRIMARY KEY,
-    name VARCHAR(50) NOT NULL
-);

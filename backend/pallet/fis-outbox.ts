@@ -243,13 +243,13 @@ export const ReconcileFisOutbox = api(
             deleted_at: Date | null;
         }>`
             SELECT id, pallet_id, project, model, fis, deleted_at
-            FROM pallets WHERE id > ${afterId}
+            FROM pallet_details WHERE id > ${afterId}
             ORDER BY id LIMIT 50
         `;
         if (rows.length === 0 && afterId > 0) {
             rows = await tx.queryAll`
                 SELECT id, pallet_id, project, model, fis, deleted_at
-                FROM pallets ORDER BY id LIMIT 50
+                FROM pallet_details ORDER BY id LIMIT 50
             `;
         }
 

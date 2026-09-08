@@ -11,6 +11,8 @@ are API/domain modules, not independently deployable microservices.
 - Authentication data, authorization policy, validation, translations, and the
   explicit shared-persistence reference live in `shared`.
 - `pallet` owns the `pallets` database schema and migrations.
+  The fresh-install migration groups are documented in
+  [pallet/migrations/README.md](pallet/migrations/README.md).
 - `auth` and `fis` use the shared persistence boundary because transactions and
   counters intentionally belong to the same consistency boundary.
 - Calls to external FIS routers never run inside a SQL transaction. Database

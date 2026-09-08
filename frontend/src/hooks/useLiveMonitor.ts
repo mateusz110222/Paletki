@@ -29,7 +29,7 @@ export type MonitorSortOption = 'alphabetical' | 'lowest_health' | 'highest_heal
 
 interface UseLiveMonitorProps {
     pallets: MonitorPallet[];
-    projects?: Project[];
+    projects?: Pick<Project, "name">[];
 }
 
 export const useLiveMonitor = ({pallets, projects = []}: UseLiveMonitorProps) => {

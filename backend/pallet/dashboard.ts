@@ -46,7 +46,7 @@ export const GetPublicDashboard = api(
             SELECT DISTINCT ON (stations.station)
                    stations.station, stations.pallet_id, pallets.project, pallets.model, stations.updated_at
             FROM production_stations stations
-            JOIN pallets ON pallets.pallet_id = stations.pallet_id AND pallets.deleted_at IS NULL
+            JOIN pallet_details pallets ON pallets.pallet_id = stations.pallet_id AND pallets.deleted_at IS NULL
             ORDER BY stations.station, stations.updated_at DESC, stations.pallet_id DESC
         `;
         const stations = stationRows.map((station) => ({
@@ -60,7 +60,7 @@ export const GetPublicDashboard = api(
             ? await db.queryAll<ProductionStationRecord>`
                 SELECT stations.station, stations.pallet_id, pallets.project, pallets.model, stations.updated_at
                 FROM production_stations stations
-                JOIN pallets ON pallets.pallet_id = stations.pallet_id AND pallets.deleted_at IS NULL
+                JOIN pallet_details pallets ON pallets.pallet_id = stations.pallet_id AND pallets.deleted_at IS NULL
                 WHERE stations.station = ${requestedStation}
                 ORDER BY stations.updated_at DESC, stations.pallet_id DESC
                 LIMIT 3
@@ -81,7 +81,7 @@ export const GetPublicDashboard = api(
                 p.current_cycles,
                 p.max_cycles,
                 COALESCE(status_change.timestamp, p.updated_at) AS status_changed_at
-            FROM pallets p
+            FROM pallet_details p
             LEFT JOIN LATERAL (
                 SELECT timestamp
                 FROM pallet_audit_logs
@@ -105,7 +105,7 @@ export const GetPublicDashboard = api(
                     finished.timestamp AS finished_at,
                     EXTRACT(EPOCH FROM (finished.timestamp - started.timestamp)) / 60.0 AS duration_minutes
                 FROM pallet_audit_logs finished
-                JOIN pallets serviced_pallet ON serviced_pallet.pallet_id = finished.pallet_id
+                JOIN pallet_details serviced_pallet ON serviced_pallet.pallet_id = finished.pallet_id
                 JOIN LATERAL (
                     SELECT timestamp
                     FROM pallet_audit_logs started
@@ -148,7 +148,7 @@ export const GetPublicDashboard = api(
             FROM (
                 SELECT EXTRACT(EPOCH FROM (finished.timestamp - started.timestamp)) / 60.0 AS duration_minutes
                 FROM pallet_audit_logs finished
-                JOIN pallets serviced_pallet ON serviced_pallet.pallet_id = finished.pallet_id
+                JOIN pallet_details serviced_pallet ON serviced_pallet.pallet_id = finished.pallet_id
                 JOIN LATERAL (
                     SELECT timestamp
                     FROM pallet_audit_logs started

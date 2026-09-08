@@ -155,7 +155,7 @@ export const GetSolderingPallet = api(
                        COALESCE(project, '') AS project,
                        COALESCE(model, '') AS model,
                        fis
-                FROM pallets
+                FROM pallet_details
                 WHERE pallet_id = ${palletId} AND deleted_at IS NULL
             `;
 
@@ -187,7 +187,7 @@ export const SetSolderingStationPallet = api(
             await tx.exec`SELECT pg_advisory_xact_lock(hashtext(${station}))`;
             const pallet = await tx.queryRow<StationPalletSource>`
                 SELECT project, model, status
-                FROM pallets
+                FROM pallet_details
                 WHERE pallet_id = ${palletId} AND deleted_at IS NULL
                 FOR UPDATE
             `;
@@ -201,7 +201,7 @@ export const SetSolderingStationPallet = api(
             }
             await tx.exec`
                 DELETE FROM production_stations existing
-                USING pallets existing_pallet
+                USING pallet_details existing_pallet
                 WHERE existing.station = ${station}
                   AND existing.pallet_id = existing_pallet.pallet_id
                   AND existing_pallet.project = ${pallet.project}
@@ -310,7 +310,7 @@ export const RegisterSolderingCycle = api(
 
             const pallet = await tx.queryRow<PalletCycleState>`
                 SELECT status, current_cycles, total_cycles, max_cycles, project
-                FROM pallets
+                FROM pallet_details
                 WHERE pallet_id = ${palletId} AND deleted_at IS NULL
                 FOR UPDATE
             `;
@@ -340,7 +340,7 @@ export const RegisterSolderingCycle = api(
 
             await tx.exec`
                 DELETE FROM production_stations existing
-                USING pallets existing_pallet
+                USING pallet_details existing_pallet
                 WHERE existing.station = ${station}
                   AND existing.pallet_id = existing_pallet.pallet_id
                   AND existing_pallet.project = ${pallet.project}

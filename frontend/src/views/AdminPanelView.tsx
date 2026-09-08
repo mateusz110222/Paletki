@@ -1,6 +1,6 @@
 import {BulkPalletActions} from '../components/BulkPalletActions';
 import {readHiddenColumns, savePreference, type OptionalColumn, type SortKey} from '../lib/tablePreferences';
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useLayoutEffect, useRef, useState} from 'react';
 import {
     AlertCircle,
     Copy,
@@ -48,6 +48,31 @@ const ErrorAlert: React.FC<{ message: string }> = ({message}) => {
 
 export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
     const {data, status, actions} = useAdminPanel(props);
+    const tableScrollRef = useRef<HTMLDivElement>(null);
+    useLayoutEffect(() => {
+        const scroller = tableScrollRef.current;
+        const header = scroller?.querySelector('thead');
+        const frame = scroller?.parentElement;
+        if (!scroller || !header || !frame) return;
+        const updateScrollbar = () => {
+            frame.style.setProperty('--admin-header-height', `${header.getBoundingClientRect().height}px`);
+            frame.style.setProperty('--admin-scrollbar-width', `${scroller.offsetWidth - scroller.clientWidth}px`);
+        };
+        const observer = new ResizeObserver(updateScrollbar);
+        observer.observe(header);
+        observer.observe(scroller);
+        updateScrollbar();
+        return () => observer.disconnect();
+    }, []);
+    const previousPageRef = useRef(data.currentPage);
+    useLayoutEffect(() => {
+        if (previousPageRef.current === data.currentPage) return;
+        previousPageRef.current = data.currentPage;
+        const table = tableScrollRef.current;
+        if (!table) return;
+        table.scrollTo({top: 0, behavior: 'instant'});
+        table.scrollIntoView({block: 'start', inline: 'nearest', behavior: 'instant'});
+    }, [data.currentPage]);
     const {t, language} = useTranslation();
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [hiddenColumns, setHiddenColumns] = useState(readHiddenColumns);
@@ -84,8 +109,6 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
         Number(data.newNests) > 0 &&
         data.newFis,
     );
-    const isAddProjectValid = Boolean(data.newProjectName.trim());
-    const isAddModelValid = Boolean(data.newModelProject && data.newModelName.trim());
     const openPalletHistory = (pallet: Pallet) => {
         navigate(`/admin/pallets/${encodeURIComponent(pallet.pallet_id)}/history`);
     };
@@ -117,7 +140,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
     }, [searchTermFromURL, setSearchTerm]);
 
     const hasOpenModal = data.selectedPalletForUnblock !== null || data.errorModalState.isOpen || data.selectedPalletForDelete !== null ||
-        data.isBlockOpen || data.isEditOpen || data.isAddProjectOpen || data.isAddModelOpen || data.isAddOpen;
+        data.isBlockOpen || data.isEditOpen || data.isAddOpen;
 
     useEscapeKey(hasOpenModal, () => {
         if (data.selectedPalletForUnblock) {
@@ -130,10 +153,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
             actions.setIsBlockOpen(false);
         } else if (!status.isSubmitting && data.isEditOpen) {
             actions.setIsEditOpen(false);
-        } else if (!status.isSubmitting && data.isAddProjectOpen) {
-            actions.setIsAddProjectOpen(false);
-        } else if (!status.isSubmitting && data.isAddModelOpen) {
-            actions.setIsAddModelOpen(false);
+
         } else if (!status.isSubmitting && data.isAddOpen) {
             actions.setIsAddOpen(false);
         }
@@ -176,20 +196,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                             <PlusCircle size={18}/>
                             {t('btn_add_pallet')}
                         </button>
-                        <button
-                            onClick={() => actions.setIsAddProjectOpen(true)}
-                            className="flex-1 border border-brand-accent/50 bg-brand-accent/10 text-brand-accent font-bold uppercase text-xs min-h-14 px-3 py-3 flex items-center justify-center gap-2 hover:bg-brand-accent/20 active:scale-[0.98] transition-all rounded"
-                        >
-                            <PlusCircle size={18}/>
-                            {t('btn_add_project')}
-                        </button>
-                        <button
-                            onClick={() => actions.setIsAddModelOpen(true)}
-                            className="flex-1 border border-brand-accent/50 bg-brand-accent/10 text-brand-accent font-bold uppercase text-xs min-h-14 px-3 py-3 flex items-center justify-center gap-2 hover:bg-brand-accent/20 active:scale-[0.98] transition-all rounded"
-                        >
-                            <PlusCircle size={18}/>
-                            {t('btn_add_model')}
-                        </button>
+
                         <button
                             onClick={actions.handleExportAuditTrail}
                             className="flex-1 border border-brand-border text-brand-text font-bold uppercase text-xs min-h-14 px-3 py-3 flex items-center justify-center gap-2 hover:bg-brand-surface-high active:scale-[0.98] transition-all rounded"
@@ -359,7 +366,8 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                     ] as const).map(([key, label]) => <label key={key} className="flex items-center gap-2"><input type="checkbox" checked={!hiddenColumns.includes(key)} onChange={() => toggleColumn(key)}/>{t(label)}</label>)}</div></details>
                     <BulkPalletActions pallets={selectedPallets} onClear={() => setSelectedIds([])} onCompleted={ids => setSelectedIds(current => current.filter(id => !ids.includes(id)))}/>
                 </div>
-                <div className="admin-table-scroll relative max-h-[65dvh] overflow-auto">
+                <div className="admin-table-frame relative">
+                <div ref={tableScrollRef} className="admin-table-scroll relative max-h-[65dvh] overflow-auto">
                     <table className="w-full border-collapse">
                         <thead>
                         <tr className="bg-brand-surface-high/30 border-b border-brand-border text-left"><th className="px-4 py-3"><input type="checkbox" aria-label={language === 'pl' ? 'Zaznacz bieżącą stronę' : 'Select current page'} checked={allPageSelected} disabled={!pageIds.length} ref={node => {if(node) node.indeterminate = !allPageSelected && pageIds.some(id => selectedIds.includes(id));}} onChange={togglePage}/></th>
@@ -520,6 +528,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                         )}
                         </tbody>
                     </table>
+                </div>
                 </div>
 
                 {/* Paginacja */}
@@ -687,118 +696,6 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 submitLabel={t('btn_save')}
                                 isSubmitting={status.isSubmitting}
                                 submitDisabled={!isAddPalletValid}
-                            />
-                        </form>
-                    </div>
-                </ModalTransition>
-            )}
-            </ModalPresence>
-
-            {/* MODAL 1B: DODAWANIE NOWEGO PROJEKTU */}
-            <ModalPresence>
-            {data.isAddProjectOpen && (
-                <ModalTransition onBackdropClick={() => actions.setIsAddProjectOpen(false)}>
-                    <div
-                        className="relative bg-brand-surface border border-brand-border w-full max-w-lg rounded-xl overflow-hidden shadow-2xl">
-                        <div
-                            className="bg-brand-surface-high p-5 border-b border-brand-border flex justify-between items-center">
-                            <h3 className="text-base font-bold text-brand-text uppercase tracking-wider flex items-center gap-2">
-                                <PlusCircle size={18} className="text-brand-accent"/>
-                                {t('modal_add_project_title')}
-                            </h3>
-                            <button className="text-brand-text-muted hover:text-red-400 transition-colors"
-                                    aria-label={t('btn_cancel')}
-                                    onClick={() => actions.setIsAddProjectOpen(false)}>
-                                <X size={18}/>
-                            </button>
-                        </div>
-
-                        <ErrorAlert message={data.validationError}/>
-
-                        <form onSubmit={actions.handleAddProject} className="p-6 space-y-4">
-
-                            <InputField
-                                label={t('label_project_name')}
-                                fieldClassName="flex flex-col gap-1"
-                                labelClassName="text-[0.625rem] uppercase font-bold text-brand-text-muted"
-                                type="text"
-                                autoFocus
-                                placeholder={t('placeholder_project_name')}
-                                value={data.newProjectName.toUpperCase()}
-                                onChange={(e) => actions.setNewProjectName(e.target.value.toUpperCase())}
-                                required
-                            />
-
-                            <p className="text-[0.625rem] text-brand-text-muted leading-relaxed">
-                                {t('required_fields_hint')}
-                            </p>
-
-                            <ModalFormActions
-                                onCancel={() => actions.setIsAddProjectOpen(false)}
-                                submitLabel={t('btn_save')}
-                                isSubmitting={status.isSubmitting}
-                                submitDisabled={!isAddProjectValid}
-                            />
-                        </form>
-                    </div>
-                </ModalTransition>
-            )}
-            </ModalPresence>
-
-            {/* MODAL 1B2: DODAWANIE NOWEGO MODELU */}
-            <ModalPresence>
-            {data.isAddModelOpen && (
-                <ModalTransition onBackdropClick={() => actions.setIsAddModelOpen(false)}>
-                    <div
-                        className="relative bg-brand-surface border border-brand-border w-full max-w-lg rounded-xl overflow-hidden shadow-2xl">
-                        <div
-                            className="bg-brand-surface-high p-5 border-b border-brand-border flex justify-between items-center">
-                            <h3 className="text-base font-bold text-brand-text uppercase tracking-wider flex items-center gap-2">
-                                <PlusCircle size={18} className="text-brand-accent"/>
-                                {t('modal_add_model_title')}
-                            </h3>
-                            <button className="text-brand-text-muted hover:text-red-400 transition-colors"
-                                    type="button"
-                                    aria-label={t('btn_cancel')}
-                                    onClick={() => actions.setIsAddModelOpen(false)}>
-                                <X size={18}/>
-                            </button>
-                        </div>
-
-                        <ErrorAlert message={data.validationError}/>
-
-                        <form onSubmit={actions.handleAddModel} className="p-6 space-y-4">
-                            <SelectField
-                                label={t('label_model_project')}
-                                value={data.newModelProject}
-                                onChange={(e) => actions.setNewModelProject(e.target.value)}
-                                required
-                            >
-                                <option value="">{t('placeholder_select_project')}</option>
-                                {data.projects.map((project: Project) => (
-                                    <option key={project.name} value={project.name}>{project.name}</option>
-                                ))}
-                            </SelectField>
-
-                            <InputField
-                                label={t('label_model_name')}
-                                type="text"
-                                autoFocus
-                                placeholder={t('placeholder_model_name')}
-                                value={data.newModelName.toUpperCase()}
-                                onChange={(e) => actions.setNewModelName(e.target.value.toUpperCase())}
-                                required
-                            />
-
-                            <p className="text-[0.625rem] text-brand-text-muted leading-relaxed">
-                                {t('required_fields_hint')}
-                            </p>
-
-                            <ModalFormActions
-                                onCancel={() => actions.setIsAddModelOpen(false)}
-                                submitLabel={t('btn_save')}
-                                isSubmitting={status.isSubmitting}
-                                submitDisabled={!isAddModelValid}
                             />
                         </form>
                     </div>

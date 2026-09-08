@@ -22,7 +22,7 @@ export const GetAllModels = api(
     {method: "GET", path: "/models", expose: true},
     async (): Promise<GetAllModelsResponse> => ({
         models: await db.queryAll<PalletModel>`
-            SELECT pallet_models.name, projects.name AS project
+            SELECT pallet_models.id, pallet_models.project_id, pallet_models.name, projects.name AS project
             FROM pallet_models
             JOIN projects ON projects.id = pallet_models.project_id
             ORDER BY projects.name, pallet_models.name

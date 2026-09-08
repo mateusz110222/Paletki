@@ -1,3 +1,18 @@
+CREATE TABLE IF NOT EXISTS production_stations
+(
+    station     VARCHAR(64) NOT NULL,
+    pallet_id   VARCHAR(50) NOT NULL REFERENCES pallets (pallet_id) ON UPDATE CASCADE,
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (station, pallet_id),
+    CONSTRAINT production_stations_station_not_blank CHECK (LENGTH(TRIM(station)) BETWEEN 1 AND 64)
+);
+
+CREATE INDEX IF NOT EXISTS idx_production_stations_pallet_id
+    ON production_stations (pallet_id);
+
+CREATE INDEX IF NOT EXISTS idx_production_stations_recent
+    ON production_stations (station, updated_at DESC, pallet_id DESC);
+
 CREATE TABLE IF NOT EXISTS soldering_cycle_events
 (
     event_id               VARCHAR(64)  PRIMARY KEY,

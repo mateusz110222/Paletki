@@ -20,7 +20,7 @@ export interface AddProjectParams extends LocalizedRequest {
 export const GetAllProjects = api(
     {method: "GET", path: "/projects", expose: true},
     async (): Promise<GetAllProjectsResponse> => {
-        return {projects: await db.queryAll<Project>`SELECT name FROM projects ORDER BY name`};
+        return {projects: await db.queryAll<Project>`SELECT id, name FROM projects ORDER BY name`};
     },
 );
 

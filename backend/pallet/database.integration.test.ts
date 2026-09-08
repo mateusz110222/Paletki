@@ -19,6 +19,7 @@ const managementUser: AuthData = {
 const callOptions = {authData: managementUser};
 
 type CatalogClient = {
+    ManageCatalog(params: import('./catalog-management').ManageCatalogParams, options?: {authData?: AuthData}): Promise<void>;
     AddModel(
         params: {project: ShortText; name: ShortText; acceptLanguage?: string},
         options?: {authData?: AuthData},
@@ -115,6 +116,48 @@ afterEach(async () => {
 });
 
 describe('PostgreSQL pallet integration', () => {
+    it('renames catalogue entries by ID, updates pallets and queues FIS synchronization', async () => {
+        await seedCatalog();
+        await addPallet('CATALOG-USED');
+        const project = (await pallet.GetAllProjects()).projects[0];
+        const model = (await catalogClient.GetAllModels()).models[0];
+        await catalogClient.ManageCatalog({kind: 'project', id: project.id, newName: shortText('PROJECT-B')}, callOptions);
+        await catalogClient.ManageCatalog({kind: 'model', id: model.id, newName: shortText('MODEL-B')}, callOptions);
+        expect((await catalogClient.GetAllModels()).models).toEqual([{...model, project: 'PROJECT-B', name: 'MODEL-B'}]);
+        expect(await db.queryRow`SELECT project_id, model_id, project, model FROM pallet_details WHERE pallet_id = 'CATALOG-USED'`)
+            .toEqual({project_id: project.id, model_id: model.id, project: 'PROJECT-B', model: 'MODEL-B'});
+        expect(await db.queryRow`SELECT payload->'details'->>'model' AS model FROM fis_outbox ORDER BY id DESC LIMIT 1`)
+            .toEqual({model: 'MODEL-B'});
+        await expect(catalogClient.ManageCatalog({kind: 'project', id: project.id}, callOptions)).rejects.toThrow();
+        await expect(catalogClient.ManageCatalog({kind: 'model', id: model.id}, callOptions)).rejects.toThrow();
+    });
+
+    it('keeps archived pallet references and rejects mismatched project/model IDs', async () => {
+        await seedCatalog();
+        await seedCatalog('PROJECT-B', 'MODEL-B');
+        await addPallet('ARCHIVED-CATALOG');
+        const [modelA, modelB] = (await catalogClient.GetAllModels()).models;
+        await expect(db.exec`UPDATE pallets SET model_id = ${modelB.id} WHERE pallet_id = 'ARCHIVED-CATALOG'`).rejects.toThrow();
+        await db.exec`UPDATE pallets SET deleted_at = NOW() WHERE pallet_id = 'ARCHIVED-CATALOG'`;
+        await catalogClient.ManageCatalog({kind: 'model', id: modelA.id, newName: shortText('MODEL-RENAMED')}, callOptions);
+        expect(await db.queryRow`SELECT model, model_id FROM pallet_details WHERE pallet_id = 'ARCHIVED-CATALOG'`)
+            .toEqual({model: 'MODEL-RENAMED', model_id: modelA.id});
+        await expect(catalogClient.ManageCatalog({kind: 'model', id: modelA.id}, callOptions)).rejects.toThrow();
+    });
+
+    it('deletes unused models and projects and rejects unauthorized changes', async () => {
+        await seedCatalog();
+        const project = (await pallet.GetAllProjects()).projects[0];
+        const model = (await catalogClient.GetAllModels()).models[0];
+        await expect(catalogClient.ManageCatalog({kind: 'project', id: project.id, newName: shortText('DENIED')}, {
+            authData: {...managementUser, hasITDepartmentAccess: false},
+        })).rejects.toThrow();
+        await expect(catalogClient.ManageCatalog({kind: 'project', id: project.id}, callOptions)).rejects.toThrow();
+        await catalogClient.ManageCatalog({kind: 'model', id: model.id}, callOptions);
+        await catalogClient.ManageCatalog({kind: 'project', id: project.id}, callOptions);
+        expect(await pallet.GetAllProjects()).toEqual({projects: []});
+    });
+
     it('serves project-scoped models through the catalog endpoints', async () => {
         await seedCatalog();
 
@@ -124,7 +167,7 @@ describe('PostgreSQL pallet integration', () => {
         )).rejects.toThrow();
 
         await expect(catalogClient.GetAllModels()).resolves.toEqual({
-            models: [{project: 'PROJECT-A', name: 'MODEL-A'}],
+            models: [{id: expect.any(Number), project_id: expect.any(Number), project: 'PROJECT-A', name: 'MODEL-A'}],
         });
     });
 

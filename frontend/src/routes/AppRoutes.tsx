@@ -11,6 +11,7 @@ import {OperatorPanelView as OperatorPanel} from '../views/OperatorPanelView.tsx
 import {MaintenancePanelView as MaintenancePanel} from '../views/MaintenancePanelView.tsx';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
 import {PalletHistoryView} from '../views/PalletHistoryView.tsx';
+import {CatalogView} from '../views/CatalogView.tsx';
 import {DirectoryView} from '../views/DirectoryView.tsx';
 import {LoginView} from '../views/LoginView.tsx';
 import {PublicDashboardView} from '../views/PublicDashboardView.tsx';
@@ -102,6 +103,8 @@ const AuthenticatedRoutes: React.FC = () => {
 
                 {canManagePallets && (
                     <>
+                        <Route
+                            path="/catalog" element={<CatalogView/>}/>
                         <Route
                             path="/admin"
                             element={<AdminPanel pallets={pallets} projects={projects} models={models} setPallets={setPallets}

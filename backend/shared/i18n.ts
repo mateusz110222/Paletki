@@ -3,6 +3,11 @@ export type SupportedLanguage = "pl" | "en";
 export const defaultLanguage: SupportedLanguage = "pl";
 
 const pl = {
+    audit_catalog_renamed: 'Zmiana nazwy w katalogu: {{from}} → {{to}}.',
+    catalog_invalid_name: 'Podaj nazwę (1–50 znaków), bez separatora | i znaków sterujących.',
+    catalog_not_found: 'Wpis już nie istnieje. Odśwież katalog.',
+    catalog_in_use: 'Nie można usunąć wpisu: jest powiązany z paletami (także archiwalnymi) lub modelami.',
+    catalog_has_models: 'Najpierw usuń modele należące do projektu.',
     auth_management_required: 'Ta operacja jest dostępna wyłącznie dla skonfigurowanych działów IT lub ME LDAP.',
     auth_status_forbidden: 'Nie masz uprawnień do tej zmiany statusu.',
     auth_operator_blocked: 'Zablokowana paleta nie może być obsługiwana w panelu operatora.',
@@ -72,6 +77,11 @@ const pl = {
 export type TranslationKey = keyof typeof pl;
 
 const en: Record<TranslationKey, string> = {
+    audit_catalog_renamed: 'Catalogue renamed: {{from}} → {{to}}.',
+    catalog_invalid_name: 'Enter a name (1–50 characters), without | or control characters.',
+    catalog_not_found: 'This entry no longer exists. Refresh the catalogue.',
+    catalog_in_use: 'Cannot delete this entry: it is referenced by pallets (including archived pallets) or models.',
+    catalog_has_models: 'Delete the models belonging to this project first.',
     auth_management_required: 'This operation is restricted to configured LDAP IT or ME departments.',
     auth_status_forbidden: 'You do not have permission for this status change.',
     auth_operator_blocked: 'A blocked pallet cannot be processed in the operator panel.',
