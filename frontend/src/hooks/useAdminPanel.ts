@@ -64,6 +64,9 @@ export const useAdminPanel = ({
     const [newModel, setNewModel] = useState('');
     const [newProject, setNewProject] = useState('');
     const [newMaxCycles, setNewMaxCycles] = useState('200');
+    const [cycleSteppingEnabled, setCycleSteppingEnabled] = useState(false);
+    const [cycleStepEvery, setCycleStepEvery] = useState('10');
+    const [cycleStepAmount, setCycleStepAmount] = useState('10');
     const [newNests, setNewNests] = useState('1');
     const [newFis, setNewFis] = useState('1');
 
@@ -145,6 +148,22 @@ export const useAdminPanel = ({
         .map((model) => model.name)
         .sort((left, right) => left.localeCompare(right)), [models, newProject]);
 
+    const rangeCyclePreview = useMemo(() => {
+        if (addMode !== 'range' || !cycleSteppingEnabled) return null;
+        const ids = expandRange(newId.trim().toUpperCase(), newLastId.trim().toUpperCase());
+        const base = Number(newMaxCycles);
+        const every = Number(cycleStepEvery);
+        const amount = Number(cycleStepAmount);
+        if (!ids || !Number.isSafeInteger(base) || !Number.isSafeInteger(every) ||
+            !Number.isSafeInteger(amount) || base <= 0 || every <= 0 || amount <= 0) return null;
+        return {
+            palletCount: ids.length,
+            firstGroupEnd: ids[Math.min(every, ids.length) - 1],
+            firstLimit: base,
+            lastLimit: base + Math.floor((ids.length - 1) / every) * amount,
+        };
+    }, [addMode, cycleSteppingEnabled, cycleStepAmount, cycleStepEvery, newId, newLastId, newMaxCycles]);
+
     const {totalPallets, availableStock, blockedOrMaint} = useMemo(() => pallets.reduce(
         (totals, pallet) => {
             totals.totalPallets += 1;
@@ -172,6 +191,9 @@ export const useAdminPanel = ({
         setNewProject('');
         setNewModel('');
         setNewMaxCycles('200');
+        setCycleSteppingEnabled(false);
+        setCycleStepEvery('10');
+        setCycleStepAmount('10');
         setNewNests('1');
         setNewFis('1');
         setValidationError('');
@@ -189,6 +211,9 @@ export const useAdminPanel = ({
         setNewProject(pallet.project);
         setNewModel(pallet.model);
         setNewMaxCycles(String(pallet.max_cycles));
+        setCycleSteppingEnabled(false);
+        setCycleStepEvery('10');
+        setCycleStepAmount('10');
         setNewNests(String(pallet.nests));
         setNewFis(String(pallet.fis));
         setValidationError('');
@@ -228,6 +253,16 @@ export const useAdminPanel = ({
             setValidationError(t('fis_invalid'));
             return;
         }
+        const stepEvery = Number(cycleStepEvery);
+        const stepAmount = Number(cycleStepAmount);
+        if (addMode === 'range' && cycleSteppingEnabled) {
+            const lastMaxCycles = Number(newMaxCycles) + Math.floor((rangeIds.length - 1) / stepEvery) * stepAmount;
+            if (!Number.isSafeInteger(stepEvery) || !Number.isSafeInteger(stepAmount) ||
+                stepEvery <= 0 || stepAmount <= 0 || !Number.isSafeInteger(lastMaxCycles) || lastMaxCycles > 1_000_000) {
+                setValidationError(t('cycle_step_invalid'));
+                return;
+            }
+        }
 
         try {
             setIsSubmitting(true);
@@ -252,6 +287,10 @@ export const useAdminPanel = ({
                     ...details,
                     first_pallet_id: palletId,
                     last_pallet_id: lastPalletId,
+                    ...(cycleSteppingEnabled ? {
+                        cycle_step_every: stepEvery,
+                        cycle_step_amount: stepAmount,
+                    } : {}),
                 });
             } else {
                 await apiClient.pallet.AddPallet({...details, pallet_id: palletId});
@@ -482,6 +521,10 @@ export const useAdminPanel = ({
             newModel,
             newProject,
             newMaxCycles,
+            cycleSteppingEnabled,
+            cycleStepEvery,
+            cycleStepAmount,
+            rangeCyclePreview,
             newNests,
             newFis,
             validationError,
@@ -542,6 +585,9 @@ export const useAdminPanel = ({
                 setNewModel('');
             },
             setNewMaxCycles,
+            setCycleSteppingEnabled,
+            setCycleStepEvery,
+            setCycleStepAmount,
             setNewNests,
             setNewFis,
             setValidationError,

@@ -4,6 +4,7 @@ import {Project} from "../shared/types";
 import {t} from "../shared/i18n";
 import {requirePalletManagementUser} from "../shared/authorization";
 import type {ShortText} from "../shared/validation";
+import {updateCatalogItem, deleteCatalogItem} from "./catalog-management";
 
 interface LocalizedRequest {
     acceptLanguage?: Header<"Accept-Language">;
@@ -15,6 +16,15 @@ export interface GetAllProjectsResponse {
 
 export interface AddProjectParams extends LocalizedRequest {
     name: ShortText;
+}
+
+export interface UpdateProjectParams extends LocalizedRequest {
+    id: number;
+    name: ShortText;
+}
+
+export interface DeleteProjectParams extends LocalizedRequest {
+    id: number;
 }
 
 export const GetAllProjects = api(
@@ -43,5 +53,19 @@ export const AddProject = api(
                 error instanceof Error ? error : undefined,
             );
         }
+    },
+);
+
+export const UpdateProject = api(
+    {method: "PUT", path: "/projects/:id", expose: true, auth: true},
+    async (params: UpdateProjectParams): Promise<void> => {
+        await updateCatalogItem("project", params.id, params.name, params.acceptLanguage);
+    },
+);
+
+export const DeleteProject = api(
+    {method: "DELETE", path: "/projects/:id", expose: true, auth: true},
+    async (params: DeleteProjectParams): Promise<void> => {
+        await deleteCatalogItem("project", params.id, params.acceptLanguage);
     },
 );

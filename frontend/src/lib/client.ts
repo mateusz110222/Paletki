@@ -220,6 +220,8 @@ export namespace pallet {
         project: shared.ShortText
         model: shared.ShortText
         "max_cycles": shared.MaxCycles
+        "cycle_step_every"?: number
+        "cycle_step_amount"?: shared.MaxCycles
         nests: shared.NestCount
         status: shared.PalletStatus
         "block_reason"?: string | null
@@ -235,6 +237,24 @@ export namespace pallet {
 
     export interface AddProjectParams {
         name: shared.ShortText
+        acceptLanguage?: string
+    }
+
+    export interface UpdateProjectParams {
+        name: shared.ShortText
+        acceptLanguage?: string
+    }
+
+    export interface DeleteProjectParams {
+        acceptLanguage?: string
+    }
+
+    export interface UpdateModelParams {
+        name: shared.ShortText
+        acceptLanguage?: string
+    }
+
+    export interface DeleteModelParams {
         acceptLanguage?: string
     }
 
@@ -361,7 +381,10 @@ export namespace pallet {
 
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
-            this.ManageCatalog = this.ManageCatalog.bind(this)
+            this.UpdateProject = this.UpdateProject.bind(this)
+            this.DeleteProject = this.DeleteProject.bind(this)
+            this.UpdateModel = this.UpdateModel.bind(this)
+            this.DeleteModel = this.DeleteModel.bind(this)
             this.AddModel = this.AddModel.bind(this)
             this.AddPallet = this.AddPallet.bind(this)
             this.AddPalletRange = this.AddPalletRange.bind(this)
@@ -379,10 +402,38 @@ export namespace pallet {
             this.UpdatePallet = this.UpdatePallet.bind(this)
         }
 
-        public async ManageCatalog(params: {kind: "project" | "model"; id: number; newName?: string; acceptLanguage?: string}): Promise<void> {
-            const {acceptLanguage, ...body} = params
-            const headers = makeRecord<string, string>({"accept-language": acceptLanguage})
-            await this.baseClient.callTypedAPI("POST", "/catalog/manage", JSON.stringify(body), {headers})
+        public async UpdateProject(id: number, params: UpdateProjectParams): Promise<void> {
+            const headers = makeRecord<string, string>({
+                "accept-language": params.acceptLanguage,
+            })
+            const body = {
+                name: params.name,
+            }
+            await this.baseClient.callTypedAPI("PUT", `/projects/${encodeURIComponent(id)}`, JSON.stringify(body), {headers})
+        }
+
+        public async DeleteProject(id: number, params: DeleteProjectParams = {}): Promise<void> {
+            const headers = makeRecord<string, string>({
+                "accept-language": params.acceptLanguage,
+            })
+            await this.baseClient.callTypedAPI("DELETE", `/projects/${encodeURIComponent(id)}`, undefined, {headers})
+        }
+
+        public async UpdateModel(id: number, params: UpdateModelParams): Promise<void> {
+            const headers = makeRecord<string, string>({
+                "accept-language": params.acceptLanguage,
+            })
+            const body = {
+                name: params.name,
+            }
+            await this.baseClient.callTypedAPI("PUT", `/models/${encodeURIComponent(id)}`, JSON.stringify(body), {headers})
+        }
+
+        public async DeleteModel(id: number, params: DeleteModelParams = {}): Promise<void> {
+            const headers = makeRecord<string, string>({
+                "accept-language": params.acceptLanguage,
+            })
+            await this.baseClient.callTypedAPI("DELETE", `/models/${encodeURIComponent(id)}`, undefined, {headers})
         }
 
         public async AddModel(params: AddModelParams): Promise<void> {
@@ -432,6 +483,8 @@ export namespace pallet {
                 "first_pallet_id": params["first_pallet_id"],
                 "last_pallet_id":  params["last_pallet_id"],
                 "max_cycles":      params["max_cycles"],
+                "cycle_step_every": params["cycle_step_every"],
+                "cycle_step_amount": params["cycle_step_amount"],
                 model:              params.model,
                 nests:              params.nests,
                 project:            params.project,

@@ -4,6 +4,7 @@ import type {PalletModel} from "../shared/types";
 import {t} from "../shared/i18n";
 import {requirePalletManagementUser} from "../shared/authorization";
 import {isFisSafeText, type ShortText} from "../shared/validation";
+import {updateCatalogItem, deleteCatalogItem} from "./catalog-management";
 
 interface LocalizedRequest {
     acceptLanguage?: Header<"Accept-Language">;
@@ -16,6 +17,15 @@ export interface GetAllModelsResponse {
 export interface AddModelParams extends LocalizedRequest {
     project: ShortText;
     name: ShortText;
+}
+
+export interface UpdateModelParams extends LocalizedRequest {
+    id: number;
+    name: ShortText;
+}
+
+export interface DeleteModelParams extends LocalizedRequest {
+    id: number;
 }
 
 export const GetAllModels = api(
@@ -63,5 +73,19 @@ export const AddModel = api(
                 error instanceof Error ? error : undefined,
             );
         }
+    },
+);
+
+export const UpdateModel = api(
+    {method: "PUT", path: "/models/:id", expose: true, auth: true},
+    async (params: UpdateModelParams): Promise<void> => {
+        await updateCatalogItem("model", params.id, params.name, params.acceptLanguage);
+    },
+);
+
+export const DeleteModel = api(
+    {method: "DELETE", path: "/models/:id", expose: true, auth: true},
+    async (params: DeleteModelParams): Promise<void> => {
+        await deleteCatalogItem("model", params.id, params.acceptLanguage);
     },
 );

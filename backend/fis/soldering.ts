@@ -8,10 +8,7 @@ interface PalletPathParams {
 }
 
 interface RegisterCycleParams extends PalletPathParams {
-    event_id: string;
     station: string;
-    process: string;
-    unit_ids: string[];
 }
 
 export interface SolderingPallet {
@@ -29,8 +26,6 @@ export interface SolderingPallet {
 
 export interface RegisterCycleResponse {
     status: true;
-    event_id: string;
-    cycle_recorded: boolean;
     pallet_id: string;
     current_cycles: number;
     total_cycles: number;
@@ -45,21 +40,8 @@ interface PalletCycleState {
     project: string;
 }
 
-interface CycleEventRecord {
-    pallet_id: string;
-    station: string;
-    process: string;
-    unit_ids_match: boolean;
-    state: "claimed" | "recorded";
-    result_current_cycles: number | null;
-    result_total_cycles: number | null;
-    result_pallet_status: PalletStatus | null;
-}
-
 const PALLET_ID_PATTERN = /^[A-Z0-9._-]{1,50}$/;
-const CYCLE_EVENT_ID_PATTERN = /^[a-f0-9]{64}$/;
 const STATION_PATTERN = /^[A-Z0-9._-]{1,64}$/;
-const UNIT_ID_PATTERN = /^[A-Z0-9._-]{1,128}$/;
 const STATION_PROJECT_HISTORY_LIMIT = 3;
 
 function normalizeSolderingPalletId(value: string): string {
@@ -69,47 +51,6 @@ function normalizeSolderingPalletId(value: string): string {
             .withDetails({reason: "INVALID_PALLET_ID"});
     }
     return palletId;
-}
-
-function normalizeCycleMetadata(params: RegisterCycleParams): {
-    eventId: string;
-    station: string;
-    processName: string;
-    unitIds: string[];
-} {
-    const eventId = String(params.event_id || "").trim().toLowerCase();
-    const station = normalizeStation(String(params.station || ""));
-    const processName = String(params.process || "").trim().toUpperCase();
-    const unitIds = Array.isArray(params.unit_ids)
-        ? params.unit_ids.map((value) => String(value).trim().toUpperCase())
-        : [];
-
-    if (!CYCLE_EVENT_ID_PATTERN.test(eventId)) {
-        throw APIError.invalidArgument("Cycle event ID must be a 64-character hexadecimal value.")
-            .withDetails({reason: "INVALID_CYCLE_EVENT_ID"});
-    }
-    if (!STATION_PATTERN.test(station) || station === "ALL") {
-        throw APIError.invalidArgument("Station must contain 1-64 letters, digits, dots, hyphens, or underscores.")
-            .withDetails({reason: "INVALID_STATION"});
-    }
-    const processIsPrintable = [...processName].every((character) => {
-        const codePoint = character.codePointAt(0) ?? 0;
-        return codePoint > 31 && codePoint !== 127;
-    });
-    if (!processName || processName.length > 100 || !processIsPrintable) {
-        throw APIError.invalidArgument("Process must contain 1-100 printable characters.")
-            .withDetails({reason: "INVALID_PROCESS"});
-    }
-    if (
-        unitIds.length === 0
-        || unitIds.length > 10_000
-        || unitIds.some((value) => !UNIT_ID_PATTERN.test(value))
-        || new Set(unitIds).size !== unitIds.length
-    ) {
-        throw APIError.invalidArgument("Provide between 1 and 10000 unique, valid unit IDs.")
-            .withDetails({reason: "INVALID_UNIT_IDS"});
-    }
-    return {eventId, station, processName, unitIds: unitIds.sort()};
 }
 
 interface SetStationPalletParams {
@@ -254,60 +195,14 @@ export const RegisterSolderingCycle = api(
     {method: "POST", path: "/fis/soldering/pallets/:pallet_id/cycles", expose: true},
     async (params: RegisterCycleParams): Promise<RegisterCycleResponse> => {
         const palletId = normalizeSolderingPalletId(params.pallet_id);
-        const {eventId, station, processName, unitIds} = normalizeCycleMetadata(params);
+        const station = normalizeStation(String(params.station || ""));
+        if (!STATION_PATTERN.test(station) || station === "ALL") {
+            throw APIError.invalidArgument("Invalid station.").withDetails({reason: "INVALID_STATION"});
+        }
 
         try {
             await using tx = await db.begin();
             await tx.exec`SELECT pg_advisory_xact_lock(hashtext(${station}))`;
-            const inserted = await tx.queryRow<{event_id: string}>`
-                INSERT INTO soldering_cycle_events (event_id, pallet_id, station, process, unit_ids)
-                VALUES (${eventId}, ${palletId}, ${station}, ${processName}, to_jsonb(${unitIds}::text[]))
-                ON CONFLICT (event_id) DO NOTHING
-                RETURNING event_id
-            `;
-
-            if (!inserted) {
-                const original = await tx.queryRow<CycleEventRecord>`
-                    SELECT pallet_id,
-                           station,
-                           process,
-                           unit_ids = to_jsonb(${unitIds}::text[]) AS unit_ids_match,
-                           state,
-                           result_current_cycles,
-                           result_total_cycles,
-                           result_pallet_status
-                    FROM soldering_cycle_events
-                    WHERE event_id = ${eventId}
-                `;
-                if (
-                    !original
-                    || original.pallet_id !== palletId
-                    || original.station !== station
-                    || original.process !== processName
-                    || !original.unit_ids_match
-                ) {
-                    throw APIError.alreadyExists("Cycle event ID was already used with different metadata.")
-                        .withDetails({reason: "CYCLE_EVENT_METADATA_CONFLICT", event_id: eventId});
-                }
-                const currentCycles = original.result_current_cycles;
-                const totalCycles = original.result_total_cycles;
-                const palletStatus = original.result_pallet_status;
-                if (original.state !== "recorded" || currentCycles === null || totalCycles === null || palletStatus === null) {
-                    throw APIError.aborted("Cycle event is not finalized yet.")
-                        .withDetails({reason: "CYCLE_EVENT_NOT_FINALIZED", event_id: eventId});
-                }
-                await tx.commit();
-                return {
-                    status: true,
-                    event_id: eventId,
-                    cycle_recorded: false,
-                    pallet_id: palletId,
-                    current_cycles: currentCycles,
-                    total_cycles: totalCycles,
-                    pallet_status: palletStatus,
-                };
-            }
-
             const pallet = await tx.queryRow<PalletCycleState>`
                 SELECT status, current_cycles, total_cycles, max_cycles, project
                 FROM pallet_details
@@ -364,21 +259,9 @@ export const RegisterSolderingCycle = api(
                   )
             `;
 
-            await tx.exec`
-                UPDATE soldering_cycle_events
-                SET state = 'recorded',
-                    result_current_cycles = ${updated.current_cycles},
-                    result_total_cycles = ${updated.total_cycles},
-                    result_pallet_status = ${updated.status},
-                    finalized_at = NOW()
-                WHERE event_id = ${eventId} AND state = 'claimed'
-            `;
-
             await tx.commit();
             return {
                 status: true,
-                event_id: eventId,
-                cycle_recorded: true,
                 pallet_id: palletId,
                 current_cycles: updated.current_cycles,
                 total_cycles: updated.total_cycles,

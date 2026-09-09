@@ -2,6 +2,7 @@ import {describe, expect, it} from "vitest";
 import {
     isFisSafeText,
     isSafePositiveInteger,
+    calculateRangeMaxCycles,
     normalizePalletId,
     normalizePalletStatus,
 } from "./validation";
@@ -26,5 +27,22 @@ describe("shared API validation", () => {
         expect(isFisSafeText("PROJECT-01")).toBe(true);
         expect(isFisSafeText("PROJECT|MODEL")).toBe(false);
         expect(isFisSafeText("PROJECT\nMODEL")).toBe(false);
+    });
+});
+
+describe("range cycle stepping", () => {
+    it("keeps one limit when stepping is not configured", () => {
+        expect(calculateRangeMaxCycles(200, 17)).toBe(200);
+    });
+
+    it("increases the limit after each complete pallet group", () => {
+        expect(Array.from({length: 12}, (_, index) => calculateRangeMaxCycles(200, index, 10, 10)))
+            .toEqual([200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 210, 210]);
+    });
+
+    it("rejects incomplete, non-positive and overflowing step settings", () => {
+        expect(calculateRangeMaxCycles(200, 0, 10)).toBeNull();
+        expect(calculateRangeMaxCycles(200, 0, 0, 10)).toBeNull();
+        expect(calculateRangeMaxCycles(1_000_000, 1, 1, 1)).toBeNull();
     });
 });

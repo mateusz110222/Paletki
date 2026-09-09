@@ -100,6 +100,13 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
     } = actions;
     const hasActiveFilters = selectedProjectFromUrl !== 'ALL' || selectedModelFromUrl !== 'ALL' ||
         selectedStatusFromUrl !== 'ALL' || Boolean(searchTermFromURL);
+    const cycleStepEvery = Number(data.cycleStepEvery);
+    const cycleStepAmount = Number(data.cycleStepAmount);
+    const rangeCycleStepValid = data.addMode !== 'range' || !data.cycleSteppingEnabled || Boolean(
+        Number.isSafeInteger(cycleStepEvery) && cycleStepEvery > 0 &&
+        Number.isSafeInteger(cycleStepAmount) && cycleStepAmount > 0 &&
+        data.rangeCyclePreview && data.rangeCyclePreview.lastLimit <= 1_000_000,
+    );
     const isAddPalletValid = Boolean(
         data.newId.trim() &&
         (data.addMode === 'single' || data.newLastId.trim()) &&
@@ -107,7 +114,8 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
         data.newModel &&
         Number(data.newMaxCycles) > 0 &&
         Number(data.newNests) > 0 &&
-        data.newFis,
+        data.newFis &&
+        rangeCycleStepValid,
     );
     const openPalletHistory = (pallet: Pallet) => {
         navigate(`/admin/pallets/${encodeURIComponent(pallet.pallet_id)}/history`);
@@ -546,15 +554,19 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
             {data.isAddOpen && (
                 <ModalTransition
                     onBackdropClick={() => actions.setIsAddOpen(false)}
-                    className="overflow-y-auto"
+                    className="p-2 sm:p-4"
                 >
                     <div
-                        className="relative bg-brand-surface border border-brand-border w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl z-10">
+                        className="add-pallet-modal relative z-10 flex w-full flex-col overflow-hidden rounded-3xl border border-brand-border bg-brand-surface shadow-2xl"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="add-pallet-title"
+                    >
 
                         {/* Nagłówek */}
                         <div
-                            className="bg-brand-surface-high p-6 border-b border-brand-border flex justify-between items-center">
-                            <h3 className="text-sm font-black text-brand-text uppercase tracking-widest flex items-center gap-2.5">
+                            className="add-pallet-modal-header flex shrink-0 items-center justify-between border-b border-brand-border bg-brand-surface-high">
+                            <h3 id="add-pallet-title" className="flex items-center gap-2.5 text-sm font-black uppercase tracking-widest text-brand-text">
                                 <div
                                     className="w-8 h-8 rounded-xl bg-brand-accent/10 border border-brand-accent/20 flex items-center justify-center text-brand-accent shadow-inner">
                                     <PlusCircle size={16}/>
@@ -571,10 +583,10 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                             </button>
                         </div>
 
-                        <ErrorAlert message={data.validationError}/>
-
                         {/* Formularz */}
-                        <form onSubmit={actions.handleAddPallet} className="p-6 space-y-6">
+                        <form onSubmit={actions.handleAddPallet} className="flex min-h-0 flex-1 flex-col">
+                            <div className="add-pallet-modal-body min-h-0 flex-1 overflow-y-auto overscroll-contain">
+                            <ErrorAlert message={data.validationError}/>
 
                             <div className="grid grid-cols-2 gap-2 rounded-xl border border-brand-border bg-brand-bg p-1.5">
                                 <button
@@ -594,7 +606,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                             </div>
 
                             {/* Sekcja główna: ID i Projekt, zależny Model poniżej na całą szerokość */}
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="add-pallet-primary-grid grid gap-4">
                                 <InputField
                                     label={data.addMode === 'range' ? t('label_first_pallet_id') : t('label_pallet_id')}
                                     type="text"
@@ -618,7 +630,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
 
                                 <SelectField
                                     label={t('label_project')}
-                                    fieldClassName={data.addMode === 'range' ? 'flex flex-col gap-1.5 col-span-2' : undefined}
+                                    fieldClassName={data.addMode === 'range' ? 'add-pallet-range-catalog-field flex flex-col gap-1.5' : undefined}
                                     value={data.newProject}
                                     onChange={(e) => actions.setNewProject(e.target.value)}
                                     required
@@ -630,15 +642,9 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                     })}
                                 </SelectField>
 
-                                {data.addMode === 'range' && (
-                                    <p className="col-span-2 -mt-1 text-[0.625rem] leading-relaxed text-brand-text-muted">
-                                        {t('pallet_range_hint')}
-                                    </p>
-                                )}
-
                                 <SelectField
                                     label={t('label_model')}
-                                    fieldClassName="flex flex-col gap-1.5 col-span-2"
+                                    fieldClassName={data.addMode === 'range' ? 'add-pallet-range-catalog-field flex flex-col gap-1.5' : 'flex flex-col gap-1.5 col-span-2'}
                                     value={data.newModel}
                                     onChange={(e) => actions.setNewModel(e.target.value)}
                                     disabled={!data.newProject}
@@ -686,17 +692,85 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 </SelectField>
                             </div>
 
-                            <p className="text-[0.625rem] text-brand-text-muted leading-relaxed tracking-wide">
-                                {t('required_fields_hint')}
-                            </p>
+                            {data.addMode === 'range' && (
+                                <section className="cycle-step-card rounded-2xl border border-brand-border bg-brand-surface-high/45 p-4">
+                                    <label className="flex cursor-pointer items-start justify-between gap-4">
+                                        <span>
+                                            <span className="block text-[0.6875rem] font-black uppercase tracking-wider text-brand-text">
+                                                {t('cycle_step_title')}
+                                            </span>
+                                            <span className="cycle-step-description mt-1 block text-[0.625rem] leading-relaxed text-brand-text-muted">
+                                                {t('cycle_step_description')}
+                                            </span>
+                                        </span>
+                                        <span className="relative mt-0.5 shrink-0">
+                                            <input
+                                                type="checkbox"
+                                                className="cycle-stepping-toggle peer sr-only"
+                                                checked={data.cycleSteppingEnabled}
+                                                onChange={(event) => actions.setCycleSteppingEnabled(event.target.checked)}
+                                            />
+                                            <span className="block h-6 w-11 rounded-full border border-brand-border bg-brand-bg transition-colors peer-checked:border-brand-accent/60 peer-checked:bg-brand-accent/25 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-accent/40"/>
+                                            <span className="absolute left-1 top-1 h-4 w-4 rounded-full bg-brand-text-muted shadow-sm transition-all peer-checked:translate-x-5 peer-checked:bg-brand-accent"/>
+                                        </span>
+                                    </label>
+
+                                    {data.cycleSteppingEnabled && (
+                                        <div className="cycle-step-grid mt-4 grid grid-cols-2 items-end gap-3 border-t border-brand-border/70 pt-4">
+                                            <InputField
+                                                label={t('cycle_step_every_label')}
+                                                type="number"
+                                                value={data.cycleStepEvery}
+                                                onChange={(event) => actions.setCycleStepEvery(event.target.value)}
+                                                min="1"
+                                                max="100"
+                                                step="1"
+                                                required
+                                            />
+                                            <InputField
+                                                label={t('cycle_step_amount_label')}
+                                                type="number"
+                                                value={data.cycleStepAmount}
+                                                onChange={(event) => actions.setCycleStepAmount(event.target.value)}
+                                                min="1"
+                                                max="1000000"
+                                                step="1"
+                                                required
+                                            />
+                                            <div className={`cycle-step-preview col-span-2 flex min-h-[2.625rem] items-center rounded-xl border px-3 py-2 font-mono text-[0.625rem] leading-relaxed ${data.rangeCyclePreview && data.rangeCyclePreview.lastLimit > 1_000_000
+                                                ? 'border-red-500/30 bg-red-500/[0.07] text-red-300'
+                                                : 'border-brand-accent/20 bg-brand-accent/[0.06] text-brand-text-muted'
+                                            }`}>
+                                                {data.rangeCyclePreview && data.rangeCyclePreview.lastLimit > 1_000_000
+                                                    ? t('cycle_step_invalid')
+                                                    : data.rangeCyclePreview
+                                                    ? t('cycle_step_preview', {
+                                                        count: data.rangeCyclePreview.palletCount,
+                                                        first: data.newId.trim().toUpperCase(),
+                                                        groupEnd: data.rangeCyclePreview.firstGroupEnd,
+                                                        firstLimit: data.rangeCyclePreview.firstLimit,
+                                                        every: cycleStepEvery,
+                                                        amount: cycleStepAmount,
+                                                        lastLimit: data.rangeCyclePreview.lastLimit,
+                                                    })
+                                                    : t('cycle_step_preview_pending')}
+                                            </div>
+                                        </div>
+                                    )}
+                                </section>
+                            )}
+
+                            </div>
 
                             {/* Stopka z przyciskami akcji */}
-                            <ModalFormActions
-                                onCancel={() => actions.setIsAddOpen(false)}
-                                submitLabel={t('btn_save')}
-                                isSubmitting={status.isSubmitting}
-                                submitDisabled={!isAddPalletValid}
-                            />
+                            <div className="add-pallet-modal-footer shrink-0 bg-brand-surface">
+                                <ModalFormActions
+                                    onCancel={() => actions.setIsAddOpen(false)}
+                                    submitLabel={t('btn_save')}
+                                    isSubmitting={status.isSubmitting}
+                                    submitDisabled={!isAddPalletValid}
+                                />
+                            </div>
                         </form>
                     </div>
                 </ModalTransition>

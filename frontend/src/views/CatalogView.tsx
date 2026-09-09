@@ -54,9 +54,12 @@ export function CatalogView() {
             if (selected.create) {
                 if (selected.entry.kind === 'project') await apiClient.pallet.AddProject({name: name.trim(), acceptLanguage: language});
                 else await apiClient.pallet.AddModel({name: name.trim(), project: projectName, acceptLanguage: language});
+            } else if (selected.remove) {
+                if (selected.entry.kind === 'project') await apiClient.pallet.DeleteProject(selected.entry.id, {acceptLanguage: language});
+                else await apiClient.pallet.DeleteModel(selected.entry.id, {acceptLanguage: language});
             } else {
-                await apiClient.pallet.ManageCatalog({kind: selected.entry.kind, id: selected.entry.id,
-                    newName: selected.remove ? undefined : name.trim(), acceptLanguage: language});
+                if (selected.entry.kind === 'project') await apiClient.pallet.UpdateProject(selected.entry.id, {name: name.trim(), acceptLanguage: language});
+                else await apiClient.pallet.UpdateModel(selected.entry.id, {name: name.trim(), acceptLanguage: language});
             }
             setSelected(null);
             setSuccess(true);

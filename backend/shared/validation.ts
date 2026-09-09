@@ -12,6 +12,8 @@ export type MaxCycles = number & Min<1> & Max<1_000_000>;
 export type NestCount = number & Min<1> & Max<10_000>;
 export type FisUnit = 1 | 2;
 
+export const MAX_CYCLES_LIMIT = 1_000_000;
+
 export function normalizePalletId(value: string): string {
     return value.trim().toUpperCase();
 }
@@ -47,6 +49,25 @@ export function normalizePalletStatus(value: string): PalletStatus | null {
 
 export function isSafePositiveInteger(value: number): boolean {
     return Number.isSafeInteger(value) && value > 0;
+}
+
+/** Returns the cycle limit for a zero-based pallet position in a stepped range. */
+export function calculateRangeMaxCycles(
+    baseMaxCycles: number,
+    palletIndex: number,
+    stepEvery?: number,
+    stepAmount?: number,
+): number | null {
+    if (!isSafePositiveInteger(baseMaxCycles) || !Number.isSafeInteger(palletIndex) || palletIndex < 0) return null;
+    if (stepEvery === undefined && stepAmount === undefined) {
+        return baseMaxCycles <= MAX_CYCLES_LIMIT ? baseMaxCycles : null;
+    }
+    const every = stepEvery ?? 0;
+    const amount = stepAmount ?? 0;
+    if (!isSafePositiveInteger(every) || !isSafePositiveInteger(amount)) return null;
+
+    const maxCycles = baseMaxCycles + Math.floor(palletIndex / every) * amount;
+    return Number.isSafeInteger(maxCycles) && maxCycles <= MAX_CYCLES_LIMIT ? maxCycles : null;
 }
 
 export function isFisSafeText(value: string): boolean {

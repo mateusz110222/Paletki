@@ -21,7 +21,6 @@ const UI_COLORS = ["bg-red", "bg-[red]", "bg-[green]", "bg-teal-200", "bg-[orang
 const ACTIVE_PALLET_STATUS = "Active";
 const PALLET_STATUSES = new Set(["Active", "Washing_Required", "Damaged", "Blocked",]);
 const FIS2_HOSTNAME = "plblofis2.global.borgwarner.net";
-const PENDING_CYCLE_STORAGE_KEY = "paletki:soldering:pending-cycle:v1";
 const ENCORE_TIMEOUT_MS = 12000;
 const ENCORE_RETRIES = 2;
 const STANDARD_INPUT_CLASSES = ["ml-2", "w-full", "text-center", "text-lg", "tracking-widest", "text-amber-700", "dark:text-yellow-300", "bg-gray-50", "dark:bg-black/40", "border-2", "border-amber-200", "dark:border-yellow-500/30", "rounded-xl", "p-1", "outline-none", "focus:border-amber-500", "dark:focus:border-yellow-400", "transition-all", "duration-200",];
@@ -67,10 +66,13 @@ function hasDuplicateValues(inputSelector) {
 }
 
 function hasDuplicateRootValue(currentInput, value) {
-    const normalizedValue = String(value || "").trim().toUpperCase();
+    const normalizedValue = String(value || "")
+        .trim()
+        .toUpperCase();
     if (!normalizedValue) return false;
-    return Array.from(document.querySelectorAll('input[name="unitSerialNumber"]'))
-        .some((input) => input !== currentInput && String(input.value || "").trim().toUpperCase() === normalizedValue);
+    return Array.from(document.querySelectorAll('input[name="unitSerialNumber"]'),).some((input) => input !== currentInput && String(input.value || "")
+        .trim()
+        .toUpperCase() === normalizedValue,);
 }
 
 const PHP_API_URL = "/custom/jj00sp/php/soldering-encore.php";
@@ -79,9 +81,9 @@ const ROUTER_ENDPOINT = AppConfig.api.phpBBRouter;
 
 function classifyRouterFailure(payload, error = null) {
     const httpStatus = Number(error?.status ?? error?.response?.status ?? payload?.http_status ?? payload?.status_code,);
-    const code = String(payload?.reason ?? payload?.code ?? payload?.error_code ?? "").toUpperCase();
+    const code = String(payload?.reason ?? payload?.code ?? payload?.error_code ?? "",).toUpperCase();
     const message = String(payload?.message ?? error?.message ?? "");
-    if ((Number.isFinite(httpStatus) && httpStatus >= 500) || /(TIMEOUT|NETWORK|CONNECTION|UNAVAILABLE|INTERNAL|DATABASE|DB_ERROR|TRANSPORT)/.test(code) || /(timeout|timed out|network error|connection (failed|refused)|database (connection|unavailable)|błąd połączenia z bazą|brak połączenia|router.*niedostęp)/i.test(message)) {
+    if ((Number.isFinite(httpStatus) && httpStatus >= 500) || /(TIMEOUT|NETWORK|CONNECTION|UNAVAILABLE|INTERNAL|DATABASE|DB_ERROR|TRANSPORT)/.test(code,) || /(timeout|timed out|network error|connection (failed|refused)|database (connection|unavailable)|błąd połączenia z bazą|brak połączenia|router.*niedostęp)/i.test(message,)) {
         return "transport";
     }
     return null;
@@ -99,7 +101,9 @@ async function routerCall(job, payload = {}) {
                 failure_kind: "transport",
             };
         }
-        return {...result, failure_kind: result.status ? null : classifyRouterFailure(result)};
+        return {
+            ...result, failure_kind: result.status ? null : classifyRouterFailure(result),
+        };
     } catch (e) {
         if (e.payload) {
             // Backend odpowiedział poprawnym JSON-em ze status:false
@@ -139,13 +143,8 @@ function getEncoreErrorMessage(error, fallback) {
         PALLET_NOT_FOUND: "Paleta nie jest zarejestrowana w Encore",
         PALLET_NOT_ACTIVE: `Paleta nie jest aktywna${details?.pallet_status ? ` (${details.pallet_status})` : ""}`,
         CYCLE_LIMIT_REACHED: "Paleta osiągnęła limit cykli i wymaga mycia",
-        CYCLE_EVENT_METADATA_CONFLICT: "Wykryto niespójny zapis oczekującego cyklu. Nie ponawiaj procesu i skontaktuj się z IT.",
-        CYCLE_EVENT_NOT_FINALIZED: "Poprzedni zapis cyklu jest jeszcze przetwarzany. Spróbuj ponownie za chwilę.",
-        INVALID_CYCLE_EVENT_ID: "Nieprawidłowy identyfikator zapisu cyklu",
         INVALID_PALLET_ID: "Nieprawidłowy numer palety",
         INVALID_STATION: "Nieprawidłowa konfiguracja nazwy stacji",
-        INVALID_PROCESS: "Nieprawidłowa konfiguracja procesu",
-        INVALID_UNIT_IDS: "Nieprawidłowa lista sztuk przypisana do cyklu",
     };
     return messages[details?.reason] || error.message || fallback;
 }
@@ -168,7 +167,7 @@ async function apiCall(jobName, formData) {
         }
         if (!response.ok) {
             const message = body && typeof body === "object" ? body.message : body;
-            throw new Error(message || `API ${jobName} failed with status: ${response.status}`);
+            throw new Error(message || `API ${jobName} failed with status: ${response.status}`,);
         }
         if (!body || typeof body !== "object" || typeof body.status !== "boolean") {
             throw new Error(`API ${jobName} zwróciło nieprawidłową odpowiedź`);
@@ -176,7 +175,7 @@ async function apiCall(jobName, formData) {
         return body;
     } catch (error) {
         if (error?.name === "AbortError") {
-            throw new Error(`API ${jobName} nie odpowiedziało w ciągu ${ENCORE_TIMEOUT_MS / 1000} sekund`, {cause: error});
+            throw new Error(`API ${jobName} nie odpowiedziało w ciągu ${ENCORE_TIMEOUT_MS / 1000} sekund`, {cause: error},);
         }
         throw error;
     } finally {
@@ -193,11 +192,13 @@ function isRetryableEncoreStatus(status) {
 }
 
 async function encoreCall(path, options = {}) {
-    const {timeoutMs = ENCORE_TIMEOUT_MS, retries = ENCORE_RETRIES, ...fetchOptions} = options;
+    const {
+        timeoutMs = ENCORE_TIMEOUT_MS, retries = ENCORE_RETRIES, ...fetchOptions
+    } = options;
     const headers = {
         ...(fetchOptions.headers || {}),
     };
-    const hasContentType = Object.keys(headers).some((name) => name.toLowerCase() === "content-type");
+    const hasContentType = Object.keys(headers).some((name) => name.toLowerCase() === "content-type",);
     if (fetchOptions.body != null && !(fetchOptions.body instanceof FormData) && !hasContentType) {
         headers["Content-Type"] = "application/json";
     }
@@ -230,7 +231,7 @@ async function encoreCall(path, options = {}) {
                 throw lastError;
             }
         } catch (error) {
-            lastError = error?.name === "AbortError" ? new Error(`Encore nie odpowiedziało w ciągu ${timeoutMs / 1000} sekund`) : error;
+            lastError = error?.name === "AbortError" ? new Error(`Encore nie odpowiedziało w ciągu ${timeoutMs / 1000} sekund`,) : error;
             if (error instanceof EncoreHttpError && !isRetryableEncoreStatus(error.status)) {
                 throw error;
             }
@@ -272,7 +273,7 @@ function normalizePallet(responseBody) {
         ...candidate,
         pallet_id: palletId,
         max_cycles: requireFiniteNumber(candidate.max_cycles, "max_cycles"),
-        current_cycles: requireFiniteNumber(candidate.current_cycles, "current_cycles"),
+        current_cycles: requireFiniteNumber(candidate.current_cycles, "current_cycles",),
         total_cycles: requireFiniteNumber(candidate.total_cycles, "total_cycles"),
         nests: requireFiniteNumber(candidate.nests, "nests"),
         fis: candidate.fis == null ? null : requireFiniteNumber(candidate.fis, "fis"),
@@ -300,204 +301,29 @@ function getPalletFromEncore(fd) {
     if (!palletId) {
         return Promise.reject(new Error("Brak numeru palety"));
     }
-    return encoreCall(`/fis/soldering/pallets/${encodeURIComponent(palletId)}`).then(normalizePallet);
+    return encoreCall(`/fis/soldering/pallets/${encodeURIComponent(palletId)}`,).then(normalizePallet);
 }
 
 const palletEntry = async (fd) => {
     const palletId = palletIdFrom(fd);
-    if (!palletId) {
-        return {
-            status: false, message: "Brak numeru palety", data: null,
-        };
-    }
-    let retrySafe = false;
+    if (!palletId) return {status: false, message: "Brak numeru palety", data: null};
     try {
-        const unitIds = collectCycleUnitIds(fd);
-        const {eventId, storageKey} = ensurePendingCycleEvent(palletId);
-        updatePendingCycleEvent(storageKey, eventId, palletId, unitIds);
-        retrySafe = true;
-        const result = await registerCycleInEncore(palletId, eventId, unitIds);
-        completePendingCycleEvent(storageKey, eventId);
+        const result = await encoreCall(`/fis/soldering/pallets/${encodeURIComponent(palletId)}/cycles`, {
+            method: "POST", body: JSON.stringify({station}), retries: 0,
+        },);
+        const validCounters = Number.isSafeInteger(result?.current_cycles) && result.current_cycles >= 0 && Number.isSafeInteger(result?.total_cycles) && result.total_cycles >= 0;
+        if (result?.status !== true || result.pallet_id !== palletId || !PALLET_STATUSES.has(result.pallet_status) || !validCounters) {
+            throw new Error("Encore zwrócił nieprawidłowe potwierdzenie cyklu palety",);
+        }
         return {
-            status: true,
-            message: result.cycle_recorded ? "Cykl palety został zapisany" : "Cykl palety był już zapisany i nie został naliczony ponownie",
-            data: result,
+            status: true, message: "Cykl palety został zapisany", data: result,
         };
     } catch (error) {
-        const reason = error instanceof EncoreHttpError ? error.body?.details?.reason : null;
-        const manualReviewReasons = new Set(["PALLET_NOT_FOUND", "PALLET_NOT_ACTIVE", "CYCLE_LIMIT_REACHED", "CYCLE_EVENT_METADATA_CONFLICT", "INVALID_CYCLE_EVENT_ID", "INVALID_PALLET_ID", "INVALID_STATION", "INVALID_PROCESS", "INVALID_UNIT_IDS",]);
-        const definitiveClientError = error instanceof EncoreHttpError && error.status >= 400 && error.status < 500 && ![408, 429].includes(error.status) && reason !== "CYCLE_EVENT_NOT_FINALIZED";
         return {
-            status: false,
-            message: getEncoreErrorMessage(error, "Błąd zapisu cyklu palety"),
-            data: null,
-            retry_safe: retrySafe,
-            automatic_reconcile: retrySafe && !manualReviewReasons.has(reason) && !definitiveClientError,
+            status: false, message: getEncoreErrorMessage(error, "Błąd zapisu cyklu palety"), data: null,
         };
     }
 };
-
-function collectCycleUnitIds(fd) {
-    const values = [...Array.from(document.querySelectorAll('input[name="unitSerialNumber"], input[name="childSerialNumber"], input[name="powerModuleSn"], input[name="sensorSn"]',))
-        .map((input) => input.value), ...["unit", "unitSerialNumber", "parent", "child", "powerModuleSn", "sensorSn"]
-        .flatMap((name) => fd.getAll(name)),]
-        .map((value) => String(value || "").trim().toUpperCase())
-        .filter(Boolean);
-    const uniqueValues = [...new Set(values)].sort();
-    if (uniqueValues.length === 0) {
-        throw new Error("Brak numeru sztuki potrzebnego do zapisania cyklu palety");
-    }
-    return uniqueValues;
-}
-
-function pendingCycleStorageKey(palletId) {
-    const identity = [station, process, palletId]
-        .map((value) => encodeURIComponent(String(value || "").trim().toUpperCase()))
-        .join(":");
-    return `${PENDING_CYCLE_STORAGE_KEY}:${identity}`;
-}
-
-function generateCycleEventId() {
-    if (!globalThis.crypto?.getRandomValues) {
-        throw new Error("Przeglądarka nie obsługuje generatora identyfikatora cyklu");
-    }
-    const bytes = new Uint8Array(32);
-    globalThis.crypto.getRandomValues(bytes);
-    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-function readPendingCycleEvent(storageKey) {
-    let storedValue;
-    try {
-        storedValue = localStorage.getItem(storageKey);
-    } catch (error) {
-        throw new Error("Nie można odczytać dziennika zapisu cyklu w przeglądarce", {cause: error});
-    }
-    if (!storedValue) return null;
-    try {
-        const record = JSON.parse(storedValue);
-        return record && typeof record === "object" ? record : null;
-    } catch (error) {
-        console.warn("Uszkodzony wpis oczekującego cyklu zostanie zastąpiony:", error);
-        return null;
-    }
-}
-
-function ensurePendingCycleEvent(palletId) {
-    const storageKey = pendingCycleStorageKey(palletId);
-    const record = readPendingCycleEvent(storageKey);
-    if (record && /^[a-f0-9]{64}$/.test(record.event_id)) {
-        const expectedStation = String(station || "").trim().toUpperCase();
-        const expectedProcess = String(process || "").trim().toUpperCase();
-        if (record.station !== expectedStation || record.process !== expectedProcess || record.pallet_id !== palletId) {
-            throw new Error("Dziennik oczekującego cyklu nie pasuje do bieżącej stacji, procesu lub palety");
-        }
-        return {eventId: record.event_id, storageKey};
-    }
-
-    const eventId = generateCycleEventId();
-    try {
-        localStorage.setItem(storageKey, JSON.stringify({
-            event_id: eventId,
-            station: String(station || "").trim().toUpperCase(),
-            process: String(process || "").trim().toUpperCase(),
-            pallet_id: palletId,
-            created_at: new Date().toISOString(),
-        }));
-    } catch (error) {
-        throw new Error("Nie można zapisać dziennika cyklu w przeglądarce", {cause: error});
-    }
-    return {eventId, storageKey};
-}
-
-function updatePendingCycleEvent(storageKey, eventId, palletId, unitIds) {
-    const existingRecord = readPendingCycleEvent(storageKey);
-    if (existingRecord?.ready_to_register && existingRecord.event_id === eventId) {
-        const previousUnitIds = Array.isArray(existingRecord.unit_ids) ? [...new Set(existingRecord.unit_ids.map((value) => String(value).trim().toUpperCase()).filter(Boolean))].sort() : [];
-        if (JSON.stringify(previousUnitIds) !== JSON.stringify(unitIds)) {
-            throw new Error("Oczekujący cykl zawiera inny zestaw sztuk. Nie ponawiaj zapisu i odśwież stronę, aby najpierw uzgodnić poprzedni cykl.",);
-        }
-        return;
-    }
-    try {
-        localStorage.setItem(storageKey, JSON.stringify({
-            event_id: eventId,
-            station: String(station || "").trim().toUpperCase(),
-            process: String(process || "").trim().toUpperCase(),
-            pallet_id: palletId,
-            unit_ids: unitIds,
-            ready_to_register: true,
-            updated_at: new Date().toISOString(),
-        }));
-    } catch (error) {
-        throw new Error("Nie można zaktualizować dziennika cyklu w przeglądarce", {cause: error});
-    }
-}
-
-function validateCycleResponse(result, palletId, eventId) {
-    const validCounters = Number.isSafeInteger(result?.current_cycles) && result.current_cycles >= 0 && Number.isSafeInteger(result?.total_cycles) && result.total_cycles >= 0;
-    if (!result || typeof result !== "object" || result.status !== true || typeof result.cycle_recorded !== "boolean" || String(result.event_id || "").toLowerCase() !== eventId || String(result.pallet_id || "").trim().toUpperCase() !== palletId || !PALLET_STATUSES.has(result.pallet_status) || !validCounters) {
-        throw new Error(result?.message || "Encore zwrócił nieprawidłowe potwierdzenie cyklu palety");
-    }
-    return result;
-}
-
-async function registerCycleInEncore(palletId, eventId, unitIds) {
-    const result = await encoreCall(`/fis/soldering/pallets/${encodeURIComponent(palletId)}/cycles`, {
-        method: "POST", body: JSON.stringify({
-            event_id: eventId, station, process, unit_ids: unitIds,
-        }),
-    });
-    return validateCycleResponse(result, palletId, eventId);
-}
-
-async function reconcilePendingCycleEvent(palletId) {
-    const storageKey = pendingCycleStorageKey(palletId);
-    const record = readPendingCycleEvent(storageKey);
-    if (!record?.ready_to_register || !/^[a-f0-9]{64}$/.test(record.event_id) || !Array.isArray(record.unit_ids) || record.unit_ids.length === 0 || record.pallet_id !== palletId || record.station !== String(station || "").trim().toUpperCase() || record.process !== String(process || "").trim().toUpperCase()) {
-        return null;
-    }
-    const unitIds = [...new Set(record.unit_ids.map((value) => String(value).trim().toUpperCase()).filter(Boolean))].sort();
-    if (unitIds.length === 0) return null;
-    const result = await registerCycleInEncore(palletId, record.event_id, unitIds);
-    completePendingCycleEvent(storageKey, record.event_id);
-    return result;
-}
-
-function completePendingCycleEvent(storageKey, eventId) {
-    try {
-        const record = JSON.parse(localStorage.getItem(storageKey) || "null");
-        if (record?.event_id === eventId) {
-            localStorage.removeItem(storageKey);
-        }
-    } catch (error) {
-        console.error("Nie udało się usunąć potwierdzonego wpisu cyklu:", error);
-    }
-}
-
-function cycleReplayNotice(palletEntryResult) {
-    return palletEntryResult?.data?.cycle_recorded === false ? "<br>Powtórzenie rozpoznane — cykl nie został naliczony drugi raz." : "";
-}
-
-function showPendingCycleError(palletEntryResult) {
-    if (!palletEntryResult?.retry_safe) {
-        showError("Operacje procesu zostały zapisane w FIS, ale nie udało się utrwalić danych potrzebnych do bezpiecznego ponowienia cyklu.<br>" + "Nie ponawiaj operacji i skontaktuj się z inżynierem lub IT.<br>" + (palletEntryResult?.message || "Brak szczegółów błędu"), 15000,);
-        return;
-    }
-    if (!palletEntryResult.automatic_reconcile) {
-        showError("Operacje procesu zostały zapisane w FIS, ale Encore odrzuciło cykl palety.<br>" + "Nie ponawiaj operacji i skontaktuj się z inżynierem lub IT.<br>" + (palletEntryResult?.message || "Brak szczegółów błędu"), 15000,);
-        return;
-    }
-    showError("Operacje procesu zostały zapisane w FIS, ale Encore nie potwierdziło cyklu palety.<br>" + "Nie wykonuj operacji na sztukach ponownie. Po zamknięciu komunikatu zeskanuj ponownie tylko paletę — zapis zostanie uzgodniony automatycznie.<br>" + (palletEntryResult?.message || "Brak szczegółów błędu"), 12000, resetProcessForms,);
-}
-
-function formatFisWriteFailure(message, result, completedWrites) {
-    const requiresReview = completedWrites > 0 || isRouterTransportFailure(result) || /(already|już.*(zapis|link)|istniejący link)/i.test(String(result?.message || ""));
-    return {
-        requiresReview,
-        message: requiresReview ? message + "<br>Stan procesu w FIS może być częściowo zapisany. Nie ponawiaj operacji i skontaktuj się z inżynierem lub IT." : message,
-    };
-}
 
 const unitCheck = (fd) => apiCall("unitCheck", fd);
 
@@ -516,19 +342,21 @@ function isRouterTransportFailure(result) {
 }
 
 function routerReason(result) {
-    return String(result?.reason ?? result?.code ?? result?.error_code ?? "").trim().toUpperCase();
+    return String(result?.reason ?? result?.code ?? result?.error_code ?? "")
+        .trim()
+        .toUpperCase();
 }
 
 function isExpectedUnitNotFound(result) {
     const reason = routerReason(result);
     const message = String(result?.message || "");
-    return ["UNIT_NOT_FOUND", "NOT_FOUND", "UNKNOWN_UNIT"].includes(reason) || /(unit|sztuk).*(not found|nie znalezion|nie istnieje|unknown)|nieznan.*(unit|sztuk)/i.test(message);
+    return (["UNIT_NOT_FOUND", "NOT_FOUND", "UNKNOWN_UNIT"].includes(reason) || /(unit|sztuk).*(not found|nie znalezion|nie istnieje|unknown)|nieznan.*(unit|sztuk)/i.test(message,));
 }
 
 function isExpectedMissingParent(result) {
     const reason = routerReason(result);
     const message = String(result?.message || "");
-    return ["NO_PARENT", "PARENT_NOT_FOUND", "NOT_LINKED", "UNIT_NOT_LINKED"].includes(reason) || /(no parent|parent.*not found|brak parent|nie ma parent|not linked|nie.*zlinkowan)/i.test(message);
+    return (["NO_PARENT", "PARENT_NOT_FOUND", "NOT_LINKED", "UNIT_NOT_LINKED"].includes(reason,) || /(no parent|parent.*not found|brak parent|nie ma parent|not linked|nie.*zlinkowan)/i.test(message,));
 }
 
 function showRouterTransportError(operation, result, unit = "") {
@@ -583,7 +411,7 @@ function showWarning(msg, timeout = 4000, callback = null) {
 
 function resetProcessForms() {
     document
-        .querySelectorAll("#formBox > form:not(#palletForm), " + "#formBox > #childDiv")
+        .querySelectorAll("#formBox > form:not(#palletForm), " + "#formBox > #childDiv",)
         .forEach((element) => {
             element.remove();
         });
@@ -655,12 +483,16 @@ function resolveComponentConfig(partNumber) {
     if (!normalizedConfig) {
         return null;
     }
-    const normalizedPartNumber = String(partNumber || "").trim().toUpperCase();
+    const normalizedPartNumber = String(partNumber || "")
+        .trim()
+        .toUpperCase();
     const entries = normalizedConfig
         .split(/\s+/)
         .filter(Boolean)
         .map((entry) => entry.split("|"));
-    const match = entries.find((entry) => String(entry[1] || "").trim().toUpperCase() === normalizedPartNumber);
+    const match = entries.find((entry) => String(entry[1] || "")
+        .trim()
+        .toUpperCase() === normalizedPartNumber,);
     if (!match) {
         // Brak wpisu oznacza wariant bez dodatkowych PM/sensorów.
         return null;
@@ -668,29 +500,27 @@ function resolveComponentConfig(partNumber) {
 
     const configuredSensorQuantity = Number(match[4] || 0);
     if (!Number.isInteger(configuredSensorQuantity) || configuredSensorQuantity < 0 || configuredSensorQuantity > 100) {
-        throw new Error(`Nieprawidłowa liczba sensorów w konfiguracji dla ${normalizedPartNumber}`);
+        throw new Error(`Nieprawidłowa liczba sensorów w konfiguracji dla ${normalizedPartNumber}`,);
     }
-    const configuredSensorPn = String(match[3] || "").trim().toUpperCase();
+    const configuredSensorPn = String(match[3] || "")
+        .trim()
+        .toUpperCase();
     if (configuredSensorQuantity > 0 && !configuredSensorPn) {
-        throw new Error(`Brak Part Number sensora w konfiguracji dla ${normalizedPartNumber}`);
+        throw new Error(`Brak Part Number sensora w konfiguracji dla ${normalizedPartNumber}`,);
     }
     return {
-        powerModulePartNumber: String(match[2] || "").trim().toUpperCase(),
-        sensorPartNumber: configuredSensorPn,
-        sensorQuantity: configuredSensorQuantity,
+        powerModulePartNumber: String(match[2] || "")
+            .trim()
+            .toUpperCase(), sensorPartNumber: configuredSensorPn, sensorQuantity: configuredSensorQuantity,
     };
 }
 
 document.addEventListener("DOMContentLoaded", function () {
     palletSerialNumber = document.getElementById("palletSerialNumber");
     configFile = document.getElementById("configFile")?.value || "";
-    process = document
-        .getElementById("process")
-        ?.textContent?.trim() || "";
-    station = document
-        .getElementById("station")
-        ?.textContent?.trim() || "";
-    instruction_needed = Number(document.getElementById("instruction_needed")?.textContent || 1);
+    process = document.getElementById("process")?.textContent?.trim() || "";
+    station = document.getElementById("station")?.textContent?.trim() || "";
+    instruction_needed = Number(document.getElementById("instruction_needed")?.textContent || 1,);
     console.log("page loaded for", process, "and station", station);
     const palletSerialNumAuto = getQueryVariable("palletSerialNumber");
     console.log("pallet Serial Number Auto", palletSerialNumAuto);
@@ -724,10 +554,10 @@ async function unitReview(unit) {
         console.log("unitFilterVal:", unitFilterVal);
 
         if (!unitFilterVal?.status) {
-            showError(normalizedUnit + "<br>" + (unitFilterVal?.message || "Błąd unitFilter"), 6000);
+            showError(normalizedUnit + "<br>" + (unitFilterVal?.message || "Błąd unitFilter"), 6000,);
 
             return {
-                status: false, message: unitFilterVal?.message || "Błąd unitFilter", data: null
+                status: false, message: unitFilterVal?.message || "Błąd unitFilter", data: null,
             };
         }
 
@@ -744,7 +574,7 @@ async function unitReview(unit) {
         console.log("unitFindVal:", unitFindVal);
 
         if (isRouterTransportFailure(unitFindVal)) {
-            showRouterTransportError("wyszukiwania sztuki", unitFindVal, filteredUnit);
+            showRouterTransportError("wyszukiwania sztuki", unitFindVal, filteredUnit,);
             return {
                 status: false,
                 message: unitFindVal.message || "Błąd komunikacji podczas wyszukiwania sztuki",
@@ -763,25 +593,25 @@ async function unitReview(unit) {
             console.log("Sztuka nieznana w FIS, pomijam timeCheck:", filteredUnit);
 
             return {
-                status: true, message: unitFindVal?.message || "Unit not found", data: filteredUnit, exists: false
+                status: true, message: unitFindVal?.message || "Unit not found", data: filteredUnit, exists: false,
             };
         }
 
         const timeCheckVal = await timeCheck(checkData);
         console.log("timeCheckVal:", timeCheckVal);
         if (!timeCheckVal?.status) {
-            showError(normalizedUnit + "<br>" + (timeCheckVal?.message || "Błąd timeCheck"), 6000);
+            showError(normalizedUnit + "<br>" + (timeCheckVal?.message || "Błąd timeCheck"), 6000,);
             return {
                 status: false, message: timeCheckVal?.message,
             };
         }
 
         return {
-            status: true, message: timeCheckVal.message || "OK", data: filteredUnit, exists: true
+            status: true, message: timeCheckVal.message || "OK", data: filteredUnit, exists: true,
         };
     } catch (error) {
         console.error("unitReview error for", normalizedUnit, error);
-        showError(normalizedUnit + "<br>Błąd komunikacji z serwerem!<br>" + (error?.message || "Brak szczegółów błędu"), 8000);
+        showError(normalizedUnit + "<br>Błąd komunikacji z serwerem!<br>" + (error?.message || "Brak szczegółów błędu"), 8000,);
         return {
             status: false, message: error?.message || "Błąd komunikacji",
         };
@@ -806,15 +636,15 @@ async function focusNext(callbackFunc) {
     console.log("Aktualny input:", currInput);
     console.log("Indeks aktualnego inputu:", currInputIndex);
     if (currInputIndex === -1) {
-        console.error("focusNext: aktualnego inputu nie ma w tablicy inputs", currInput);
+        console.error("focusNext: aktualnego inputu nie ma w tablicy inputs", currInput,);
         showError("UWAGA: Aktualnego inputu NIE MA w tablicy 'inputs'!");
         return;
     }
     const nextInputIndex = (currInputIndex + 1) % inputs.length;
     const nextInput = inputs[nextInputIndex];
-    const emptyInputs = inputs.filter((element) => String(element.value || "").trim() === "");
+    const emptyInputs = inputs.filter((element) => String(element.value || "").trim() === "",);
     console.log("Następny input:", nextInput);
-    console.log("Puste inputy:", emptyInputs.map((element) => element.id || element.name));
+    console.log("Puste inputy:", emptyInputs.map((element) => element.id || element.name),);
     if (currInputIndex + 1 === inputs.length && emptyInputs.length === 0) {
         if (typeof callbackFunc !== "function") {
             console.error("focusNext: callbackFunc nie jest funkcją", callbackFunc);
@@ -826,7 +656,7 @@ async function focusNext(callbackFunc) {
             await callbackFunc();
         } catch (error) {
             console.error("focusNext callback error:", error);
-            showError("Nieoczekiwany błąd podczas kończenia procesu!<br>" + (error?.message || "Brak szczegółów błędu"), 8000);
+            showError("Nieoczekiwany błąd podczas kończenia procesu!<br>" + (error?.message || "Brak szczegółów błędu"), 8000,);
         }
     } else {
         nextInput?.focus();
@@ -840,9 +670,7 @@ async function dataEntryFunc() {
     }
     processSaveInProgress = true;
     let processCompleted = false;
-    let lockForReview = false;
-    let fisWritesCompleted = 0;
-    const previousDisabledStates = new Map(inputs.map((input) => [input, input.disabled,]));
+    const previousDisabledStates = new Map(inputs.map((input) => [input, input.disabled]),);
     console.log("=== dataEntryFunc START ===");
     console.log("DEBUG:", {
         process, station, pallet: palletSerialNumber?.value,
@@ -851,8 +679,8 @@ async function dataEntryFunc() {
         inputs.forEach((input) => {
             input.disabled = true;
         });
-        const topLevelForms = Array.from(document.querySelectorAll("#childDiv > form"));
-        console.log("DEBUG: top-level nest forms:", topLevelForms.map((form) => form.id));
+        const topLevelForms = Array.from(document.querySelectorAll("#childDiv > form"),);
+        console.log("DEBUG: top-level nest forms:", topLevelForms.map((form) => form.id),);
         if (!topLevelForms.length) {
             showError("Brak formularzy sztuk do zapisania!");
             return;
@@ -873,26 +701,26 @@ async function dataEntryFunc() {
             if (!successUnits.includes(rootUnit)) {
                 successUnits.push(rootUnit);
             }
-            const detailDivs = Array.from(form.querySelectorAll('div[name="palletFormDiv2"]'));
+            const detailDivs = Array.from(form.querySelectorAll('div[name="palletFormDiv2"]'),);
             let lastDc = `PALLET|` + `${palletSerialNumber.value.toUpperCase()}`;
             let hadRealChild = false;
             if (detailDivs.length === 0) {
-                console.warn("Brak divów szczegółowych dla", rootUnit, "- zapisuję samą sztukę");
+                console.warn("Brak divów szczegółowych dla", rootUnit, "- zapisuję samą sztukę",);
             }
             for (const detailDiv of detailDivs) {
-                const childInput = detailDiv.querySelector('input[name="childSerialNumber"]');
+                const childInput = detailDiv.querySelector('input[name="childSerialNumber"]',);
                 const targetUnit = String(childInput?.value || rootUnit)
                     .trim()
                     .toUpperCase();
-                const powerModuleInput = detailDiv.querySelector('input[name="powerModuleSn"]');
+                const powerModuleInput = detailDiv.querySelector('input[name="powerModuleSn"]',);
                 const powerModuleSn = String(powerModuleInput?.value || "")
                     .trim()
                     .toUpperCase();
-                const sensorInputs = Array.from(detailDiv.querySelectorAll('input[name="sensorSn"]'));
+                const sensorInputs = Array.from(detailDiv.querySelectorAll('input[name="sensorSn"]'),);
                 const sensorValues = sensorInputs
                     .map((input) => String(input.value || "")
                         .trim()
-                        .toUpperCase())
+                        .toUpperCase(),)
                     .filter(Boolean);
                 const sensorQuan = sensorValues.length;
                 const localSensorPn = sensorValues.length ? sensorValues[sensorValues.length - 1].slice(-11) : "";
@@ -917,23 +745,19 @@ async function dataEntryFunc() {
                         targetUnit, powerModuleSn, unitLinkStatus,
                     });
                     if (!unitLinkStatus?.status) {
-                        const failure = formatFisWriteFailure("Błąd linkowania!<br>" + "Parent: " + targetUnit + "<br>Power Module: " + powerModuleSn + "<br>" + (unitLinkStatus?.message || "Brak szczegółów"), unitLinkStatus, fisWritesCompleted,);
-                        lockForReview = failure.requiresReview;
-                        showError(failure.message, lockForReview ? 15000 : 8000);
+                        const message = "Błąd linkowania!<br>" + "Parent: " + targetUnit + "<br>Power Module: " + powerModuleSn + "<br>" + (unitLinkStatus?.message || "Brak szczegółów");
+                        showError(message, 8000);
                         return;
                     }
-                    fisWritesCompleted++;
                     fd.set("unit", powerModuleSn);
                     fd.set("dc", lastDc);
                     const pmEntry = await dataEntry(fd);
                     console.log("DEBUG: PM dataEntry", pmEntry);
                     if (!pmEntry?.status) {
-                        const failure = formatFisWriteFailure("Błąd zapisu Power Module!<br>" + powerModuleSn + "<br>" + (pmEntry?.message || "Brak szczegółów"), pmEntry, fisWritesCompleted,);
-                        lockForReview = failure.requiresReview;
-                        showError(failure.message, lockForReview ? 15000 : 8000);
+                        const message = "Błąd zapisu Power Module!<br>" + powerModuleSn + "<br>" + (pmEntry?.message || "Brak szczegółów");
+                        showError(message, 8000);
                         return;
                     }
-                    fisWritesCompleted++;
                 }
                 if (childInput) {
                     fd.set("unit", targetUnit);
@@ -943,12 +767,10 @@ async function dataEntryFunc() {
                         targetUnit, childEntry,
                     });
                     if (!childEntry?.status) {
-                        const failure = formatFisWriteFailure("Błąd zapisu CHILD!<br>" + targetUnit + "<br>" + (childEntry?.message || "Brak szczegółów"), childEntry, fisWritesCompleted,);
-                        lockForReview = failure.requiresReview;
-                        showError(failure.message, lockForReview ? 15000 : 8000);
+                        const message = "Błąd zapisu CHILD!<br>" + targetUnit + "<br>" + (childEntry?.message || "Brak szczegółów");
+                        showError(message, 8000);
                         return;
                     }
-                    fisWritesCompleted++;
                 }
             }
             fd.set("unit", rootUnit);
@@ -958,47 +780,41 @@ async function dataEntryFunc() {
                 rootUnit, hadRealChild, rootEntry,
             });
             if (!rootEntry?.status) {
-                const failure = formatFisWriteFailure("Błąd zapisu sztuki!<br>" + rootUnit + "<br>" + (rootEntry?.message || "Brak szczegółów"), rootEntry, fisWritesCompleted,);
-                lockForReview = failure.requiresReview;
-                showError(failure.message, lockForReview ? 15000 : 8000);
+                const message = "Błąd zapisu sztuki!<br>" + rootUnit + "<br>" + (rootEntry?.message || "Brak szczegółów");
+                showError(message, 8000);
                 return;
             }
-            fisWritesCompleted++;
         }
-        fd.set("palletSerialNumber", palletSerialNumberValue || palletSerialNumber.value.toUpperCase());
+        fd.set("palletSerialNumber", palletSerialNumberValue || palletSerialNumber.value.toUpperCase(),);
         const palletEntryResult = await palletEntry(fd);
         console.log("DEBUG: palletEntry result:", palletEntryResult);
         if (!palletEntryResult?.status) {
             processCompleted = true;
-            showPendingCycleError(palletEntryResult);
+            showError(palletEntryResult.message || "Błąd zapisu cyklu palety", 8000, resetProcessForms,);
             return;
         }
-        if (Number(document.getElementById("palletSerialNumber").dataset.vacuum_check) === 1) {
+        if (Number(document.getElementById("palletSerialNumber").dataset.vacuum_check,) === 1) {
             document.getElementById("palletSerialNumber").dataset.vacuum_check = 0;
         }
         console.log("SUCCESS:", {
             pallet: palletSerialNumber.value, units: successUnits,
         });
         processCompleted = true;
-        showSuccess(palletSerialNumber.value + " Proces poprawny dla:<br>" + successUnits.join("<br>") + cycleReplayNotice(palletEntryResult), 3000, () => {
+        showSuccess(palletSerialNumber.value + " Proces poprawny dla:<br>" + successUnits.join("<br>"), 3000, () => {
             resetProcessForms();
         },);
     } catch (error) {
         console.error("dataEntryFunc error:", error);
-        lockForReview = fisWritesCompleted > 0;
-        const suffix = lockForReview ? "<br>Stan procesu w FIS może być częściowo zapisany. Nie ponawiaj operacji i skontaktuj się z inżynierem lub IT." : "";
-        showError("Nieoczekiwany błąd zapisu procesu!<br>" + (error?.message || "Brak szczegółów błędu") + suffix, lockForReview ? 15000 : 8000);
+        showError("Nieoczekiwany błąd zapisu procesu!<br>" + (error?.message || "Brak szczegółów błędu"), 8000,);
     } finally {
         processSaveInProgress = false;
-        if (!processCompleted && !lockForReview) {
+        if (!processCompleted) {
             previousDisabledStates.forEach((wasDisabled, input) => {
                 if (input.isConnected) {
                     input.disabled = wasDisabled;
                 }
             });
-            inputs
-                .find((input) => input.isConnected && !input.disabled)
-                ?.focus();
+            inputs.find((input) => input.isConnected && !input.disabled)?.focus();
         }
     }
 }
@@ -1009,12 +825,10 @@ async function powerSensCheck() {
     }
     processSaveInProgress = true;
     let processCompleted = false;
-    let lockForReview = false;
-    let fisWritesCompleted = 0;
-    const previousDisabledStates = new Map(inputs.map((input) => [input, input.disabled,]));
+    const previousDisabledStates = new Map(inputs.map((input) => [input, input.disabled]),);
     console.log("=== powerSensCheck START ===");
     try {
-        const allChildrenQty = document.querySelectorAll('input[name="childSerialNumber"]').length;
+        const allChildrenQty = document.querySelectorAll('input[name="childSerialNumber"]',).length;
         console.log("allChildrenQty:", allChildrenQty);
         inputs.forEach((element) => {
             element.disabled = true;
@@ -1065,7 +879,7 @@ async function powerSensCheck() {
                 dc = `PARENT|${unitSerialNumberValue}` + `|PALLET|${palletSerialNumber.value}`;
             }
             if (!children) {
-                console.warn("children EMPTY -> fallback to parent", unitSerialNumberValue);
+                console.warn("children EMPTY -> fallback to parent", unitSerialNumberValue,);
                 children = String(unitSerialNumberValue || "")
                     .trim()
                     .toUpperCase();
@@ -1083,23 +897,19 @@ async function powerSensCheck() {
                 const unitLinkStatus = await unitLink(fd);
                 console.log("unitLinkStatus:", unitLinkStatus);
                 if (!unitLinkStatus?.status) {
-                    const failure = formatFisWriteFailure("Błąd linkowania!<br>" + "Parent: " + children + "<br>Power Module: " + powerModuleSn + "<br>" + (unitLinkStatus?.message || "Brak szczegółów"), unitLinkStatus, fisWritesCompleted,);
-                    lockForReview = failure.requiresReview;
-                    showError(failure.message, lockForReview ? 15000 : 8000);
+                    const message = "Błąd linkowania!<br>" + "Parent: " + children + "<br>Power Module: " + powerModuleSn + "<br>" + (unitLinkStatus?.message || "Brak szczegółów");
+                    showError(message, 8000);
                     return;
                 }
-                fisWritesCompleted++;
                 fd.set("unit", powerModuleSn);
                 fd.set("dc", dc);
                 const dataEntryPM = await dataEntry(fd);
                 console.log("dataEntryPM:", dataEntryPM);
                 if (!dataEntryPM?.status) {
-                    const failure = formatFisWriteFailure("Błąd zapisu Power Module!<br>" + powerModuleSn + "<br>" + (dataEntryPM?.message || "Brak szczegółów"), dataEntryPM, fisWritesCompleted,);
-                    lockForReview = failure.requiresReview;
-                    showError(failure.message, lockForReview ? 15000 : 8000);
+                    const message = "Błąd zapisu Power Module!<br>" + powerModuleSn + "<br>" + (dataEntryPM?.message || "Brak szczegółów");
+                    showError(message, 8000);
                     return;
                 }
-                fisWritesCompleted++;
             }
             if (allChildrenQty > 0) {
                 fd.set("unit", children);
@@ -1107,12 +917,10 @@ async function powerSensCheck() {
                 const dataEntryChild = await dataEntry(fd);
                 console.log("dataEntry CHILD STATUS:", dataEntryChild);
                 if (!dataEntryChild?.status) {
-                    const failure = formatFisWriteFailure("Błąd zapisu CHILD!<br>" + children + "<br>" + (dataEntryChild?.message || "Brak szczegółów"), dataEntryChild, fisWritesCompleted,);
-                    lockForReview = failure.requiresReview;
-                    showError(failure.message, lockForReview ? 15000 : 8000);
+                    const message = "Błąd zapisu CHILD!<br>" + children + "<br>" + (dataEntryChild?.message || "Brak szczegółów");
+                    showError(message, 8000);
                     return;
                 }
-                fisWritesCompleted++;
             }
             console.log("CHECK finish:", childrenCount, "==", allChildrenQty);
             if (childrenCount === allChildrenQty) {
@@ -1121,29 +929,27 @@ async function powerSensCheck() {
                 const dataEntryParent = await dataEntry(fd);
                 console.log("dataEntry PARENT STATUS:", dataEntryParent);
                 if (!dataEntryParent?.status) {
-                    const failure = formatFisWriteFailure("Błąd zapisu PARENT!<br>" + unitSerialNumberValue + "<br>" + (dataEntryParent?.message || "Brak szczegółów"), dataEntryParent, fisWritesCompleted,);
-                    lockForReview = failure.requiresReview;
-                    showError(failure.message, lockForReview ? 15000 : 8000);
+                    const message = "Błąd zapisu PARENT!<br>" + unitSerialNumberValue + "<br>" + (dataEntryParent?.message || "Brak szczegółów");
+                    showError(message, 8000);
                     return;
                 }
-                fisWritesCompleted++;
-                fd.set("palletSerialNumber", palletSerialNumberValue || palletSerialNumber.value.toUpperCase());
+                fd.set("palletSerialNumber", palletSerialNumberValue || palletSerialNumber.value.toUpperCase(),);
                 const palletEntryResult = await palletEntry(fd);
                 console.log("palletEntryResult:", palletEntryResult);
                 if (!palletEntryResult?.status) {
                     processCompleted = true;
-                    showPendingCycleError(palletEntryResult);
+                    showError(palletEntryResult.message || "Błąd zapisu cyklu palety", 8000, resetProcessForms,);
                     return;
                 }
-                if (Number(document.getElementById("palletSerialNumber").dataset.vacuum_check) === 1) {
+                if (Number(document.getElementById("palletSerialNumber").dataset.vacuum_check,) === 1) {
                     document.getElementById("palletSerialNumber").dataset.vacuum_check = 0;
                 }
-                const successUnits = childList.length ? [...new Set(childList.filter(Boolean)),] : [unitSerialNumberValue,].filter(Boolean);
+                const successUnits = childList.length ? [...new Set(childList.filter(Boolean))] : [unitSerialNumberValue].filter(Boolean);
                 console.log("SUCCESS:", {
                     pallet: palletSerialNumber.value, units: successUnits,
                 });
                 processCompleted = true;
-                showSuccess(palletSerialNumber.value + " Proces poprawny dla:<br>" + successUnits.join("<br>") + cycleReplayNotice(palletEntryResult), 3000, () => {
+                showSuccess(palletSerialNumber.value + " Proces poprawny dla:<br>" + successUnits.join("<br>"), 3000, () => {
                     resetProcessForms();
                 },);
                 return;
@@ -1151,29 +957,23 @@ async function powerSensCheck() {
         }
     } catch (error) {
         console.error("powerSensCheck error:", error);
-        lockForReview = fisWritesCompleted > 0;
-        const suffix = lockForReview ? "<br>Stan procesu w FIS może być częściowo zapisany. Nie ponawiaj operacji i skontaktuj się z inżynierem lub IT." : "";
-        showError("Nieoczekiwany błąd zapisu procesu!<br>" + (error?.message || "Brak szczegółów błędu") + suffix, lockForReview ? 15000 : 8000);
+        showError("Nieoczekiwany błąd zapisu procesu!<br>" + (error?.message || "Brak szczegółów błędu"), 8000,);
     } finally {
         processSaveInProgress = false;
-        if (!processCompleted && !lockForReview) {
+        if (!processCompleted) {
             previousDisabledStates.forEach((wasDisabled, input) => {
                 if (input.isConnected) {
                     input.disabled = wasDisabled;
                 }
             });
-            inputs
-                .find((input) => input.isConnected && !input.disabled)
-                ?.focus();
+            inputs.find((input) => input.isConnected && !input.disabled)?.focus();
         }
     }
     console.log("=== powerSensCheck END ===");
 }
 
 async function formHandler(event) {
-    document
-        .getElementById("messagebox")
-        .classList.remove(...UI_COLORS);
+    document.getElementById("messagebox").classList.remove(...UI_COLORS);
     document.getElementById("messagebox").innerHTML = "";
     console.log("formHandler submitted");
     if (event) {
@@ -1184,18 +984,12 @@ async function formHandler(event) {
     }
     palletCheckInProgress = true;
     palletSerialNumber = document.getElementById("palletSerialNumber");
-    palletSerialNumberValue = palletSerialNumber.value
-        .trim()
-        .toUpperCase();
+    palletSerialNumberValue = palletSerialNumber.value.trim().toUpperCase();
     console.log(palletSerialNumberValue);
     const fd = new FormData();
     fd.append("process", process);
     fd.append("palletSerialNumber", palletSerialNumberValue);
     try {
-        const reconciledCycle = await reconcilePendingCycleEvent(palletSerialNumberValue);
-        if (reconciledCycle) {
-            console.info("Poprzedni oczekujący cykl został potwierdzony przez Encore:", reconciledCycle);
-        }
         const checkedPallet = await getPalletFromEncore(fd);
         console.log("Encore pallet:", checkedPallet);
         const isFis2Host = window.location.hostname.toLowerCase() === FIS2_HOSTNAME;
@@ -1217,8 +1011,8 @@ async function formHandler(event) {
             showError(statusMessages[checkedPallet.status] || "Paleta nie ma aktywnego statusu!<br>Użyj innej palety!", 8000,);
             return;
         }
-        const current_cycles = requireFiniteNumber(checkedPallet.current_cycles, "current_cycles");
-        const max_cycles = requireFiniteNumber(checkedPallet.max_cycles, "max_cycles");
+        const current_cycles = requireFiniteNumber(checkedPallet.current_cycles, "current_cycles",);
+        const max_cycles = requireFiniteNumber(checkedPallet.max_cycles, "max_cycles",);
         nests = requireFiniteNumber(checkedPallet.nests, "nests");
         if (!Number.isInteger(nests) || nests < 1 || max_cycles <= 0 || current_cycles < 0) {
             throw new Error("Encore zwrócił nieprawidłową konfigurację palety");
@@ -1240,7 +1034,6 @@ async function formHandler(event) {
             showWarning(msg, 4000);
         }
         // Identyfikator powstaje przed pierwszym zapisem do FIS i przeżywa retry/reload.
-        ensurePendingCycleEvent(palletSerialNumberValue);
     } catch (error) {
         console.error("formHandler error:", error);
         let errorMessage = "Błąd sprawdzania palety!<br>" + getEncoreErrorMessage(error, "Brak szczegółów błędu");
@@ -1304,8 +1097,8 @@ async function formHandler(event) {
                 </span>
             </button>
         `;
-        const buttonText = document.getElementById("vacuum_instruction_button_text");
-        const instructionButton = document.getElementById("vacuum_instruction_button");
+        const buttonText = document.getElementById("vacuum_instruction_button_text",);
+        const instructionButton = document.getElementById("vacuum_instruction_button",);
         const timerId = setInterval(() => {
             if (timeleft === 1) {
                 timertext = "sekunda";
@@ -1338,8 +1131,8 @@ async function formHandler(event) {
                             KONTYNUUJ
                         </span>
                     `;
-                instructionButton.classList.remove("opacity-50", "cursor-not-allowed", "from-amber-400", "to-amber-600", "text-amber-950");
-                instructionButton.classList.add("cursor-pointer", "opacity-100", "from-green-500", "to-green-600", "text-green-950");
+                instructionButton.classList.remove("opacity-50", "cursor-not-allowed", "from-amber-400", "to-amber-600", "text-amber-950",);
+                instructionButton.classList.add("cursor-pointer", "opacity-100", "from-green-500", "to-green-600", "text-green-950",);
             }
         }, 1000);
         instructionButton.addEventListener("click", () => {
@@ -1354,15 +1147,13 @@ async function formHandler(event) {
     if (nests > 1) {
         palletSerialNumber.disabled = true;
         const childContainer = document.createElement("div");
-        childContainer.classList.add("flex", "flex-wrap", "justify-center", "items-center", "mt-5", "flex-row");
+        childContainer.classList.add("flex", "flex-wrap", "justify-center", "items-center", "mt-5", "flex-row",);
         childContainer.id = "childDiv";
-        document
-            .getElementById("formBox")
-            .appendChild(childContainer);
+        document.getElementById("formBox").appendChild(childContainer);
         for (let i = 0; i < nests; i++) {
             const newForm = document.createElement("form");
             newForm.id = "palletForm01" + i;
-            newForm.classList.add("flex", "flex-col", "justify-center", "items-center", "mx-3");
+            newForm.classList.add("flex", "flex-col", "justify-center", "items-center", "mx-3",);
             newForm.addEventListener("submit", function (event) {
                 event.preventDefault();
                 void runFormHandlerOnce(this, () => unitHandler2(this, event));
@@ -1371,18 +1162,16 @@ async function formHandler(event) {
             const childDiv = document.createElement("div");
             childDiv.id = "palletFormDiv2" + i;
             childDiv.setAttribute("name", "palletFormDiv2");
-            childDiv.classList.add("flex", "flex-col", "items-center", "justify-center", "p-2");
+            childDiv.classList.add("flex", "flex-col", "items-center", "justify-center", "p-2",);
             newForm.appendChild(childDiv);
             const inputId = "unitSerialNumber" + i;
-            const newLabel = createCustomLabel(inputId, "Numer sztuki " + (i + 1) + " :");
+            const newLabel = createCustomLabel(inputId, "Numer sztuki " + (i + 1) + " :",);
             const newInput = createCustomInput({
                 id: inputId, name: "unitSerialNumber", placeholder: "Numer sztuki", required: true,
             });
             childDiv.append(newLabel, newInput);
         }
-        document
-            .getElementById("unitSerialNumber0")
-            .focus();
+        document.getElementById("unitSerialNumber0").focus();
         return;
     }
     const newForm = document.createElement("form");
@@ -1391,9 +1180,7 @@ async function formHandler(event) {
         event.preventDefault();
         void runFormHandlerOnce(this, () => unitHandler(event));
     });
-    document
-        .getElementById("formBox")
-        .appendChild(newForm);
+    document.getElementById("formBox").appendChild(newForm);
     const newDiv = document.createElement("div");
     newDiv.id = "palletFormDiv2";
     newDiv.classList.add("flex", "flex-col", "items-center", "justify-center");
@@ -1423,7 +1210,6 @@ async function unitHandler(event) {
     const fd = new FormData();
     fd.set("process", process);
     fd.set("unitSerialNumber", unitSerialNumberValue);
-    let fisWritesCompleted = 0;
     try {
         const unitStatus = await unitCheck(fd);
         console.log("Unit check status:", unitStatus);
@@ -1454,7 +1240,7 @@ async function unitHandler(event) {
         const unitParent = await parentCheck(fd);
         if (isRouterTransportFailure(unitParent)) {
             resetScannedInput(unitSerialNumber);
-            showRouterTransportError("sprawdzania parenta", unitParent, unitSerialNumberValue);
+            showRouterTransportError("sprawdzania parenta", unitParent, unitSerialNumberValue,);
             return;
         }
         if (!unitParent?.status && !isExpectedMissingParent(unitParent)) {
@@ -1471,7 +1257,7 @@ async function unitHandler(event) {
             const parentStatus = await unitCheck(fd);
             if (!parentStatus.status) {
                 resetScannedInput(unitSerialNumber);
-                showError("Parent niegotowy na process!<br>" + String(unitParent.data || "") + "<br>" + (parentStatus.message || unitParent.message || "Brak szczegółów"), 8000);
+                showError("Parent niegotowy na process!<br>" + String(unitParent.data || "") + "<br>" + (parentStatus.message || unitParent.message || "Brak szczegółów"), 8000,);
                 return;
             }
             unitSerialNumber.value = parentStatus.data || unitParent.data;
@@ -1482,7 +1268,7 @@ async function unitHandler(event) {
         console.log("unitChildren:", unitChildren);
         if (!unitChildren?.status) {
             resetScannedInput(unitSerialNumber);
-            showError(unitSerialNumberValue + "<br>" + (unitChildren?.message || "Błąd pobierania childrenów"), 8000);
+            showError(unitSerialNumberValue + "<br>" + (unitChildren?.message || "Błąd pobierania childrenów"), 8000,);
             return;
         }
         if (!Array.isArray(unitChildren.data)) {
@@ -1494,7 +1280,7 @@ async function unitHandler(event) {
             const childStatusResponse = await Get_Unit_Status(fd);
             if (!childStatusResponse?.status) {
                 resetScannedInput(unitSerialNumber);
-                showError(unitChildren.data[0] + "<br>" + (childStatusResponse?.message || "Błąd pobierania statusu childrena"), 8000);
+                showError(unitChildren.data[0] + "<br>" + (childStatusResponse?.message || "Błąd pobierania statusu childrena"), 8000,);
                 return;
             }
             if (childStatusResponse.data?.uk3 === "HEATSINK") {
@@ -1505,10 +1291,8 @@ async function unitHandler(event) {
         if (unitChildren.data.length !== 0 && processHousing === 0) {
             const childrenForm = document.createElement("form");
             childrenForm.id = "palletForm02";
-            childrenForm.classList.add("flex", "flex-wrap", "justify-center", "items-center", "mt-5", "flex-row");
-            document
-                .getElementById("formBox")
-                .appendChild(childrenForm);
+            childrenForm.classList.add("flex", "flex-wrap", "justify-center", "items-center", "mt-5", "flex-row",);
+            document.getElementById("formBox").appendChild(childrenForm);
             for (let i = 0; i < unitChildren.data.length; i++) {
                 const childUnit = String(unitChildren.data[i] || "")
                     .trim()
@@ -1526,11 +1310,11 @@ async function unitHandler(event) {
                 const detailDiv = document.createElement("div");
                 detailDiv.id = "palletFormDiv2" + i;
                 detailDiv.setAttribute("name", "palletFormDiv2");
-                detailDiv.classList.add("flex", "flex-col", "items-center", "m-5", "justify-center");
+                detailDiv.classList.add("flex", "flex-col", "items-center", "m-5", "justify-center",);
                 childrenForm.appendChild(detailDiv);
                 palletSerialNumber.disabled = true;
                 const childInputId = "childSerialNumber" + i;
-                const childLabel = createCustomLabel(childInputId, "Numer childrena " + (i + 1) + ": ");
+                const childLabel = createCustomLabel(childInputId, "Numer childrena " + (i + 1) + ": ",);
                 const childInput = createCustomInput({
                     id: childInputId, name: "childSerialNumber", value: childUnit, disabled: true,
                 });
@@ -1539,7 +1323,7 @@ async function unitHandler(event) {
                     let focusSensor = false;
                     if (powerModuleToChild !== "") {
                         const pmId = "powerModuleSn" + i;
-                        const pmLabel = createCustomLabel(pmId, "Numer power module " + (i + 1) + ": ");
+                        const pmLabel = createCustomLabel(pmId, "Numer power module " + (i + 1) + ": ",);
                         const pmInput = createCustomInput({
                             id: pmId, name: "powerModuleSn", required: true,
                         });
@@ -1552,7 +1336,7 @@ async function unitHandler(event) {
                     }
                     for (let index = 0; index < sensorQuantity; index++) {
                         const sensorId = `sensorSn_${i}_${index}`;
-                        const sensorLabel = createCustomLabel(sensorId, "Numer current sensor " + (index + 1) + ": ");
+                        const sensorLabel = createCustomLabel(sensorId, "Numer current sensor " + (index + 1) + ": ",);
                         const sensorInput = createCustomInput({
                             id: sensorId, name: "sensorSn", required: true,
                         });
@@ -1567,15 +1351,13 @@ async function unitHandler(event) {
             const detailDiv = document.createElement("div");
             detailDiv.id = "palletFormDiv20";
             detailDiv.setAttribute("name", "palletFormDiv2");
-            detailDiv.classList.add("flex", "flex-col", "items-center", "m-5", "justify-center");
-            document
-                .getElementById("palletForm01")
-                .appendChild(detailDiv);
+            detailDiv.classList.add("flex", "flex-col", "items-center", "m-5", "justify-center",);
+            document.getElementById("palletForm01").appendChild(detailDiv);
             palletSerialNumber.disabled = true;
             if (goodFlag) {
                 let focusSensor = false;
                 if (powerModuleToChild !== "") {
-                    const pmLabel = createCustomLabel("powerModuleSn0", "Numer power module: ");
+                    const pmLabel = createCustomLabel("powerModuleSn0", "Numer power module: ",);
                     const pmInput = createCustomInput({
                         id: "powerModuleSn0", name: "powerModuleSn", required: true,
                     });
@@ -1586,7 +1368,7 @@ async function unitHandler(event) {
                 }
                 for (let index = 0; index < sensorQuantity; index++) {
                     const sensorId = "sensorSn" + index;
-                    const sensorLabel = createCustomLabel(sensorId, "Numer current sensor " + (index + 1) + ": ");
+                    const sensorLabel = createCustomLabel(sensorId, "Numer current sensor " + (index + 1) + ": ",);
                     const sensorInput = createCustomInput({
                         id: sensorId, name: "sensorSn", required: true,
                     });
@@ -1598,7 +1380,7 @@ async function unitHandler(event) {
             }
         }
         if (goodFlag) {
-            inputs = Array.from(document.querySelectorAll('input[name="powerModuleSn"], ' + 'input[name="sensorSn"]')).filter((input) => !input.disabled);
+            inputs = Array.from(document.querySelectorAll('input[name="powerModuleSn"], ' + 'input[name="sensorSn"]',),).filter((input) => !input.disabled);
             for (const input of inputs) {
                 if (input.dataset.validationListenerAttached === "1") {
                     continue;
@@ -1612,7 +1394,9 @@ async function unitHandler(event) {
                     if (!String(input.value || "").trim()) {
                         return;
                     }
-                    const scannedInputValue = String(input.value || "").trim().toUpperCase();
+                    const scannedInputValue = String(input.value || "")
+                        .trim()
+                        .toUpperCase();
                     try {
                         let bad = 0;
                         let duplicate;
@@ -1629,7 +1413,7 @@ async function unitHandler(event) {
                             if (!pmStatus.status) {
                                 const failedUnit = input.value;
                                 resetScannedInput(input);
-                                showError(failedUnit + "<br>" + (pmStatus.message || "Błąd Get_Unit_Status"), 8000);
+                                showError(failedUnit + "<br>" + (pmStatus.message || "Błąd Get_Unit_Status"), 8000,);
                                 return;
                             }
                             const pmUnitStatus = await unitCheck(fd);
@@ -1637,7 +1421,7 @@ async function unitHandler(event) {
                             if (isRouterTransportFailure(parentStatus)) {
                                 const failedUnit = input.value;
                                 resetScannedInput(input);
-                                showRouterTransportError("sprawdzania linku Power Module", parentStatus, failedUnit);
+                                showRouterTransportError("sprawdzania linku Power Module", parentStatus, failedUnit,);
                                 return;
                             }
                             if (!parentStatus?.status && !isExpectedMissingParent(parentStatus)) {
@@ -1680,7 +1464,7 @@ async function unitHandler(event) {
                     } catch (error) {
                         console.error("component input error:", error);
                         resetScannedInput(input);
-                        showError(scannedInputValue + "<br>Nieoczekiwany błąd obsługi sztuki!<br>" + (error?.message || "Brak szczegółów błędu"), 8000);
+                        showError(scannedInputValue + "<br>Nieoczekiwany błąd obsługi sztuki!<br>" + (error?.message || "Brak szczegółów błędu"), 8000,);
                     }
                 });
             }
@@ -1689,13 +1473,13 @@ async function unitHandler(event) {
         let dc = "COMMENT|" + unitSerialNumberValue + "|PALLET|" + palletSerialNumberValue;
         fd.set("station", station);
         fd.set("dc", dc);
-        const manualInputs = Array.from(document.querySelectorAll('input[name="powerModuleSn"], ' + 'input[name="sensorSn"]')).filter((input) => !input.disabled);
-        const firstEmptyManual = manualInputs.find((input) => String(input.value || "").trim() === "");
+        const manualInputs = Array.from(document.querySelectorAll('input[name="powerModuleSn"], ' + 'input[name="sensorSn"]',),).filter((input) => !input.disabled);
+        const firstEmptyManual = manualInputs.find((input) => String(input.value || "").trim() === "",);
         if (firstEmptyManual) {
             firstEmptyManual.focus();
             return;
         }
-        const childrenElements = document.querySelectorAll('input[name="childSerialNumber"]');
+        const childrenElements = document.querySelectorAll('input[name="childSerialNumber"]',);
         if (childrenElements.length > 0) {
             for (const element of childrenElements) {
                 const childUnit = String(element.value || "")
@@ -1707,14 +1491,11 @@ async function unitHandler(event) {
                 const childEntry = await dataEntry(fd);
                 console.log("dataEntry child:", childUnit, childEntry);
                 if (!childEntry?.status) {
-                    const failure = formatFisWriteFailure("Błąd zapisu dla childrena!<br>" + childUnit + "<br>" + (childEntry?.message || "Brak szczegółów"), childEntry, fisWritesCompleted,);
-                    showError(failure.message, failure.requiresReview ? 15000 : 8000);
-                    if (!failure.requiresReview) {
-                        resetScannedInput(unitSerialNumber);
-                    }
+                    const message = "Błąd zapisu dla childrena!<br>" + childUnit + "<br>" + (childEntry?.message || "Brak szczegółów");
+                    showError(message, 8000);
+                    resetScannedInput(unitSerialNumber);
                     return;
                 }
-                fisWritesCompleted++;
             }
         } else {
             dc += "|GOOD|";
@@ -1725,36 +1506,29 @@ async function unitHandler(event) {
         const dataEntryStatus = await dataEntry(fd);
         console.log("DEBUG: dataEntry status=", dataEntryStatus);
         if (!dataEntryStatus.status) {
-            const failure = formatFisWriteFailure("Błąd zapisu!<br>" + unitSerialNumberValue + "<br>" + (dataEntryStatus.message || "Skontaktuj się z inżynierem lub IT"), dataEntryStatus, fisWritesCompleted,);
-            showError(failure.message, failure.requiresReview ? 15000 : 8000);
-            if (!failure.requiresReview) {
-                resetScannedInput(unitSerialNumber);
-            }
+            const message = "Błąd zapisu!<br>" + unitSerialNumberValue + "<br>" + (dataEntryStatus.message || "Skontaktuj się z inżynierem lub IT");
+            showError(message, 8000);
+            resetScannedInput(unitSerialNumber);
             console.error(dataEntryStatus);
             return;
         }
-        fisWritesCompleted++;
         fd.set("palletSerialNumber", palletSerialNumberValue);
         const palletEntryResult = await palletEntry(fd);
         console.log("DEBUG: palletEntry result=", palletEntryResult);
         if (!palletEntryResult.status) {
-            showPendingCycleError(palletEntryResult);
+            showError(palletEntryResult.message || "Błąd zapisu cyklu palety", 8000, resetProcessForms,);
             return;
         }
-        if (Number(document.getElementById("palletSerialNumber").dataset.vacuum_check) === 1) {
+        if (Number(document.getElementById("palletSerialNumber").dataset.vacuum_check,) === 1) {
             document.getElementById("palletSerialNumber").dataset.vacuum_check = 0;
         }
-        showSuccess(palletSerialNumberValue + " Proces poprawny dla:<br>" + unitSerialNumberValue + cycleReplayNotice(palletEntryResult), 3000, () => {
+        showSuccess(palletSerialNumberValue + " Proces poprawny dla:<br>" + unitSerialNumberValue, 3000, () => {
             resetProcessForms();
         },);
     } catch (error) {
         console.error("unitHandler error:", error);
-        const requiresReview = fisWritesCompleted > 0;
-        const suffix = requiresReview ? "<br>Stan procesu w FIS może być częściowo zapisany. Nie ponawiaj operacji i skontaktuj się z inżynierem lub IT." : "";
-        showError(unitSerialNumberValue + "<br>Nieoczekiwany błąd obsługi sztuki!<br>" + (error?.message || "Brak szczegółów błędu") + suffix, requiresReview ? 15000 : 8000,);
-        if (!requiresReview) {
-            resetScannedInput(unitSerialNumber);
-        }
+        showError(unitSerialNumberValue + "<br>Nieoczekiwany błąd obsługi sztuki!<br>" + (error?.message || "Brak szczegółów błędu"), 8000,);
+        resetScannedInput(unitSerialNumber);
     }
 }
 
@@ -1789,7 +1563,7 @@ async function unitHandler2(form, event) {
         if (!unitStatus?.status) {
             const failedUnit = unitSerialNumberValue;
             resetScannedInput(unitSerialNumber, form);
-            showError(failedUnit + "<br>" + (unitStatus?.message || "Błąd unitCheck"), 8000);
+            showError(failedUnit + "<br>" + (unitStatus?.message || "Błąd unitCheck"), 8000,);
             return;
         }
         goodFlag = 0;
@@ -1801,7 +1575,7 @@ async function unitHandler2(form, event) {
         if (!response?.status) {
             const failedUnit = unitSerialNumberValue;
             resetScannedInput(unitSerialNumber, form);
-            showError(failedUnit + "<br>" + (response?.message || "Błąd Get_Unit_Status"), 8000);
+            showError(failedUnit + "<br>" + (response?.message || "Błąd Get_Unit_Status"), 8000,);
             return;
         }
         const componentConfig = resolveComponentConfig(response.data?.uk2);
@@ -1816,7 +1590,7 @@ async function unitHandler2(form, event) {
         console.log("unitHandler2 unitParent:", unitParent);
         if (isRouterTransportFailure(unitParent)) {
             resetScannedInput(unitSerialNumber, form);
-            showRouterTransportError("sprawdzania parenta", unitParent, unitSerialNumberValue);
+            showRouterTransportError("sprawdzania parenta", unitParent, unitSerialNumberValue,);
             return;
         }
         if (!unitParent?.status && !isExpectedMissingParent(unitParent)) {
@@ -1833,7 +1607,7 @@ async function unitHandler2(form, event) {
             const parentStatus = await unitCheck(fd);
             if (!parentStatus?.status) {
                 resetScannedInput(unitSerialNumber, form);
-                showError("Parent niegotowy na process!<br>" + unitParent.data + "<br>" + (parentStatus?.message || unitParent?.message || "Brak szczegółów"), 8000);
+                showError("Parent niegotowy na process!<br>" + unitParent.data + "<br>" + (parentStatus?.message || unitParent?.message || "Brak szczegółów"), 8000,);
                 return;
             }
             unitSerialNumber.value = parentStatus.data || unitParent.data;
@@ -1842,7 +1616,7 @@ async function unitHandler2(form, event) {
             if (hasDuplicateRootValue(unitSerialNumber, unitSerialNumberValue)) {
                 const duplicateUnit = unitSerialNumberValue;
                 resetScannedInput(unitSerialNumber, form);
-                showError(duplicateUnit + "<br>Ten sam parent został już użyty w innym gnieździe!", 8000);
+                showError(duplicateUnit + "<br>Ten sam parent został już użyty w innym gnieździe!", 8000,);
                 return;
             }
         }
@@ -1850,7 +1624,7 @@ async function unitHandler2(form, event) {
         console.log("unitHandler2 unitChildren:", unitChildren);
         if (!unitChildren?.status) {
             resetScannedInput(unitSerialNumber, form);
-            showError(unitSerialNumberValue + "<br>" + (unitChildren?.message || "Błąd pobierania childrenów"), 8000);
+            showError(unitSerialNumberValue + "<br>" + (unitChildren?.message || "Błąd pobierania childrenów"), 8000,);
             return;
         }
         let childrenData = Array.isArray(unitChildren.data) ? [...unitChildren.data] : [];
@@ -1859,7 +1633,7 @@ async function unitHandler2(form, event) {
             const childStatusResponse = await Get_Unit_Status(fd);
             if (!childStatusResponse?.status) {
                 resetScannedInput(unitSerialNumber, form);
-                showError(childrenData[0] + "<br>" + (childStatusResponse?.message || "Błąd pobierania statusu childrena"), 8000);
+                showError(childrenData[0] + "<br>" + (childStatusResponse?.message || "Błąd pobierania statusu childrena"), 8000,);
                 return;
             }
             if (childStatusResponse.data?.uk3 === "HEATSINK") {
@@ -1867,14 +1641,16 @@ async function unitHandler2(form, event) {
             }
             fd.set("unitSerialNumber", unitSerialNumberValue);
         }
-        form.querySelectorAll('[data-generated="unitHandler2"]').forEach((element) => {
-            element.remove();
-        });
+        form
+            .querySelectorAll('[data-generated="unitHandler2"]')
+            .forEach((element) => {
+                element.remove();
+            });
         if (childrenData.length > 0 && processHousing === 0) {
             const childrenContainer = document.createElement("div");
             childrenContainer.id = form.id + "_children";
             childrenContainer.dataset.generated = "unitHandler2";
-            childrenContainer.classList.add("flex", "justify-center", "items-center", "mt-3", "flex-row");
+            childrenContainer.classList.add("flex", "justify-center", "items-center", "mt-3", "flex-row",);
             form.appendChild(childrenContainer);
             for (let i = 0; i < childrenData.length; i++) {
                 const childUnit = String(childrenData[i] || "")
@@ -1884,17 +1660,17 @@ async function unitHandler2(form, event) {
                 const childCheck = await unitCheck(fd);
                 if (!childCheck?.status) {
                     resetScannedInput(unitSerialNumber, form);
-                    showError(childUnit + "<br>" + (childCheck?.message || "Child niegotowy na process"), 8000);
+                    showError(childUnit + "<br>" + (childCheck?.message || "Child niegotowy na process"), 8000,);
                     return;
                 }
                 const detailDiv = document.createElement("div");
                 detailDiv.id = `${form.id}_Div_${i}`;
                 detailDiv.setAttribute("name", "palletFormDiv2");
                 detailDiv.dataset.generated = "unitHandler2";
-                detailDiv.classList.add("flex", "flex-col", "items-center", "justify-center");
+                detailDiv.classList.add("flex", "flex-col", "items-center", "justify-center",);
                 childrenContainer.appendChild(detailDiv);
                 const childId = `childSerialNumber_${form.id}_${i}`;
-                const childLabel = createCustomLabel(childId, "Numer childrena " + (i + 1) + ": ");
+                const childLabel = createCustomLabel(childId, "Numer childrena " + (i + 1) + ": ",);
                 const childInput = createCustomInput({
                     id: childId, name: "childSerialNumber", value: childUnit, disabled: true,
                 });
@@ -1903,7 +1679,7 @@ async function unitHandler2(form, event) {
                     let firstManualInput = null;
                     if (powerModuleToChild !== "") {
                         const pmId = `powerModuleSn_${form.id}_${i}`;
-                        const pmLabel = createCustomLabel(pmId, "Numer power module " + (i + 1) + ": ");
+                        const pmLabel = createCustomLabel(pmId, "Numer power module " + (i + 1) + ": ",);
                         const pmInput = createCustomInput({
                             id: pmId, name: "powerModuleSn", required: true,
                         });
@@ -1913,7 +1689,7 @@ async function unitHandler2(form, event) {
                     }
                     for (let index = 0; index < sensorQuantity; index++) {
                         const sensorId = `sensorSn_${form.id}_${i}_${index}`;
-                        const sensorLabel = createCustomLabel(sensorId, "Numer current sensor " + (index + 1) + ": ");
+                        const sensorLabel = createCustomLabel(sensorId, "Numer current sensor " + (index + 1) + ": ",);
                         const sensorInput = createCustomInput({
                             id: sensorId, name: "sensorSn", required: true,
                         });
@@ -1933,7 +1709,7 @@ async function unitHandler2(form, event) {
             detailDiv.id = `${form.id}_Div20`;
             detailDiv.setAttribute("name", "palletFormDiv2");
             detailDiv.dataset.generated = "unitHandler2";
-            detailDiv.classList.add("flex", "flex-col", "items-center", "justify-center");
+            detailDiv.classList.add("flex", "flex-col", "items-center", "justify-center",);
             form.appendChild(detailDiv);
             if (goodFlag) {
                 let firstManualInput = null;
@@ -1949,7 +1725,7 @@ async function unitHandler2(form, event) {
                 }
                 for (let index = 0; index < sensorQuantity; index++) {
                     const sensorId = `sensorSn_${form.id}_${index}`;
-                    const sensorLabel = createCustomLabel(sensorId, "Numer current sensor " + (index + 1) + ": ");
+                    const sensorLabel = createCustomLabel(sensorId, "Numer current sensor " + (index + 1) + ": ",);
                     const sensorInput = createCustomInput({
                         id: sensorId, name: "sensorSn", required: true,
                     });
@@ -1966,8 +1742,8 @@ async function unitHandler2(form, event) {
         }
         palletSerialNumber.disabled = true;
         unitSerialNumber.disabled = true;
-        inputs = [...document.querySelectorAll('#childDiv input:not([disabled]):not([id="themeToggle"])'),];
-        const manualInputs = inputs.filter((input) => input.name === "powerModuleSn" || input.name === "sensorSn");
+        inputs = [...document.querySelectorAll('#childDiv input:not([disabled]):not([id="themeToggle"])',),];
+        const manualInputs = inputs.filter((input) => input.name === "powerModuleSn" || input.name === "sensorSn",);
         for (const input of manualInputs) {
             if (input.dataset.validationListenerAttached === "1") {
                 continue;
@@ -1981,7 +1757,9 @@ async function unitHandler2(form, event) {
                 if (!String(input.value || "").trim()) {
                     return;
                 }
-                const scannedInputValue = String(input.value || "").trim().toUpperCase();
+                const scannedInputValue = String(input.value || "")
+                    .trim()
+                    .toUpperCase();
                 try {
                     let bad = 0;
                     let duplicate = false;
@@ -2040,19 +1818,19 @@ async function unitHandler2(form, event) {
                         showError(msg || failedValue + "<br>Błąd walidacji", 6000);
                         return;
                     }
-                    inputs = [...document.querySelectorAll('#childDiv input:not([disabled]):not([id="themeToggle"])'),];
+                    inputs = [...document.querySelectorAll('#childDiv input:not([disabled]):not([id="themeToggle"])',),];
                     await focusNext(dataEntryFunc);
                 } catch (error) {
                     console.error("component input error:", error);
                     resetScannedInput(input);
-                    showError(scannedInputValue + "<br>Nieoczekiwany błąd obsługi sztuki!<br>" + (error?.message || "Brak szczegółów błędu"), 8000);
+                    showError(scannedInputValue + "<br>Nieoczekiwany błąd obsługi sztuki!<br>" + (error?.message || "Brak szczegółów błędu"), 8000,);
                 }
             });
         }
-        const currentManualInputs = Array.from(form.querySelectorAll('input[name="powerModuleSn"], ' + 'input[name="sensorSn"]')).filter((input) => !input.disabled);
+        const currentManualInputs = Array.from(form.querySelectorAll('input[name="powerModuleSn"], ' + 'input[name="sensorSn"]',),).filter((input) => !input.disabled);
         if (currentManualInputs.length === 0) {
-            inputs = [...document.querySelectorAll('#childDiv input:not([disabled]):not([id="themeToggle"])'),];
-            const firstEmpty = inputs.find((input) => String(input.value || "").trim() === "");
+            inputs = [...document.querySelectorAll('#childDiv input:not([disabled]):not([id="themeToggle"])',),];
+            const firstEmpty = inputs.find((input) => String(input.value || "").trim() === "",);
             if (firstEmpty) {
                 firstEmpty.focus();
             } else {
@@ -2062,6 +1840,6 @@ async function unitHandler2(form, event) {
     } catch (error) {
         console.error("unitHandler2 error:", error);
         resetScannedInput(unitSerialNumber, form);
-        showError((unitSerialNumberValue || scannedUnit) + "<br>Nieoczekiwany błąd obsługi sztuki!<br>" + (error?.message || "Brak szczegółów błędu"), 8000);
+        showError((unitSerialNumberValue || scannedUnit) + "<br>Nieoczekiwany błąd obsługi sztuki!<br>" + (error?.message || "Brak szczegółów błędu"), 8000,);
     }
 }

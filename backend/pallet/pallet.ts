@@ -17,6 +17,7 @@ import {
     type ShortText,
     isFisSafeText,
     isSafePositiveInteger,
+    calculateRangeMaxCycles,
     expandPalletRange,
     normalizePalletId,
 } from "../shared/validation";
@@ -82,6 +83,8 @@ interface AddPalletRangeParams extends LocalizedRequest {
     project: ShortText;
     model: ShortText;
     max_cycles: MaxCycles;
+    cycle_step_every?: number & Min<1> & Max<100>;
+    cycle_step_amount?: MaxCycles;
     nests: NestCount;
     status: PalletStatus;
     block_reason?: string | null;
@@ -354,6 +357,15 @@ export const AddPalletRange = api(
         if (!isSafePositiveInteger(params.max_cycles) || !isSafePositiveInteger(params.nests)) {
             throw APIError.invalidArgument(t("integer_required", lang));
         }
+        const palletMaxCycles = palletIds.map((_, index) => calculateRangeMaxCycles(
+            params.max_cycles,
+            index,
+            params.cycle_step_every,
+            params.cycle_step_amount,
+        ));
+        if (palletMaxCycles.some((maxCycles) => maxCycles === null)) {
+            throw APIError.invalidArgument(t("cycle_step_invalid", lang));
+        }
 
         try {
             await using tx = await db.begin();
@@ -367,7 +379,8 @@ export const AddPalletRange = api(
             `;
             if (!catalogEntry) throw APIError.invalidArgument(t("model_not_registered", lang));
             const {project, model, project_id, model_id} = catalogEntry;
-            for (const palletId of palletIds) {
+            for (const [index, palletId] of palletIds.entries()) {
+                const maxCycles = palletMaxCycles[index]!;
                 const existing = await tx.queryRow<PalletRecord>`
                     SELECT * FROM pallet_details WHERE pallet_id = ${palletId} FOR UPDATE
                 `;
@@ -378,7 +391,7 @@ export const AddPalletRange = api(
                 if (existing) {
                     await tx.exec`
                         UPDATE pallets
-                        SET project_id = ${project_id}, model_id = ${model_id}, max_cycles = ${params.max_cycles},
+                        SET project_id = ${project_id}, model_id = ${model_id}, max_cycles = ${maxCycles},
                             current_cycles = 0, total_cycles = 0, nests = ${params.nests}, status = ${status},
                             block_reason = ${params.block_reason?.trim() ?? null}, fis = ${fis},
                             created_at = NOW(), created_by = ${operator}, updated_at = NOW(), updated_by = ${operator},
@@ -392,7 +405,7 @@ export const AddPalletRange = api(
                             pallet_id, project_id, model_id, max_cycles, nests, status, block_reason,
                             fis, created_by, updated_by, last_operation_description
                         ) VALUES (
-                            ${palletId}, ${project_id}, ${model_id}, ${params.max_cycles}, ${params.nests}, ${status},
+                            ${palletId}, ${project_id}, ${model_id}, ${maxCycles}, ${params.nests}, ${status},
                             ${params.block_reason?.trim() ?? null}, ${fis}, ${operator}, ${operator},
                             ${encodeAuditDescription("audit_registered")}
                         )
