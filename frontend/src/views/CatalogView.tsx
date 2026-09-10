@@ -1,4 +1,5 @@
-import {FolderTree, Folder, Layers3, Search, ArrowRight, Info, CheckCircle2, Pencil, Trash2, PlusCircle, X} from 'lucide-react';
+import {Link} from 'react-router-dom';
+import {FolderTree, ExternalLink, Folder, Layers3, Search, ArrowRight, Info, CheckCircle2, Pencil, Trash2, PlusCircle, X} from 'lucide-react';
 import {InputField, SelectField} from '../components/FormFields';
 
 import {ModalPresence, ModalTransition} from '../components/ModalTransition';
@@ -8,7 +9,7 @@ import {useCatalogView} from '../hooks/useCatalogView';
 
 export function CatalogView() {
     const {
-        t, tab, search, setSearch, selected, name, setName, projectName, setProjectName,
+        getAdminUrl, t, tab, search, setSearch, selected, name, setName, projectName, setProjectName,
         dialogRef, busy, error, success, close, projects, models, entries, save, select,
         add, modalTitle, projectModels, changeTab, showProjectModels, filteredProject,
         clearProjectFilter, handleDialogKeyDown, refresh,
@@ -113,12 +114,23 @@ export function CatalogView() {
                                 {entry.kind === 'project' ? <button type="button" onClick={() => showProjectModels(entry.id)}
                                     className="group/models inline-flex items-center gap-3 rounded-lg py-1 text-xs text-brand-text-muted hover:text-indigo-200"
                                     aria-label={t('catalog_view_models') + ': ' + entry.name}>
-                                    <span className="flex size-8 items-center justify-center rounded-lg border border-brand-border/60 bg-brand-bg/40 font-mono text-indigo-200">{children.length}</span>
-                                    <span className="max-w-64 truncate">{children.length ? children.map(model => model.name).join(', ') : t('catalog_no_models')}</span>
+                                    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-brand-border/60 bg-brand-bg/40 font-mono text-indigo-200">{children.length}</span>
+                                    <span className="flex max-w-lg flex-wrap gap-1.5 text-left">
+                                        {children.length ? children.map(model => (
+                                            <span key={model.id} className="rounded-md border border-brand-border/70 bg-brand-bg/50 px-2.5 py-1.5 text-xs leading-relaxed text-brand-text break-words">
+                                                {model.name}
+                                            </span>
+                                        )) : t('catalog_no_models')}
+                                    </span>
                                     <ArrowRight size={14} className="text-brand-text-muted/50 transition-transform group-hover/models:translate-x-1"/>
                                 </button> : <span className="inline-flex items-center gap-2 rounded-md border border-brand-border/60 bg-brand-bg/30 px-2.5 py-1.5 text-xs text-brand-text-muted"><Folder size={13}/>{entry.project}</span>}
                             </td>
-                            <td className="px-5 py-5 sm:px-6"><div className="flex justify-end gap-2">
+                            <td className="px-5 py-5 sm:px-6"><div className="flex flex-wrap justify-end gap-2">
+                                <Link to={getAdminUrl(entry)} className={buttonClass + ' min-h-10 text-indigo-200'}
+                                    aria-label={t('catalog_view_pallets') + ': ' + (entry.project ? entry.project + ' / ' : '') + entry.name}
+                                    title={t('catalog_view_pallets')}>
+                                    <ExternalLink size={14}/><span className="hidden md:inline">{t('catalog_view_pallets')}</span>
+                                </Link>
                                 <button className={buttonClass + ' min-h-10'} disabled={busy} onClick={() => select(entry, false)} aria-label={t('catalog_edit') + ': ' + (entry.project ?? '') + ' ' + entry.name} title={t('catalog_edit')}><Pencil size={14}/><span className="hidden md:inline">{t('catalog_edit')}</span></button>
                                 <button className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-brand-text-muted/60 transition-colors hover:bg-red-500/10 hover:text-red-400 disabled:opacity-40" disabled={busy} onClick={() => select(entry, true)} aria-label={t('catalog_delete') + ': ' + (entry.project ?? '') + ' ' + entry.name} title={t('catalog_delete')}><Trash2 size={15}/></button>
                             </div></td>

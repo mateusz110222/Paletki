@@ -6,6 +6,13 @@ export type CatalogEntry = {
     projectId?: number;
 };
 
+export function getCatalogAdminUrl(entry: CatalogEntry): string {
+    const params = new URLSearchParams();
+    params.set('project', entry.kind === 'project' ? entry.name : entry.project ?? '');
+    if (entry.kind === 'model') params.set('model', entry.name);
+    return `/admin?${params.toString()}`;
+}
+
 export function getCatalogEntries(
     projects: readonly {id: number; name: string}[],
     models: readonly {id: number; name: string; project_id: number}[],

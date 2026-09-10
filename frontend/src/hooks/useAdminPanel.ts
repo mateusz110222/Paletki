@@ -1,3 +1,4 @@
+import {matchesPalletSearch} from '../lib/palletSearch';
 import {parseTableSort, readPreference, savePreference, sortPallets, type TableSort} from '../lib/tablePreferences';
 import {useToast} from '../components/ToastProvider';
 import React, {useCallback, useMemo, useRef, useState} from 'react';
@@ -111,13 +112,9 @@ export const useAdminPanel = ({
     }, []);
 
     const filteredPallets = useMemo(() => (pallets || []).filter((p) => {
-        const palletId = p.pallet_id || '';
         const project = p.project || '';
-        const createdBy = p.created_by || '';
 
-        const matchesSearch = palletId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            project.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            createdBy.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesSearch = matchesPalletSearch(p, searchTerm);
         const matchesProject = selectedProject === 'ALL' || project === selectedProject;
         const matchesModel = selectedModel === 'ALL' || p.model === selectedModel;
         const matchesStatus = selectedStatus === 'ALL' || p.status === selectedStatus;

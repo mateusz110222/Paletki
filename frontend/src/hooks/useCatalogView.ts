@@ -1,3 +1,4 @@
+import {getCatalogAdminUrl} from '../lib/catalog';
 import {useEffect, useRef, useState, type KeyboardEvent} from 'react';
 import {useQuery, useQueryClient} from '@tanstack/react-query';
 import {useAuth} from '../auth/AuthContext';
@@ -108,7 +109,7 @@ export function useCatalogView() {
     }
 
     return {
-        t, tab, search, setSearch, selected, name, setName, projectName, setProjectName,
+        getAdminUrl: getCatalogAdminUrl, t, tab, search, setSearch, selected, name, setName, projectName, setProjectName,
         dialogRef, busy, error, success, close, projects, models, entries, save, select,
         add, modalTitle, projectModels, changeTab, showProjectModels, filteredProject,
         clearProjectFilter: () => setProjectId(null), handleDialogKeyDown,
