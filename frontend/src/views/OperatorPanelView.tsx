@@ -33,7 +33,7 @@ export const OperatorPanelView: React.FC = () => {
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        actions.setScannedId(e.target.value.toUpperCase());
+        actions.setScannedId(e.target.value);
     };
 
     return (
@@ -459,8 +459,6 @@ export const OperatorPanelView: React.FC = () => {
                     </ModalTransition>
                 )}
             </ModalPresence>
-
-
 
             <GlobalErrorModal
                 isOpen={data.errorModalState.isOpen}

@@ -66,8 +66,8 @@ export function calculateRangeMaxCycles(
     const amount = stepAmount ?? 0;
     if (!isSafePositiveInteger(every) || !isSafePositiveInteger(amount)) return null;
 
-    const maxCycles = baseMaxCycles + Math.floor(palletIndex / every) * amount;
-    return Number.isSafeInteger(maxCycles) && maxCycles <= MAX_CYCLES_LIMIT ? maxCycles : null;
+    const maxCycles = baseMaxCycles - Math.floor(palletIndex / every) * amount;
+    return Number.isSafeInteger(maxCycles) && maxCycles > 0 && baseMaxCycles <= MAX_CYCLES_LIMIT && maxCycles <= MAX_CYCLES_LIMIT ? maxCycles : null;
 }
 
 export function isFisSafeText(value: string): boolean {

@@ -1,6 +1,6 @@
 import {useMemo} from 'react';
 import {useQuery} from '@tanstack/react-query';
-import type {PublicDashboardPallet} from '@backend/shared/types';
+import type {PalletStatus, PublicDashboardPallet} from '@backend/shared/types';
 import {getPublicDashboard} from '../lib/api.ts';
 
 const cycleProgress = (pallet: PublicDashboardPallet) => (
@@ -63,5 +63,42 @@ export const usePublicDashboard = (station?: string) => {
         };
     }, [query.data]);
 
-    return {query, metrics, cycleProgress};
+    const selectedStation = query.data?.selected_station;
+    const statusCounts = useMemo(() => {
+        const counts: Record<PalletStatus, number> = {Active: 0, Washing_Required: 0, Damaged: 0, Blocked: 0};
+        for (const pallet of query.data?.pallets ?? []) {
+            if (!selectedStation || pallet.project === selectedStation.project) counts[pallet.status] += 1;
+        }
+        return counts;
+    }, [query.data, selectedStation]);
+
+    const service = query.data?.service ?? {daily: [], average_minutes_30d: 0, completed_30d: 0};
+    const chart = service.daily;
+    const maxChartValue = Math.max(1, ...chart.map((point) => point.average_minutes));
+    const completedInChart = chart.reduce((sum, point) => sum + point.completed, 0);
+    const stationPallet = selectedStation
+        ? query.data?.pallets.find((pallet) => pallet.pallet_id === selectedStation.pallet_id)
+        : undefined;
+    const stationProgress = stationPallet ? cycleProgress(stationPallet) : 0;
+    const stationCyclesRemaining = stationPallet
+        ? Math.max(0, stationPallet.max_cycles - stationPallet.current_cycles)
+        : 0;
+    const stationHasAttention = metrics.serviceQueue.length > 0 || metrics.dueSoon.length > 0;
+    const stationPallets = (query.data?.pallets ?? []).filter((pallet) => pallet.project === selectedStation?.project);
+
+    return {
+        query,
+        metrics,
+        cycleProgress,
+        statusCounts,
+        service,
+        chart,
+        maxChartValue,
+        completedInChart,
+        stationPallet,
+        stationProgress,
+        stationCyclesRemaining,
+        stationHasAttention,
+        stationPallets,
+    };
 };

@@ -338,7 +338,7 @@ export const useOperatorPanel = () => {
             toggleSound,
             setVolumeLevel: updateVolumeLevel,
             cycleVolumeLevel,
-            setScannedId,
+            setScannedId: (value: string) => setScannedId(value.toUpperCase()),
             setIsOtherFaultOpen,
             setCustomFaultText,
             handleScanSubmit,

@@ -160,7 +160,7 @@ export const useAdminPanel = ({
             palletCount: ids.length,
             firstGroupEnd: ids[Math.min(every, ids.length) - 1],
             firstLimit: base,
-            lastLimit: base + Math.floor((ids.length - 1) / every) * amount,
+            lastLimit: base - Math.floor((ids.length - 1) / every) * amount,
         };
     }, [addMode, cycleSteppingEnabled, cycleStepAmount, cycleStepEvery, newId, newLastId, newMaxCycles]);
 
@@ -256,9 +256,9 @@ export const useAdminPanel = ({
         const stepEvery = Number(cycleStepEvery);
         const stepAmount = Number(cycleStepAmount);
         if (addMode === 'range' && cycleSteppingEnabled) {
-            const lastMaxCycles = Number(newMaxCycles) + Math.floor((rangeIds.length - 1) / stepEvery) * stepAmount;
+            const lastMaxCycles = Number(newMaxCycles) - Math.floor((rangeIds.length - 1) / stepEvery) * stepAmount;
             if (!Number.isSafeInteger(stepEvery) || !Number.isSafeInteger(stepAmount) ||
-                stepEvery <= 0 || stepAmount <= 0 || !Number.isSafeInteger(lastMaxCycles) || lastMaxCycles > 1_000_000) {
+                stepEvery <= 0 || stepAmount <= 0 || !Number.isSafeInteger(lastMaxCycles) || lastMaxCycles <= 0 || lastMaxCycles > 1_000_000) {
                 setValidationError(t('cycle_step_invalid'));
                 return;
             }
@@ -307,7 +307,6 @@ export const useAdminPanel = ({
             setIsSubmitting(false);
         }
     };
-
 
     const handleBlockClick = (pallet: Pallet) => {
         setSelectedPalletForBlock(pallet);

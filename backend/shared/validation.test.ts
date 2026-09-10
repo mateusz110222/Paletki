@@ -35,14 +35,17 @@ describe("range cycle stepping", () => {
         expect(calculateRangeMaxCycles(200, 17)).toBe(200);
     });
 
-    it("increases the limit after each complete pallet group", () => {
+    it("decreases the limit after each complete pallet group", () => {
         expect(Array.from({length: 12}, (_, index) => calculateRangeMaxCycles(200, index, 10, 10)))
-            .toEqual([200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 210, 210]);
+            .toEqual([200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 190, 190]);
     });
 
     it("rejects incomplete, non-positive and overflowing step settings", () => {
         expect(calculateRangeMaxCycles(200, 0, 10)).toBeNull();
         expect(calculateRangeMaxCycles(200, 0, 0, 10)).toBeNull();
-        expect(calculateRangeMaxCycles(1_000_000, 1, 1, 1)).toBeNull();
+        expect(calculateRangeMaxCycles(1, 1, 1, 1)).toBeNull();
+        expect(calculateRangeMaxCycles(10, 2, 1, 10)).toBeNull();
+        expect(calculateRangeMaxCycles(1_000_001, 1, 1, 10)).toBeNull();
+        expect(calculateRangeMaxCycles(11, 1, 1, 10)).toBe(1);
     });
 });

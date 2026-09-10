@@ -1,96 +1,19 @@
-import {useEffect, useRef, useState} from 'react';
-import {useQuery, useQueryClient} from '@tanstack/react-query';
 import {FolderTree, Folder, Layers3, Search, ArrowRight, Info, CheckCircle2, Pencil, Trash2, PlusCircle, X} from 'lucide-react';
-import {useAuth} from '../auth/AuthContext';
-import {useTranslation} from '../i18n/LanguageContext';
 import {InputField, SelectField} from '../components/FormFields';
-import {getErrorMessage} from '../lib/errors';
 
 import {ModalPresence, ModalTransition} from '../components/ModalTransition';
 import {ModalFormActions} from '../components/ModalFormActions';
-import {useEscapeKey} from '../hooks/useEscapeKey';
 
-type Entry = {id: number; kind: 'project' | 'model'; name: string; project?: string};
+import {useCatalogView} from '../hooks/useCatalogView';
 
 export function CatalogView() {
-    const {apiClient} = useAuth();
-    const {t, language} = useTranslation();
-    const cache = useQueryClient();
-    const [tab, setTab] = useState<'project' | 'model'>('project');
-    const [search, setSearch] = useState('');
-    const [selected, setSelected] = useState<{entry: Entry; remove: boolean; create?: boolean} | null>(null);
-    const [name, setName] = useState('');
-    const [projectName, setProjectName] = useState('');
-    const dialogRef = useRef<HTMLDivElement>(null);
-    const runningRef = useRef(false);
-    const [busy, setBusy] = useState(false);
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState(false);
-    const close = () => {if (!runningRef.current) setSelected(null);};
-    useEscapeKey(Boolean(selected), close);
-    const modalOpen = Boolean(selected);
-    useEffect(() => {
-        if (!modalOpen) return;
-        const previous = document.activeElement as HTMLElement | null;
-        (dialogRef.current?.querySelector<HTMLElement>('input, select') ?? dialogRef.current?.querySelector<HTMLElement>('button'))?.focus();
-        return () => previous?.focus();
-    }, [modalOpen]);
-    const projects = useQuery({queryKey: ['projects', language], queryFn: () => apiClient.pallet.GetAllProjects()});
-    const models = useQuery({queryKey: ['models', language], queryFn: () => apiClient.pallet.GetAllModels()});
-    const query = search.trim().toLocaleLowerCase();
-    const entries: Entry[] = (projects.data?.projects ?? []).flatMap(project => {
-        const children: Entry[] = (models.data?.models ?? []).filter(model => model.project_id === project.id)
-            .map(model => ({id: model.id, kind: 'model', name: model.name, project: project.name}));
-        return [{id: project.id, kind: 'project', name: project.name} as Entry, ...children];
-    }).filter(entry => entry.kind === tab).filter(entry => `${entry.name} ${entry.project ?? ''}`.toLocaleLowerCase().includes(query));
-
-    async function save() {
-        if (!selected || runningRef.current) return;
-        runningRef.current = true;
-        setBusy(true);
-        setError('');
-        setSuccess(false);
-        try {
-            if (selected.create) {
-                if (selected.entry.kind === 'project') await apiClient.pallet.AddProject({name: name.trim(), acceptLanguage: language});
-                else await apiClient.pallet.AddModel({name: name.trim(), project: projectName, acceptLanguage: language});
-            } else if (selected.remove) {
-                if (selected.entry.kind === 'project') await apiClient.pallet.DeleteProject(selected.entry.id, {acceptLanguage: language});
-                else await apiClient.pallet.DeleteModel(selected.entry.id, {acceptLanguage: language});
-            } else {
-                if (selected.entry.kind === 'project') await apiClient.pallet.UpdateProject(selected.entry.id, {name: name.trim(), acceptLanguage: language});
-                else await apiClient.pallet.UpdateModel(selected.entry.id, {name: name.trim(), acceptLanguage: language});
-            }
-            setSelected(null);
-            setSuccess(true);
-            await Promise.all([cache.invalidateQueries({queryKey: ['projects']}), cache.invalidateQueries({queryKey: ['models']}), cache.invalidateQueries({queryKey: ['pallets']})]);
-        } catch (err) {
-            setError(getErrorMessage(err, t('catalog_error')));
-        } finally {
-            runningRef.current = false;
-            setBusy(false);
-        }
-    }
-
-    function select(entry: Entry, remove: boolean) {
-        setSelected({entry, remove});
-        setName(entry.name);
-        setError('');
-        setSuccess(false);
-    }
-
-    function add(kind: 'project' | 'model') {
-        setSelected({entry: {id: 0, kind, name: ''}, remove: false, create: true});
-        setName('');
-        setProjectName('');
-        setError('');
-        setSuccess(false);
-    }
-    const modalTitle = selected?.create
-        ? t(selected.entry.kind === 'project' ? 'modal_add_project_title' : 'modal_add_model_title')
-        : t(selected?.remove ? 'catalog_delete' : 'catalog_edit');
+    const {
+        t, tab, search, setSearch, selected, name, setName, projectName, setProjectName,
+        dialogRef, busy, error, success, close, projects, models, entries, save, select,
+        add, modalTitle, projectModels, changeTab, showProjectModels, filteredProject,
+        clearProjectFilter, handleDialogKeyDown, refresh,
+    } = useCatalogView();
     const buttonClass = 'inline-flex items-center justify-center gap-2 rounded-lg border border-brand-border px-3 py-2 text-xs font-bold hover:bg-brand-surface-high disabled:opacity-40';
-    const projectModels = (id: number) => (models.data?.models ?? []).filter(model => model.project_id === id);
     return <div className="space-y-4 animate-in fade-in duration-300">
         <section className="overflow-hidden rounded-2xl border border-brand-border/70 bg-brand-surface">
             <div className="flex flex-col gap-5 p-5 sm:p-6 xl:flex-row xl:items-center xl:justify-between">
@@ -112,7 +35,7 @@ export function CatalogView() {
                     {(['project', 'model'] as const).map(kind => <button key={kind} type="button" aria-pressed={tab === kind}
                         aria-label={t(kind === 'project' ? 'catalog_projects' : 'catalog_models')}
                         className={'inline-flex min-h-10 items-center gap-2 rounded-md px-3 sm:px-4 text-xs font-bold transition-colors ' + (tab === kind ? ' bg-brand-surface-high text-white shadow-sm' : ' text-brand-text-muted/70 hover:text-white')}
-                        onClick={() => {setTab(kind); setSelected(null); setSearch('');}} disabled={busy}>
+                        onClick={() => changeTab(kind)} disabled={busy}>
                         {kind === 'project' ? <Folder size={15}/> : <Layers3 size={15}/>}
                         {t(kind === 'project' ? 'catalog_projects' : 'catalog_models')}
                         <span className={'ml-1 rounded px-1.5 py-0.5 text-[10px] font-mono ' + (tab === kind ? ' bg-brand-accent/20 text-indigo-200' : ' bg-brand-surface text-brand-text-muted')}>
@@ -127,19 +50,16 @@ export function CatalogView() {
                 </div>
             </div>
         </section>
+        {filteredProject && <div className="flex items-center gap-2 text-xs text-brand-text-muted">
+            <Folder size={14}/><span>{t('col_project')}: {filteredProject.name}</span>
+            <button type="button" className={buttonClass} onClick={clearProjectFilter} aria-label={t('btn_cancel') + ': ' + filteredProject.name}><X size={14}/></button>
+        </div>}
         {success && <p role="status" className="flex items-center gap-2 text-sm text-emerald-300"><CheckCircle2 size={16}/>{t('catalog_saved')}</p>}
         <ModalPresence>
             {selected && <ModalTransition onBackdropClick={close}>
                 <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="catalog-modal-title"
                     className="relative bg-brand-surface border border-brand-border w-full max-w-lg rounded-xl overflow-hidden shadow-2xl"
-                    onKeyDown={event => {
-                        if (event.key !== 'Tab') return;
-                        const controls = dialogRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled)');
-                        if (!controls?.length) {event.preventDefault(); return;}
-                        const first = controls[0], last = controls[controls.length - 1];
-                        if (event.shiftKey && document.activeElement === first) {event.preventDefault(); last.focus();}
-                        else if (!event.shiftKey && document.activeElement === last) {event.preventDefault(); first.focus();}
-                    }}>
+                    onKeyDown={handleDialogKeyDown}>
                     <div className="bg-brand-surface-high p-5 border-b border-brand-border flex justify-between items-center">
                         <h3 id="catalog-modal-title" className="text-base font-bold uppercase tracking-wider flex items-center gap-2">
                             {selected.remove ? <Trash2 size={18} className="text-red-400"/> : selected.create ? <PlusCircle size={18} className="text-brand-accent"/> : <Pencil size={18} className="text-brand-accent"/>}
@@ -167,7 +87,7 @@ export function CatalogView() {
         </ModalPresence>
         {projects.isPending || models.isPending ? <p role="status">{t('catalog_loading')}</p>
             : projects.isError || models.isError ? <div role="alert" className="space-y-3 text-red-400">
-                <p>{t('fetch_error_banner')}</p><button className={buttonClass} onClick={() => {void projects.refetch(); void models.refetch();}}>{t('btn_refresh_pallets')}</button>
+                <p>{t('fetch_error_banner')}</p><button className={buttonClass} onClick={refresh}>{t('btn_refresh_pallets')}</button>
             </div> : <section className="overflow-hidden rounded-2xl border border-brand-border/70 bg-brand-surface">
                 <table className="w-full text-sm text-left">
                     <thead className="border-b border-brand-border/60 bg-brand-bg/30 text-[10px] uppercase tracking-widest text-brand-text-muted/70"><tr>
@@ -190,7 +110,7 @@ export function CatalogView() {
                                 </div>
                             </td>
                             <td className="hidden px-5 py-5 sm:table-cell">
-                                {entry.kind === 'project' ? <button type="button" onClick={() => {setTab('model'); setSearch(entry.name);}}
+                                {entry.kind === 'project' ? <button type="button" onClick={() => showProjectModels(entry.id)}
                                     className="group/models inline-flex items-center gap-3 rounded-lg py-1 text-xs text-brand-text-muted hover:text-indigo-200"
                                     aria-label={t('catalog_view_models') + ': ' + entry.name}>
                                     <span className="flex size-8 items-center justify-center rounded-lg border border-brand-border/60 bg-brand-bg/40 font-mono text-indigo-200">{children.length}</span>

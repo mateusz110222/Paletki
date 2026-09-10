@@ -1,32 +1,15 @@
-import {DisplayModeControl} from '../components/DisplayModeControl';
+import { DisplayModeControl } from '../components/DisplayModeControl';
 import React from 'react';
-import {Link, useSearchParams} from 'react-router-dom';
-import {useQuery} from '@tanstack/react-query';
-import {
-    AlertCircle,
-    AlertTriangle,
-    BarChart3,
-    CheckCircle2,
-    LogIn,
-    Package,
-    RefreshCw,
-    ScanBarcode,
-    ShieldAlert,
-    Tv,
-    Wrench
-} from 'lucide-react';
-import {LanguageSwitcher, useTranslation} from '../i18n/LanguageContext.tsx';
-import { ProjectStats, useLiveMonitor} from '../hooks/useLiveMonitor.ts';
-import {usePublicDashboard} from '../hooks/usePublicDashboard.ts';
-import {useDocumentMetadata} from '../hooks/useDocumentMetadata.ts';
-import {StationSelectionView} from '../components/StationSelectionView.tsx';
-import {publicApi} from '../lib/api.ts';
-import {
-    formatAvailablePallets,
-    formatPalletsCount,
-    formatProjectsCount
-} from '../i18n/pluralization.ts';
+import { Link } from 'react-router-dom';
 
+import { AlertCircle, AlertTriangle, BarChart3, CheckCircle2, LogIn, Package, RefreshCw, ScanBarcode, ShieldAlert, Tv, Wrench } from 'lucide-react';
+import { LanguageSwitcher } from '../i18n/LanguageContext.tsx';
+import { ProjectStats } from '../hooks/useLiveMonitor.ts';
+
+import { StationSelectionView } from '../components/StationSelectionView.tsx';
+
+import { formatAvailablePallets, formatPalletsCount, formatProjectsCount } from '../i18n/pluralization.ts';
+import {useLiveMonitorView} from '../hooks/useLiveMonitorView';
 const formatLastScanTime = (value: string | undefined, language: 'pl' | 'en') => {
     if (!value) return '—';
     const timestamp = Date.parse(value);
@@ -40,30 +23,7 @@ const formatLastScanTime = (value: string | undefined, language: 'pl' | 'en') =>
 };
 
 export const LiveMonitorView: React.FC = () => {
-    const {t, language} = useTranslation();
-    const [searchParams, setSearchParams] = useSearchParams();
-    const stationFromUrl = searchParams.get('station')?.trim() || undefined;
-    const {query} = usePublicDashboard(stationFromUrl);
-    const selectedStation = query.data?.selected_station;
-    const showAll = query.data?.scope === 'all';
-    const stationHistory = query.data?.station_history ?? (selectedStation ? [selectedStation] : []);
-    const recentProjectNames = [...new Set(stationHistory.map((entry) => entry.project))];
-    const projectsQuery = useQuery({
-        queryKey: ['public-projects'],
-        queryFn: () => publicApi.pallet.GetAllProjects(),
-        staleTime: 60_000,
-        refetchInterval: 60_000,
-        enabled: showAll,
-    });
-    const {data} = useLiveMonitor({
-        pallets: query.data?.pallets ?? [],
-        projects: showAll
-            ? projectsQuery.data?.projects ?? []
-            : recentProjectNames.map((name) => ({name})),
-    });
-
-    useDocumentMetadata(`PalletX | ${t('panel_live_title')}`, t('panel_live_subtitle'), language);
-
+    const {t, language, setSearchParams, stationFromUrl, query, selectedStation, showAll, stationHistory, recentProjectNames, projectsQuery, data} = useLiveMonitorView();
     if (query.isPending || (showAll && projectsQuery.isPending)) {
         return (
             <div className="dashboard-public grid min-h-screen place-items-center p-6 text-white">

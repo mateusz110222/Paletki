@@ -1,3 +1,4 @@
+import {useSearchParams} from 'react-router-dom';
 import {useToast} from '../components/ToastProvider';
 import React, {useCallback, useMemo, useState} from 'react';
 import {getErrorMessage} from '../lib/errors.ts';
@@ -21,7 +22,15 @@ export function useMaintenancePanel({pallets}: UseMaintenancePanelProps) {
     const [selectedPallet, setSelectedPallet] = useState<Pallet | null>(null);
     const [repairDescription, setRepairDescription] = useState('');
     const [modalError, setModalError] = useState('');
-    const [searchTerm, setSearchTerm] = useState('');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const searchTermFromURL = searchParams.get('searchTerm') || '';
+    const searchTerm = searchTermFromURL;
+    const setSearchTerm = (value: string) => {
+        const next = new URLSearchParams(searchParams);
+        if (value) next.set('searchTerm', value);
+        else next.delete('searchTerm');
+        setSearchParams(next);
+    };
 
     const fetchPallets = useCallback(async () => {
         await queryClient.invalidateQueries({queryKey: ['pallets']});
@@ -112,6 +121,7 @@ export function useMaintenancePanel({pallets}: UseMaintenancePanelProps) {
 
     return {
         data: {
+            searchParams, setSearchParams, searchTermFromURL,
             activeTab,
             selectedPallet,
             repairDescription,

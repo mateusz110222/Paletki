@@ -3,6 +3,17 @@ import test from 'node:test';
 import type {Pallet} from '@backend/shared/types';
 import {parseTableSort, sortPallets} from '../src/lib/tablePreferences';
 
+test('date sorting compares timestamps across time zones and keeps missing dates last', () => {
+    const pallets = [
+        {pallet_id: 'A', created_at: '2026-09-10T10:00:00+02:00'},
+        {pallet_id: 'B', created_at: '2026-09-10T09:00:00Z'},
+        {pallet_id: 'C', created_at: ''},
+    ] as Pallet[];
+    assert.deepEqual(sortPallets(pallets, {key: 'created_at', direction: 'desc'}, 'pl').map(p => p.pallet_id), ['B', 'A', 'C']);
+    assert.deepEqual(sortPallets(pallets, {key: 'created_at', direction: 'asc'}, 'pl').map(p => p.pallet_id), ['A', 'B', 'C']);
+    assert.deepEqual(parseTableSort('{"key":"created_at","direction":"desc"}'), {key: 'created_at', direction: 'desc'});
+});
+
 test('invalid stored sorting cannot select arbitrary properties', () => {
     for (const raw of [null, '{', '{}', '{"key":"__proto__","direction":"asc"}', '{"key":"status","direction":"sideways"}']) {
         assert.deepEqual(parseTableSort(raw), {key:'pallet_id', direction:'asc'});

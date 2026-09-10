@@ -4,6 +4,7 @@ import {Pallet, PalletModel, Project} from '@backend/shared/types';
 import {useAuth} from '../auth/AuthContext.tsx';
 import {useQuery, useQueryClient} from '@tanstack/react-query';
 import {asPallet, publicApi} from '../lib/api.ts';
+import {loadPalletPages} from '../lib/palletPages';
 
 import {MainLayout} from '../layout/MainLayout.tsx'
 import {AdminPanelView as AdminPanel} from '../views/AdminPanelView.tsx';
@@ -40,17 +41,12 @@ const AuthenticatedRoutes: React.FC = () => {
     const palletsQuery = useQuery({
         queryKey: palletsKey,
         queryFn: async () => {
-            const pallets: Pallet[] = [];
-            let afterId: number | undefined;
-            do {
-                const page = await apiClient.pallet.GetAllPallets({
-                    limit: 200,
-                    after_id: afterId,
-                    acceptLanguage: language,
-                });
-                pallets.push(...page.pallets.map(asPallet));
-                afterId = page.next_cursor;
-            } while (afterId !== undefined);
+            const records = await loadPalletPages(afterId => apiClient.pallet.GetAllPallets({
+                limit: 200,
+                after_id: afterId,
+                acceptLanguage: language,
+            }));
+            const pallets = records.map(asPallet);
             return {pallets};
         },
         refetchInterval: 100_000,

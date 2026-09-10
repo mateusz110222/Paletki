@@ -1,5 +1,5 @@
 import {DisplayModeControl} from '../components/DisplayModeControl';
-import React, {useEffect, useMemo, useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {Link, useSearchParams} from 'react-router-dom';
 import {
     Activity,
@@ -206,7 +206,21 @@ export const PublicDashboardView: React.FC = () => {
     };
     const [searchParams, setSearchParams] = useSearchParams();
     const stationFromUrl = searchParams.get('station')?.trim() || undefined;
-    const {query, metrics, cycleProgress} = usePublicDashboard(stationFromUrl);
+    const {
+        query,
+        metrics,
+        cycleProgress,
+        statusCounts,
+        service,
+        chart,
+        maxChartValue,
+        completedInChart,
+        stationPallet,
+        stationProgress,
+        stationCyclesRemaining,
+        stationHasAttention,
+        stationPallets,
+    } = usePublicDashboard(stationFromUrl);
     const showAll = query.data?.scope === 'all';
     const selectedStation = query.data?.selected_station;
     const [now, setNow] = useState(0);
@@ -217,14 +231,6 @@ export const PublicDashboardView: React.FC = () => {
         const timer = window.setInterval(() => setNow(Date.now()), 30_000);
         return () => window.clearInterval(timer);
     }, []);
-
-    const statusCounts = useMemo(() => {
-        const counts: Record<PalletStatus, number> = {Active: 0, Washing_Required: 0, Damaged: 0, Blocked: 0};
-        for (const pallet of query.data?.pallets ?? []) {
-            if (!selectedStation || pallet.project === selectedStation.project) counts[pallet.status] += 1;
-        }
-        return counts;
-    }, [query.data, selectedStation]);
 
     if (query.isPending) {
         return (
@@ -266,10 +272,6 @@ export const PublicDashboardView: React.FC = () => {
     }
 
     const locale = language === 'pl' ? 'pl-PL' : 'en-GB';
-    const service = query.data?.service ?? {daily: [], average_minutes_30d: 0, completed_30d: 0};
-    const chart = service.daily;
-    const maxChartValue = Math.max(1, ...chart.map((point) => point.average_minutes));
-    const completedInChart = chart.reduce((sum, point) => sum + point.completed, 0);
     const generatedAt = parseTimestamp(query.data?.generated_at);
     const effectiveNow = now || generatedAt;
     const lastUpdated = formatTimestamp(query.data?.generated_at, locale, {
@@ -284,15 +286,6 @@ export const PublicDashboardView: React.FC = () => {
         hour: '2-digit',
         minute: '2-digit',
     });
-    const stationPallet = selectedStation
-        ? query.data?.pallets.find((pallet) => pallet.pallet_id === selectedStation.pallet_id)
-        : undefined;
-    const stationProgress = stationPallet ? cycleProgress(stationPallet) : 0;
-    const stationCyclesRemaining = stationPallet
-        ? Math.max(0, stationPallet.max_cycles - stationPallet.current_cycles)
-        : 0;
-    const stationHasAttention = metrics.serviceQueue.length > 0 || metrics.dueSoon.length > 0;
-    const stationPallets = (query.data?.pallets ?? []).filter((pallet) => pallet.project === selectedStation?.project);
 
     return (
         <div className="dashboard-screen dashboard-public min-h-screen text-slate-100 selection:bg-indigo-400 selection:text-slate-950">

@@ -305,7 +305,7 @@ describe('PostgreSQL pallet integration', () => {
         `).toEqual([
             {pallet_id: 'RANGE-01', max_cycles: 200},
             {pallet_id: 'RANGE-02', max_cycles: 200},
-            {pallet_id: 'RANGE-03', max_cycles: 210},
+            {pallet_id: 'RANGE-03', max_cycles: 190},
         ]);
 
         await expect(rangeClient.AddPalletRange({

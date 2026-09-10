@@ -1,4 +1,4 @@
-import React, {useEffect} from 'react';
+import React from 'react';
 import {
     AlertCircle,
     AlertTriangle,
@@ -15,7 +15,7 @@ import {
 import {useTranslation} from '../i18n/LanguageContext.tsx';
 import {Pallet} from '@backend/shared/types';
 import {useMaintenancePanel} from '../hooks/useMaintenancePanel.ts';
-import {useSearchParams} from "react-router-dom";
+
 import {SearchInput} from "../components/SearchInput.tsx";
 import {useEscapeKey} from "../hooks/useEscapeKey.ts";
 import {ModalFormActions} from "../components/ModalFormActions.tsx";
@@ -29,12 +29,7 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
     const {data, actions} = useMaintenancePanel(props);
     const {t} = useTranslation();
 
-    const [searchParams, setSearchParams] = useSearchParams();
-    const searchTermFromURL = searchParams.get('searchTerm') || '';
-
-    useEffect(() => {
-        actions.setSearchTerm(searchTermFromURL);
-    }, [actions, searchTermFromURL]);
+    const {searchParams, setSearchParams, searchTermFromURL} = data;
 
     useEscapeKey(data.selectedPallet !== null, () => actions.setSelectedPallet(null));
 

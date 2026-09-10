@@ -1,46 +1,11 @@
-import React, {useEffect, useRef, useState} from 'react';
-import {AlertCircle, Building2, Loader2, Search, ShieldCheck, UserRound, UsersRound} from 'lucide-react';
-import type {DirectoryUser} from '@backend/shared/types';
-import {useAuth} from '../auth/AuthContext';
-import {useTranslation} from '../i18n/LanguageContext';
-import {InputField} from '../components/FormFields';
-import {getErrorMessage} from '../lib/errors';
 
+import { AlertCircle, Building2, Loader2, Search, ShieldCheck, UserRound, UsersRound } from 'lucide-react';
+
+import { InputField } from '../components/FormFields';
+
+import {useDirectoryView} from '../hooks/useDirectoryView';
 export function DirectoryView() {
-    const {apiClient} = useAuth();
-    const {t, language} = useTranslation();
-    const [netId, setNetId] = useState('');
-    const [result, setResult] = useState<DirectoryUser | null>(null);
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
-    const requestRef = useRef<AbortController | null>(null);
-    useEffect(() => () => requestRef.current?.abort(), []);
-
-    async function search(event: React.SyntheticEvent<HTMLFormElement>) {
-        event.preventDefault();
-        requestRef.current?.abort();
-        const controller = new AbortController();
-        requestRef.current = controller;
-        setLoading(true);
-        setResult(null);
-        setError('');
-        try {
-            const requestApi = apiClient.with({
-                fetcher: (input, init) => fetch(input, {...init, signal: controller.signal}),
-            });
-            const data = await requestApi.auth.LookupDirectoryUser({
-                net_id: netId.trim(),
-                acceptLanguage: language,
-            });
-            if (controller.signal.aborted) return;
-            setResult(data as DirectoryUser);
-        } catch (err: unknown) {
-            if (!controller.signal.aborted) setError(getErrorMessage(err, t('directory_error')));
-        } finally {
-            if (!controller.signal.aborted) setLoading(false);
-        }
-    }
-
+    const {canSearch, t, netId, setNetId, result, error, loading, search} = useDirectoryView();
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
             <section className="bg-brand-surface border border-brand-border rounded-2xl p-5 md:p-7">
@@ -52,7 +17,7 @@ export function DirectoryView() {
                                 fieldClassName="flex flex-col gap-2 flex-1" placeholder="matzielinski"
                                 autoComplete="off" autoCapitalize="none" spellCheck={false}
                                 maxLength={64} required aria-describedby="directory-hint"/>
-                    <button type="submit" disabled={loading || !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/.test(netId.trim())}
+                    <button type="submit" disabled={!canSearch}
                             className="min-h-11 px-5 rounded-xl bg-brand-accent text-brand-bg font-bold text-xs flex items-center justify-center gap-2 transition-all hover:brightness-110 active:scale-[.98] disabled:opacity-40 disabled:cursor-not-allowed">
                         {loading ? <Loader2 size={16} className="animate-spin"/> : <Search size={16}/>}
                         {t(loading ? 'directory_searching' : 'directory_search')}
