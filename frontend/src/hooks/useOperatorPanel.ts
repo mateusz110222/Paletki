@@ -35,7 +35,8 @@ export const useOperatorPanel = () => {
     const [activePallet, setActivePallet] = useState<Pallet | null>(null);
     const [scanStatus, setScanStatus] = useState<'IDLE' | 'SUCCESS' | 'WARNING' | 'ERROR'>('IDLE');
 
-    const [isOtherFaultOpen, setIsOtherFaultOpen] = useState(false);
+    const [pendingFault, setPendingFault] = useState<{name: string; status: PalletStatus} | null>(null);
+    const isOtherFaultOpen = pendingFault !== null;
     const [customFaultText, setCustomFaultText] = useState('');
 
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -246,19 +247,30 @@ export const useOperatorPanel = () => {
         }
     }, [handleScanSubmit, palletIDFromUrl]);
 
-    const handleReportFault = useCallback(async (faultName: string, newStatus: PalletStatus) => {
+    const openFaultModal = useCallback((name: string, status: PalletStatus) => {
+        setCustomFaultText('');
+        setPendingFault({name, status});
+    }, []);
+
+    const closeFaultModal = useCallback(() => {
+        if (!isSubmitting) setPendingFault(null);
+    }, [isSubmitting]);
+
+    const handleReportFault = useCallback(async () => {
+        if (!pendingFault || !customFaultText.trim() || isSubmitting) return;
         if (!activePallet) {
             triggerToast(t('op_no_pallet_scanned'));
             return;
         }
 
         setIsSubmitting(true);
+        const faultName = `${pendingFault.name}: ${customFaultText.trim()}`;
         const description = t('op_fault_audit_description', {faultName});
 
         try {
             await apiClient.pallet.ChangePalletStatus({
                 pallet_id: activePallet.pallet_id,
-                new_status: newStatus,
+                new_status: pendingFault.status,
                 block_reason: description,
                 reset_cycles: false,
                 acceptLanguage: language,
@@ -269,7 +281,7 @@ export const useOperatorPanel = () => {
             await queryClient.invalidateQueries({queryKey: ['pallets']});
 
             setActivePallet(null);
-            setIsOtherFaultOpen(false);
+            setPendingFault(null);
             setCustomFaultText('');
             setScannedId('');
         } catch (error: unknown) {
@@ -278,7 +290,7 @@ export const useOperatorPanel = () => {
         } finally {
             setIsSubmitting(false);
         }
-    }, [activePallet, apiClient, language, queryClient, t, triggerToast]);
+    }, [activePallet, apiClient, language, queryClient, t, triggerToast, pendingFault, customFaultText, isSubmitting]);
 
     const handleClearActivePallet = useCallback(() => {
         setActivePallet(null);
@@ -300,13 +312,13 @@ export const useOperatorPanel = () => {
 
             if (e.key === '1') {
                 e.preventDefault();
-                void handleReportFault(t('op_mechanical_damage'), 'Damaged');
+                openFaultModal(t('op_mechanical_damage'), 'Damaged');
             } else if (e.key === '2') {
                 e.preventDefault();
-                void handleReportFault(t('op_washing_required'), 'Washing_Required');
+                openFaultModal(t('op_washing_required'), 'Washing_Required');
             } else if (e.key === '3') {
                 e.preventDefault();
-                void handleReportFault(t('op_pockets_error'), 'Damaged');
+                openFaultModal(t('op_pockets_error'), 'Damaged');
             } else if (e.key === 'Escape') {
                 e.preventDefault();
                 handleClearActivePallet();
@@ -315,7 +327,7 @@ export const useOperatorPanel = () => {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [activePallet, handleClearActivePallet, handleReportFault, isOtherFaultOpen, isSubmitting, t]);
+    }, [activePallet, handleClearActivePallet, openFaultModal, isOtherFaultOpen, isSubmitting, t]);
 
     return {
         data: {
@@ -329,6 +341,7 @@ export const useOperatorPanel = () => {
             audioRipple,
             isOnline,
             isOtherFaultOpen,
+            pendingFault,
             customFaultText,
             isSubmitting,
             isScanning,
@@ -339,7 +352,8 @@ export const useOperatorPanel = () => {
             setVolumeLevel: updateVolumeLevel,
             cycleVolumeLevel,
             setScannedId: (value: string) => setScannedId(value.toUpperCase()),
-            setIsOtherFaultOpen,
+            openFaultModal,
+            closeFaultModal,
             setCustomFaultText,
             handleScanSubmit,
             handleReportFault,

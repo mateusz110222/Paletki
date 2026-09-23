@@ -449,6 +449,8 @@ export const dictionaries = {
         op_hotkey_cancel: '[Esc] wyczyść',
         op_sound_feedback: 'Sygnał dźwiękowy',
         op_hotkeys_hint: 'Skróty [1-3, ESC]',
+        sidebar_author_role: 'Stworzone przez',
+        sidebar_author_label: 'Autor Aplikacji',
     },
     en: {
         nav_directory: 'LDAP Directory (IT)',
@@ -896,6 +898,8 @@ export const dictionaries = {
         op_hotkey_cancel: '[Esc] clear',
         op_sound_feedback: 'Sound feedback',
         op_hotkeys_hint: 'Shortcuts [1-3, ESC]',
+        sidebar_author_role: 'Created by',
+        sidebar_author_label: 'Application Author',
     }
 };
 

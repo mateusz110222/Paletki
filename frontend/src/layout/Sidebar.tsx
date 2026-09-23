@@ -1,6 +1,6 @@
 import React from 'react';
 import {NavLink} from 'react-router-dom';
-import {FolderTree, BarChart3, LayoutDashboard, LogOut, LucideIcon, Scan, Tv, Wrench, UserSearch, X} from 'lucide-react';
+import {FolderTree, BarChart3, LayoutDashboard, LogOut, LucideIcon, Scan, Tv, Wrench, UserSearch, X, Code2} from 'lucide-react';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
 
 interface NavItem {
@@ -65,6 +65,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </nav>
     );
 
+    const authorFooter = (
+        <div className="border-t border-brand-border/60 p-3.5 bg-brand-surface/40">
+            <div className="flex items-center gap-3 rounded-lg border border-brand-border/50 bg-brand-surface-high/30 p-2.5 transition-colors hover:border-brand-accent/40">
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-md border border-brand-accent/30 bg-brand-accent/15 text-brand-accent">
+                    <Code2 size={16} />
+                </div>
+                <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-brand-text-muted/70">
+                        {t('sidebar_author_role')}
+                    </p>
+                    <p className="truncate text-xs font-bold text-brand-text">
+                        Mateusz Zieliński
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+
     const logoutButton = (onAction?: () => void) => (
         <div className="p-4 border-t border-brand-border">
             <button
@@ -86,6 +104,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span className="text-lg font-black tracking-wider text-brand-accent">{t('app_name')}</span>
             </div>
             {navigation()}
+            {authorFooter}
             {logoutButton()}
         </aside>
 
@@ -114,6 +133,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         </button>
                     </div>
                     {navigation(onMobileClose)}
+                    {authorFooter}
                     {logoutButton(onMobileClose)}
                 </aside>
             </div>

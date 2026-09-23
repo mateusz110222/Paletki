@@ -22,7 +22,7 @@ export const OperatorPanelView: React.FC = () => {
         if (data.errorModalState.isOpen) {
             actions.hideGlobalError();
         } else if (!data.isSubmitting) {
-            actions.setIsOtherFaultOpen(false);
+            actions.closeFaultModal();
         }
     });
 
@@ -379,7 +379,7 @@ export const OperatorPanelView: React.FC = () => {
                                     <button
                                         key={fault.id}
                                         disabled={data.isSubmitting}
-                                        onClick={() => actions.handleReportFault(fault.label, fault.status as PalletStatus)}
+                                        onClick={() => actions.openFaultModal(fault.label, fault.status as PalletStatus)}
                                         className="w-full group flex items-center justify-between p-4 bg-brand-bg/70 hover:bg-red-500/10 border border-brand-border/80 hover:border-red-500/40 rounded-xl transition-all text-left disabled:opacity-50 active:scale-[0.98]"
                                     >
                                         <div className="flex items-center gap-3">
@@ -405,7 +405,7 @@ export const OperatorPanelView: React.FC = () => {
                         {/* Przycisk Inna Usterka */}
                         <button
                             disabled={data.isSubmitting}
-                            onClick={() => actions.setIsOtherFaultOpen(true)}
+                            onClick={() => actions.openFaultModal(t('op_other_fault_type'), OPERATOR_OTHER_FAULT_STATUS)}
                             className="w-full py-3.5 px-4 border-2 border-dashed border-brand-border/80 hover:border-brand-accent/80 bg-brand-bg/30 hover:bg-brand-accent/5 rounded-xl text-xs font-black text-brand-text-muted hover:text-brand-accent transition-all uppercase tracking-wider disabled:opacity-50 active:scale-[0.98]"
                         >
                             + {t('op_other_fault_type')}
@@ -414,22 +414,26 @@ export const OperatorPanelView: React.FC = () => {
                 </div>
             )}
 
-            {/* MODAL: INNA USTERKA */}
+            {/* MODAL: OPIS USTERKI */}
             <ModalPresence>
                 {data.isOtherFaultOpen && (
                     <ModalTransition
-                        onBackdropClick={() => actions.setIsOtherFaultOpen(false)}
+                        onBackdropClick={() => actions.closeFaultModal()}
                         backdropClassName="bg-black/80 backdrop-blur-sm"
                     >
                         <div
+                            role="dialog"
+                            aria-modal="true"
+                            aria-labelledby="operator-fault-title"
                             className="relative bg-brand-surface border border-brand-border w-full max-w-md rounded-2xl overflow-hidden shadow-2xl z-10">
                             <div
                                 className="p-5 border-b border-brand-border/80 flex justify-between items-center bg-brand-bg/40">
-                                <h3 className="font-black text-brand-text uppercase tracking-tight text-sm flex items-center gap-2">
+                                <h3 id="operator-fault-title" className="font-black text-brand-text uppercase tracking-tight text-sm flex items-center gap-2">
                                     <AlertTriangle size={18} className="text-red-400" />
                                     {t('op_describe_fault')}
                                 </h3>
-                                <button onClick={() => actions.setIsOtherFaultOpen(false)}
+                                <button onClick={() => actions.closeFaultModal()}
+                                    disabled={data.isSubmitting}
                                     title={t('btn_close')}
                                     aria-label={t('btn_close')}
                                     className="text-brand-text-muted hover:text-white transition-colors">
@@ -437,17 +441,21 @@ export const OperatorPanelView: React.FC = () => {
                                 </button>
                             </div>
                             <div className="p-6 space-y-4">
+                                <p className="text-sm font-bold text-brand-text">{data.pendingFault?.name}</p>
                                 <textarea
                                     autoFocus
+                                    aria-label={t('op_describe_fault')}
+                                    required
+                                    disabled={data.isSubmitting}
                                     className="w-full bg-brand-bg border border-brand-border/80 rounded-xl p-4 text-brand-text text-sm focus:ring-4 focus:ring-red-500/10 outline-none min-h-27.5 transition-all resize-none"
                                     placeholder={t('op_fault_description_placeholder')}
                                     value={data.customFaultText}
                                     onChange={(e) => actions.setCustomFaultText(e.target.value)}
                                 />
                                 <ModalFormActions
-                                    onCancel={() => actions.setIsOtherFaultOpen(false)}
+                                    onCancel={() => actions.closeFaultModal()}
                                     submitType="button"
-                                    onSubmit={() => actions.handleReportFault(data.customFaultText, OPERATOR_OTHER_FAULT_STATUS)}
+                                    onSubmit={actions.handleReportFault}
                                     submitLabel={t('op_report_damage')}
                                     submittingLabel={t('saving')}
                                     isSubmitting={data.isSubmitting}
