@@ -8,7 +8,7 @@
 
 **Paletki** is a production-grade web application and integration platform designed to streamline the management, tracking, and servicing of physical pallets across factory production and wave/selective soldering lines.
 
-The system enforces automated lifecycle workflows, cycle limit tracking, role-based departmental access (Active Directory / LDAP), barcode scanning, and reliable asynchronous synchronization with industrial **FIS (Factory Information System)** routers.
+The system enforces automated lifecycle workflows, cycle limit tracking, FIS group-based access with Active Directory / LDAP login, barcode scanning, and reliable asynchronous synchronization with industrial **FIS (Factory Information System)** routers.
 
 ---
 
@@ -24,11 +24,12 @@ The system enforces automated lifecycle workflows, cycle limit tracking, role-ba
 * **Copy Pallet Data**: An inventory action pre-fills a new-pallet form from an existing pallet while requiring a new pallet ID.
 * **Numbered Range Registration**: The add dialog can atomically create a complete pallet range when IDs share a prefix and use the final two digits as the sequence number (for example `PROJECT-01` through `PROJECT-12`).
 
-### 2. Role-Based Access Control (LDAP / AD Departments)
-Permissions are derived dynamically from the Active Directory `department` attribute:
-* **IT Department (`LDAP_IT_DEPARTMENTS`)**: Full access to all panels, pallet management, audit exports, and the IT LDAP Directory User Lookup tool (`/directory`).
-* **Manufacturing Engineering (`LDAP_ME_DEPARTMENTS`)**: Full access to admin panels, pallet registry, project management, and maintenance views (excluding LDAP directory lookup).
-* **Maintenance / UR (`LDAP_UR_DEPARTMENTS`)**: Access to the Maintenance Panel to repair damaged pallets, service pallets requiring washing, log service notes, and reset cycle counters.
+### 2. Role-Based Access Control (FIS Groups)
+Users authenticate with Active Directory / LDAP. The backend checks group membership in the FIS `users` and `groups` MySQL databases at login and on authenticated requests, following the lookup used by MasterSamples. If FIS group lookup fails, privileged access is unavailable.
+The FIS MySQL host must be reachable from the backend container. Grant the configured account `SELECT` on `users.tbl_users`, `groups.groupList`, and the membership tables named by `groupList`.
+* **IT (`fisadmin_group` or `admin_group`)**: Full access to all panels, pallet management, audit exports, maintenance and the LDAP Directory User Lookup tool (`/directory`).
+* **UR (`FIS_UR_GROUP`, default `Maintenance`)**: Access to the Maintenance Panel to repair damaged pallets, service pallets requiring washing, log service notes, and reset cycle counters.
+* **ME (`FIS_ME_GROUP`, default `proceng`)**: Access to pallet management and maintenance panels, excluding the LDAP directory.
 * **Operator Session**: Fast-access barcode scanner interface for line operators to scan pallets and report quick defects.
 
 ### 3. Industrial FIS Integration & Transactional Outbox
@@ -191,9 +192,12 @@ Key configuration variables:
 |---|---|---|
 | `VITE_DEV_API_BASE_URL` | Backend URL for frontend Vite dev mode | `http://localhost:4000` |
 | `LDAP_URL` | LDAPS server connection string | `ldaps://ldap.example.com:636` |
-| `LDAP_IT_DEPARTMENTS` | Semicolon-separated list of IT department names | `'BLN - PDS IT Service Delivery;IT'` |
-| `LDAP_ME_DEPARTMENTS` | Semicolon-separated list of ME department names | `'Manufacturing Engineering;ME'` |
-| `LDAP_UR_DEPARTMENTS` | Semicolon-separated list of Maintenance department names | `'Maintenance;UR'` |
+| `FIS_DB_HOST` | Host of the FIS MySQL server with `users` and `groups` databases | `fis-db.local` |
+| `FIS_DB_PORT` | FIS MySQL port | `3306` |
+| `FIS_DB_USER` | Read-only account for FIS group lookup | `paletki_readonly` |
+| `FIS_DB_PASSWORD` | Password for the FIS read-only account | Set as the `FISDBPassword` Encore secret for local development |
+| `FIS_UR_GROUP` | FIS group for maintenance access | `Maintenance` |
+| `FIS_ME_GROUP` | FIS group for ME access | `proceng` |
 | `LDAP_LOOKUP_BIND_USER` | Directory service account for user lookup | `svc_lookup@example.com` |
 | `LDAP_LOOKUP_BIND_PASSWORD` | Password for directory service account | `secret` |
 | `FIS1_ROUTER_URL` | URL to FIS 1 router endpoint | `http://fis-router-1.local/router.php` |

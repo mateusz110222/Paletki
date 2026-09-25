@@ -8,7 +8,7 @@ const pl = {
     catalog_not_found: 'Wpis już nie istnieje. Odśwież katalog.',
     catalog_in_use: 'Nie można usunąć wpisu: jest powiązany z paletami (także archiwalnymi) lub modelami.',
     catalog_has_models: 'Najpierw usuń modele należące do projektu.',
-    auth_management_required: 'Ta operacja jest dostępna wyłącznie dla skonfigurowanych działów IT lub ME LDAP.',
+    auth_management_required: 'Ta operacja wymaga grupy IT lub ME w FIS.',
     auth_status_forbidden: 'Nie masz uprawnień do tej zmiany statusu.',
     auth_operator_blocked: 'Zablokowana paleta nie może być obsługiwana w panelu operatora.',
     auth_maintenance_required: 'Panel UR obsługuje tylko palety uszkodzone lub wymagające mycia. Odśwież listę palet.',
@@ -72,7 +72,8 @@ const pl = {
     auth_operator_identifier_required: "Podaj NetID operatora lub nazwę stacji.",
     auth_operator_identifier_invalid: "Identyfikator może zawierać od 2 do 64 znaków: litery, cyfry, kropkę, myślnik lub podkreślenie.",
     auth_logout_success: "Wylogowano pomyślnie.",
-    auth_staff_required: "Ta operacja jest dostępna wyłącznie dla skonfigurowanych działów IT LDAP.",
+    auth_staff_required: "Ta operacja wymaga grupy fisadmin_group lub admin_group w FIS.",
+    fis_groups_unavailable: "Nie udało się sprawdzić grup użytkownika w FIS.",
 } as const;
 
 export type TranslationKey = keyof typeof pl;
@@ -83,7 +84,7 @@ const en: Record<TranslationKey, string> = {
     catalog_not_found: 'This entry no longer exists. Refresh the catalogue.',
     catalog_in_use: 'Cannot delete this entry: it is referenced by pallets (including archived pallets) or models.',
     catalog_has_models: 'Delete the models belonging to this project first.',
-    auth_management_required: 'This operation is restricted to configured LDAP IT or ME departments.',
+    auth_management_required: 'This operation requires an IT or ME group in FIS.',
     auth_status_forbidden: 'You do not have permission for this status change.',
     auth_operator_blocked: 'A blocked pallet cannot be processed in the operator panel.',
     auth_maintenance_required: 'Maintenance can only process damaged pallets or pallets requiring washing. Refresh the pallet list.',
@@ -147,7 +148,8 @@ const en: Record<TranslationKey, string> = {
     auth_operator_identifier_required: "Enter the operator NetID or station name.",
     auth_operator_identifier_invalid: "The identifier must contain 2 to 64 characters: letters, digits, dot, hyphen, or underscore.",
     auth_logout_success: "Logout successful.",
-    auth_staff_required: "This operation is restricted to configured LDAP IT departments.",
+    auth_staff_required: "This operation requires the FIS fisadmin_group or admin_group.",
+    fis_groups_unavailable: "Could not verify the user's FIS groups.",
 };
 
 export const translations = {pl, en} as const;

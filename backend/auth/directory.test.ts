@@ -19,12 +19,15 @@ const mocks = vi.hoisted(() => ({
     search: vi.fn(),
     unbind: vi.fn(),
     createClient: vi.fn(),
+    getFisGroups: vi.fn(),
+    fisGroups: {itGroups: ['fisadmin_group', 'admin_group'], urGroup: 'Maintenance', meGroup: 'proceng'},
     ldap: {lookupBindUser: 'reader@example.test', lookupBindPassword: 'test-only',
         searchBase: 'DC=test', timeoutMs: 1000, itDepartments: ['IT'], urDepartments: ['UR'], meDepartments: ['ME']},
 }));
 vi.mock('./authorization', () => ({requireITDepartmentUser: mocks.requireIT}));
 vi.mock('./ldap-client', () => ({createLdapClient: mocks.createClient}));
-vi.mock('../config', () => ({config: {ldap: mocks.ldap}}));
+vi.mock('./fis-groups', () => ({getFisGroups: mocks.getFisGroups}));
+vi.mock('../config', () => ({config: {ldap: mocks.ldap, fisGroups: mocks.fisGroups}}));
 vi.mock('./secrets', () => ({ldapLookupBindPassword: () => mocks.ldap.lookupBindPassword}));
 import {LookupDirectoryUser} from './directory';
 
@@ -34,6 +37,7 @@ beforeEach(() => {
     mocks.ldap.lookupBindPassword = 'test-only';
     mocks.createClient.mockReturnValue({bind: mocks.bind, search: mocks.search, unbind: mocks.unbind});
     mocks.bind.mockResolvedValue(undefined);
+    mocks.getFisGroups.mockResolvedValue(['Maintenance']);
     mocks.unbind.mockResolvedValue(undefined);
     mocks.search.mockResolvedValue({searchEntries: [{dn: 'CN=Test', sAMAccountName: 'test', department: 'UR'}]});
 });
@@ -43,9 +47,18 @@ afterEach(() => {
 });
 
 describe('IT-only directory endpoint', () => {
-    it('reports ME access in a lookup without marking the target as IT', async () => {
+    it('reports FIS admin access regardless of LDAP department', async () => {
         mocks.search.mockResolvedValue({searchEntries: [{dn: 'CN=Test', sAMAccountName: 'test', department: 'ME'}]});
+        mocks.getFisGroups.mockResolvedValue(['admin_group']);
         expect(await LookupDirectoryUser({net_id: 'test'})).toMatchObject({
+            has_it_department_access: true, has_ur_department_access: true, has_me_department_access: false,
+            fis_groups: ['admin_group'],
+        });
+    });
+    it('reports ME access from proceng without granting the directory', async () => {
+        mocks.getFisGroups.mockResolvedValue(['proceng']);
+        expect(await LookupDirectoryUser({net_id: 'test'})).toMatchObject({
+            fis_groups: ['proceng'],
             has_it_department_access: false, has_ur_department_access: false, has_me_department_access: true,
         });
     });
@@ -86,20 +99,25 @@ describe('IT-only directory endpoint', () => {
         await expect(LookupDirectoryUser({net_id: 'test', acceptLanguage: 'en'})).rejects.toMatchObject({code: 'unavailable', message: expect.not.stringContaining('sensitive')});
         expect(mocks.search).not.toHaveBeenCalled();
         expect(mocks.unbind).toHaveBeenCalledOnce();
-        expect(vi.mocked(console.error).mock.calls).toEqual([['LDAP directory lookup failed', {stage: 'bind', kind: 'unknown'}]]);
+        expect(vi.mocked(console.error).mock.calls).toEqual([['Directory lookup failed', {stage: 'bind', kind: 'unknown'}]]);
     });
 
     it('logs a safe category for invalid configured credentials', async () => {
         mocks.bind.mockRejectedValue(new InvalidCredentialsError('sensitive directory details'));
         await expect(LookupDirectoryUser({net_id: 'test'})).rejects.toMatchObject({code: 'unavailable'});
-        expect(vi.mocked(console.error).mock.calls).toEqual([['LDAP directory lookup failed', {stage: 'bind', kind: 'invalid_credentials'}]]);
+        expect(vi.mocked(console.error).mock.calls).toEqual([['Directory lookup failed', {stage: 'bind', kind: 'invalid_credentials'}]]);
         expect(mocks.search).not.toHaveBeenCalled();
     });
 
     it('distinguishes a search timeout from a bind failure without logging raw details', async () => {
         mocks.search.mockRejectedValue(Object.assign(new Error('sensitive directory details'), {code: 'ETIMEDOUT'}));
         await expect(LookupDirectoryUser({net_id: 'test'})).rejects.toMatchObject({code: 'unavailable'});
-        expect(vi.mocked(console.error).mock.calls).toEqual([['LDAP directory lookup failed', {stage: 'search', kind: 'timeout'}]]);
+        expect(vi.mocked(console.error).mock.calls).toEqual([['Directory lookup failed', {stage: 'search', kind: 'timeout'}]]);
         expect(mocks.unbind).toHaveBeenCalledOnce();
+    });
+    it('fails closed when FIS group lookup is unavailable', async () => {
+        mocks.getFisGroups.mockRejectedValue(new Error('sensitive database details'));
+        await expect(LookupDirectoryUser({net_id: 'test'})).rejects.toMatchObject({code: 'unavailable', message: expect.not.stringContaining('sensitive')});
+        expect(vi.mocked(console.error).mock.calls).toEqual([['Directory lookup failed', {stage: 'fis', kind: 'unavailable'}]]);
     });
 });

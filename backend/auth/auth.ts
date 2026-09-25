@@ -13,7 +13,8 @@ import {
 } from "./ldap";
 import type {LdapUserProfile} from "./ldap";
 import {createSessionToken, extractBearerToken, hashSessionToken} from "./session-token";
-import {departmentAccess} from "./permissions";
+import {fisGroupAccess} from "./permissions";
+import {getFisGroups} from "./fis-groups";
 import {createLdapClient} from "./ldap-client";
 import type {AuthData} from "../shared/auth-data";
 import {palletsDatabase as db} from "../shared/persistence";
@@ -91,7 +92,14 @@ export const authentication = authHandler<AuthParams, AuthData>(async (params) =
 
     if (!session) throw APIError.unauthenticated(t("auth_session_invalid", params.acceptLanguage));
 
-    const access = departmentAccess(session.department, config.ldap.itDepartments, config.ldap.urDepartments, config.ldap.meDepartments);
+    let access = fisGroupAccess([], config.fisGroups.itGroups, config.fisGroups.urGroup, config.fisGroups.meGroup);
+    if (!session.username.startsWith("operator:")) {
+        try {
+            access = fisGroupAccess(await getFisGroups(session.username), config.fisGroups.itGroups, config.fisGroups.urGroup, config.fisGroups.meGroup);
+        } catch {
+            throw APIError.unavailable(t("fis_groups_unavailable", params.acceptLanguage));
+        }
+    }
 
     return {
         userID: session.username,
@@ -161,7 +169,12 @@ export const Login = api(
             throw APIError.internal(t("auth_error", lang), cause);
         }
 
-        const access = departmentAccess(userData.department, config.ldap.itDepartments, config.ldap.urDepartments, config.ldap.meDepartments);
+        let access;
+        try {
+            access = fisGroupAccess(await getFisGroups(userData.username), config.fisGroups.itGroups, config.fisGroups.urGroup, config.fisGroups.meGroup);
+        } catch {
+            throw APIError.unavailable(t("fis_groups_unavailable", lang));
+        }
         const user: UserData = {
             FullName: userData.fullName,
             department: userData.department,

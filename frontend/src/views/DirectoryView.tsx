@@ -59,6 +59,14 @@ export function DirectoryView() {
                                 <p className="text-xs text-brand-text-muted">{t('directory_access_hint')}</p>
                             </div>
                             <div>
+                                <h4 className="flex items-center gap-2 font-bold"><UsersRound size={18}/>{t('directory_fis_groups')}
+                                    <span className="px-2 py-0.5 rounded bg-brand-accent/15 text-brand-accent text-xs">{result.fis_groups.length}</span>
+                                </h4>
+                                {result.fis_groups.length ? <ul className="mt-4 divide-y divide-brand-border rounded-xl border border-brand-border">
+                                    {result.fis_groups.map(group => <li key={group} className="px-4 py-3 text-xs font-mono break-all">{group}</li>)}
+                                </ul> : <p className="mt-4 text-sm text-brand-text-muted">{t('directory_no_fis_groups')}</p>}
+                            </div>
+                            <div>
                                 <h4 className="flex items-center gap-2 font-bold"><UsersRound size={18}/>{t('directory_groups')}
                                     <span className="px-2 py-0.5 rounded bg-brand-accent/15 text-brand-accent text-xs">{result.groups.length}</span>
                                 </h4>

@@ -27,7 +27,7 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-const AUTH_STORAGE_KEY = "paletki_user_session";
+const AUTH_STORAGE_KEY = "paletki_user_session_v2";
 
 function sessionFromResponse(response: LoginResult): StoredSession | null {
     if (!response.status) return null;

@@ -6,13 +6,15 @@ vi.mock("encore.dev/config", () => ({
     secret: () => () => mocks.encoreValue,
 }));
 
-import {ldapLookupBindPassword} from "./secrets";
+import {fisDbPassword, ldapLookupBindPassword} from "./secrets";
 
 const originalEnvironmentValue = process.env.LDAP_LOOKUP_BIND_PASSWORD;
+const originalFisPassword = process.env.FIS_DB_PASSWORD;
 
 beforeEach(() => {
     mocks.encoreValue = "";
     delete process.env.LDAP_LOOKUP_BIND_PASSWORD;
+    delete process.env.FIS_DB_PASSWORD;
 });
 
 afterEach(() => {
@@ -21,6 +23,13 @@ afterEach(() => {
     } else {
         process.env.LDAP_LOOKUP_BIND_PASSWORD = originalEnvironmentValue;
     }
+    if (originalFisPassword === undefined) delete process.env.FIS_DB_PASSWORD;
+    else process.env.FIS_DB_PASSWORD = originalFisPassword;
+});
+
+it("reads the FIS database password from the backend environment", () => {
+    process.env.FIS_DB_PASSWORD = "fis-secret";
+    expect(fisDbPassword()).toBe("fis-secret");
 });
 
 describe("LDAP lookup bind password", () => {

@@ -682,6 +682,7 @@ export namespace shared {
         title: string
         groups: string[]
         "groups_complete": boolean
+        "fis_groups": string[]
         "has_it_department_access": boolean
         "has_ur_department_access": boolean
         "has_me_department_access": boolean

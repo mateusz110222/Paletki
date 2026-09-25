@@ -2,8 +2,7 @@ import {describe, expect, it} from "vitest";
 import {
     canChangePalletStatus,
     canOpenPalletInOperatorPanel,
-    departmentAccess,
-    hasITDepartmentAccess,
+    fisGroupAccess,
     OPERATOR_OTHER_FAULT_STATUS,
 } from "./permissions";
 
@@ -18,24 +17,19 @@ describe("pallet authorization policy", () => {
         expect(canChangePalletStatus(true, 'Blocked', false, true)).toBe(true);
     });
 
-    it('computes independent department flags with exact normalized matches', () => {
-        const lists = [['IT', 'Shared'], ['UR', 'Shared']] as const;
-        expect(departmentAccess(' ur ', ...lists)).toEqual({has_it_department_access: false, has_ur_department_access: true, has_me_department_access: false});
-        expect(departmentAccess('SHARED', ...lists)).toEqual({has_it_department_access: true, has_ur_department_access: true, has_me_department_access: false});
-        for (const department of ['', 'IT support', 'Production']) {
-            expect(departmentAccess(department, ...lists)).toEqual({has_it_department_access: false, has_ur_department_access: false, has_me_department_access: false});
+    it('maps exact FIS groups to IT, UR and ME access', () => {
+        const itGroups = ['fisadmin_group', 'admin_group'];
+        const access = (groups: string[]) => fisGroupAccess(groups, itGroups, 'Maintenance', 'proceng');
+        for (const group of itGroups) {
+            expect(access([group])).toEqual({has_it_department_access: true, has_ur_department_access: true, has_me_department_access: false});
         }
-        expect(departmentAccess('UR', ['IT'], [])).toEqual({has_it_department_access: false, has_ur_department_access: false, has_me_department_access: false});
+        expect(access(['Maintenance'])).toEqual({has_it_department_access: false, has_ur_department_access: true, has_me_department_access: false});
+        expect(access(['proceng'])).toEqual({has_it_department_access: false, has_ur_department_access: false, has_me_department_access: true});
+        expect(access(['Maintenance', 'proceng'])).toEqual({has_it_department_access: false, has_ur_department_access: true, has_me_department_access: true});
+        expect(access(['maintenance', 'admin_group_extra', 'support_group'])).toEqual({has_it_department_access: false, has_ur_department_access: false, has_me_department_access: false});
     });
 
-    it('grants ME management without granting IT or LDAP directory access', () => {
-        expect(departmentAccess('  bln - me ', ['IT'], ['UR'], ['BLN - ME'])).toEqual({
-            has_it_department_access: false, has_ur_department_access: false, has_me_department_access: true,
-        });
-        expect(departmentAccess('ME', ['IT'], ['ME'], ['ME'])).toEqual({
-            has_it_department_access: false, has_ur_department_access: true, has_me_department_access: true,
-        });
-        expect(departmentAccess('ME extra', ['IT'], ['UR'], ['ME']).has_me_department_access).toBe(false);
+    it('keeps legacy ME transition behavior available for existing callers', () => {
         for (const ur of [false, true]) {
             expect(canChangePalletStatus(false, 'Active', true, ur, true)).toBe(true);
             expect(canChangePalletStatus(false, 'Active', false, ur, true)).toBe(true);
@@ -69,12 +63,4 @@ describe("pallet authorization policy", () => {
         expect(canChangePalletStatus(false, "Damaged", true)).toBe(false);
     });
 
-    it("grants privileged access only to configured LDAP departments", () => {
-        const allowed = ["BLN - PDS IT Service Delivery", "BLN - PDS - IT"];
-
-        expect(hasITDepartmentAccess("BLN - PDS IT Service Delivery", allowed)).toBe(true);
-        expect(hasITDepartmentAccess("  bln - pds - it  ", allowed)).toBe(true);
-        expect(hasITDepartmentAccess("Production", allowed)).toBe(false);
-        expect(hasITDepartmentAccess("", allowed)).toBe(false);
-    });
 });

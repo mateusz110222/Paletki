@@ -26,7 +26,8 @@
   "dependencies": {
     "dotenv": "^17.2.3",
     "encore.dev": "^1.58.3",
-    "ldapts": "^9.0.0"
+    "ldapts": "^9.0.0",
+    "mysql2": "^3.24.4"
   },
   "optionalDependencies": {
     "@rollup/rollup-linux-x64-gnu": "^4.13.0"

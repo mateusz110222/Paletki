@@ -51,19 +51,6 @@ function optionalPositiveIntegerEnv(name: string, defaultValue: number): number 
     return value;
 }
 
-function requiredListEnv(name: string): string[] {
-    const values = requiredEnv(name)
-        .split(";")
-        .map((value) => value.trim())
-        .filter(Boolean);
-
-    if (values.length === 0) {
-        throw new Error(`${name} must contain at least one value`);
-    }
-
-    return [...new Set(values)];
-}
-
 function booleanEnv(name: string): boolean {
     const value = requiredEnv(name).toLowerCase();
 
@@ -148,9 +135,6 @@ export const config = Object.freeze({
         url: ldapUrl,
         loginDomain: requiredEnv("LDAP_LOGIN_DOMAIN"),
         searchBase: requiredEnv("LDAP_SEARCH_BASE"),
-        itDepartments: Object.freeze(requiredListEnv("LDAP_IT_DEPARTMENTS")),
-        urDepartments: Object.freeze((process.env.LDAP_UR_DEPARTMENTS ?? "").split(";").map(value => value.trim()).filter(Boolean)),
-        meDepartments: Object.freeze((process.env.LDAP_ME_DEPARTMENTS ?? "").split(";").map(value => value.trim()).filter(Boolean)),
         lookupBindUser: process.env.LDAP_LOOKUP_BIND_USER?.trim() ?? "",
         timeoutMs: positiveIntegerEnv("LDAP_TIMEOUT_MS"),
         connectTimeoutMs: positiveIntegerEnv("LDAP_CONNECT_TIMEOUT_MS"),
@@ -164,5 +148,13 @@ export const config = Object.freeze({
         router2Url: requiredEnv("FIS2_ROUTER_URL"),
         requestTimeoutMs: optionalPositiveIntegerEnv("FIS_REQUEST_TIMEOUT_MS", 10_000),
         outboxCompletedRetentionDays: optionalPositiveIntegerEnv("FIS_OUTBOX_COMPLETED_RETENTION_DAYS", 30),
+    }),
+    fisGroups: Object.freeze({
+        host: requiredEnv("FIS_DB_HOST"),
+        port: optionalPositiveIntegerEnv("FIS_DB_PORT", 3306),
+        user: requiredEnv("FIS_DB_USER"),
+        itGroups: Object.freeze(["fisadmin_group", "admin_group"]),
+        urGroup: process.env.FIS_UR_GROUP?.trim() || "Maintenance",
+        meGroup: process.env.FIS_ME_GROUP?.trim() || "proceng",
     }),
 });

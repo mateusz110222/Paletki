@@ -22,26 +22,11 @@ export function canChangePalletStatus(
     return !resetCycles && OPERATOR_ALLOWED_STATUSES.includes(requestedStatus);
 }
 
-function normalizeDepartment(department: string): string {
-    return department.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-US");
-}
-
-export function hasITDepartmentAccess(department: string, allowedDepartments: readonly string[]): boolean {
-    const normalizedDepartment = normalizeDepartment(department);
-    return normalizedDepartment.length > 0 && allowedDepartments.some(
-        (allowedDepartment) => normalizeDepartment(allowedDepartment) === normalizedDepartment,
-    );
-}
-
-export function departmentAccess(
-    department: string,
-    itDepartments: readonly string[],
-    urDepartments: readonly string[],
-    meDepartments: readonly string[] = [],
-) {
+export function fisGroupAccess(groups: readonly string[], itGroups: readonly string[], urGroup: string, meGroup: string) {
+    const hasITAccess = itGroups.some(group => groups.includes(group));
     return {
-        has_it_department_access: hasITDepartmentAccess(department, itDepartments),
-        has_ur_department_access: hasITDepartmentAccess(department, urDepartments),
-        has_me_department_access: hasITDepartmentAccess(department, meDepartments),
+        has_it_department_access: hasITAccess,
+        has_ur_department_access: hasITAccess || groups.includes(urGroup),
+        has_me_department_access: groups.includes(meGroup),
     };
 }
