@@ -1,10 +1,10 @@
-interface ImportMetaWithEnv extends ImportMeta {
+type ImportMetaWithEnv = ImportMeta & {
     readonly env?: {
         readonly DEV?: boolean;
         readonly VITE_DEV_API_BASE_URL?: string;
         readonly VITE_PROD_API_BASE_URL?: string;
     };
-}
+};
 
 const env = (import.meta as ImportMetaWithEnv).env;
 

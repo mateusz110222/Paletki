@@ -117,7 +117,7 @@ export async function lookupLdapUser(client: LdapClient, netId: string, searchBa
     const {searchEntries} = await client.search(searchBase, {
         scope: 'sub',
         filter: `(&(objectCategory=person)(objectClass=user)(sAMAccountName=${escapeLdapFilterValue(netId)}))`,
-        attributes: ['sAMAccountName', 'displayName', 'cn', 'department', 'title', 'memberOf'],
+        attributes: ['sAMAccountName', 'displayName', 'cn', 'department', 'title'],
         sizeLimit: 2,
         timeLimit: Math.max(1, Math.ceil(timeoutMs / 1000)),
     });
@@ -125,22 +125,11 @@ export async function lookupLdapUser(client: LdapClient, netId: string, searchBa
     if (searchEntries.length !== 1) throw new LdapProfileAmbiguousError();
 
     const entry = searchEntries[0];
-    const groups: string[] = [];
-    let groupsComplete = true;
-    for (const [key, value] of Object.entries(entry)) {
-        if (!/^memberOf(?:;range=\d+-(?:\d+|\*))?$/i.test(key)) continue;
-        if (/;range=\d+-\d+$/i.test(key)) groupsComplete = false;
-        for (const group of Array.isArray(value) ? value : [value]) {
-            if (group) groups.push(group.toString());
-        }
-    }
     return {
         net_id: attributeValue(entry, 'sAMAccountName') || netId,
         full_name: attributeValue(entry, 'displayName') || attributeValue(entry, 'cn') || netId,
         department: attributeValue(entry, 'department'),
         title: attributeValue(entry, 'title'),
-        groups: [...new Set(groups)].sort((a, b) => a.localeCompare(b)),
-        groups_complete: groupsComplete,
     };
 }
 
@@ -158,10 +147,10 @@ export async function authenticateLdapUser(
         scope: "sub",
         filter: buildUserSearchFilter(identity, originalLogin),
         attributes: [
-            "displayName",
+            "givenName",
+            "sn",
             "title",
             "department",
-            "cn",
             "userPrincipalName",
             "sAMAccountName",
         ],
@@ -177,8 +166,13 @@ export async function authenticateLdapUser(
     }
 
     const userData = searchEntries[0];
+    const givenName = attributeValue(userData, "givenName").trim();
+    const surname = attributeValue(userData, "sn").trim();
+    if (!givenName || !surname) {
+        throw new LdapProfileNotFoundError();
+    }
     return {
-        fullName: attributeValue(userData, "displayName") || attributeValue(userData, "cn") || identity.bindUser,
+        fullName: `${surname}, ${givenName}`,
         department: attributeValue(userData, "department"),
         title: attributeValue(userData, "title"),
         username: attributeValue(userData, "userPrincipalName") ||

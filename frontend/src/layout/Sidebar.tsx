@@ -1,5 +1,5 @@
 import React from 'react';
-import {NavLink} from 'react-router-dom';
+import {NavLink} from 'react-router';
 import {FolderTree, BarChart3, LayoutDashboard, LogOut, LucideIcon, Scan, Tv, Wrench, UserSearch, X, Code2} from 'lucide-react';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
 

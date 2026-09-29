@@ -1,6 +1,6 @@
 import {DisplayModeControl} from '../components/DisplayModeControl';
 import React, {useEffect, useState} from 'react';
-import {Link, useSearchParams} from 'react-router-dom';
+import {Link, useSearchParams} from 'react-router';
 import {
     Activity,
     AlertTriangle,

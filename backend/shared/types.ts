@@ -116,8 +116,6 @@ export interface DirectoryUser {
     full_name: string;
     department: string;
     title: string;
-    groups: string[];
-    groups_complete: boolean;
     fis_groups: string[];
     has_it_department_access: boolean;
     has_ur_department_access: boolean;

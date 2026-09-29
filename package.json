@@ -3,7 +3,7 @@
   "private": true,
   "packageManager": "pnpm@11.25.0",
   "engines": {
-    "node": ">=22"
+    "node": ">=24 <25"
   },
   "scripts": {
     "dev": "pnpm --parallel --stream --filter @paletki/frontend --filter @paletki/backend run dev",

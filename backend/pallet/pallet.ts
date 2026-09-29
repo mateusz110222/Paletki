@@ -330,7 +330,7 @@ export const AddPallet = api(
 
 /**
  * Atomically creates a numbered family of pallets. The final two characters
- * are interpreted as a zero-padded number, for example LINE-A-01..LINE-A-12.
+ * are interpreted as a zero-padded number, for example, LINE-A-01 ... LINE-A-12.
  */
 export const AddPalletRange = api(
     {method: "POST", path: "/pallets/range", expose: true, auth: true},

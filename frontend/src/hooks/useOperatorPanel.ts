@@ -3,7 +3,7 @@ import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Pallet, PalletStatus} from '@backend/shared/types';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
 import {useGlobalErrorModal} from "../hooks/useGlobalErrorModal.ts";
-import {useSearchParams} from "react-router-dom";
+import {useSearchParams} from "react-router";
 import {useAuth} from "../auth/AuthContext.tsx";
 import {asPallet} from "../lib/api.ts";
 import {useQueryClient} from '@tanstack/react-query';

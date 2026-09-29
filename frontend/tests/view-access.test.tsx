@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
-import {MemoryRouter} from 'react-router-dom';
+import {MemoryRouter} from 'react-router';
 import {getViewAccess} from '../src/auth/view-access.ts';
 import {Sidebar} from '../src/layout/Sidebar.tsx';
 import {dictionaries, LanguageProvider} from '../src/i18n/LanguageContext.tsx';

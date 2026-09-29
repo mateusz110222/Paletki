@@ -88,6 +88,14 @@ describe('IT-only directory endpoint', () => {
         expect(console.error).not.toHaveBeenCalled();
     });
 
+    it('does not return direct AD groups', async () => {
+        mocks.search.mockResolvedValue({searchEntries: [{dn: 'CN=Test', sAMAccountName: 'test', memberOf: ['CN=Private,DC=test']}]});
+        const result = await LookupDirectoryUser({net_id: 'test'});
+        expect(result).not.toHaveProperty('groups');
+        expect(result).not.toHaveProperty('groups_complete');
+        expect(JSON.stringify(result)).not.toContain('CN=Private,DC=test');
+    });
+
     it('returns a localized not-found error and closes the client', async () => {
         mocks.search.mockResolvedValue({searchEntries: []});
         await expect(LookupDirectoryUser({net_id: 'test', acceptLanguage: 'en'})).rejects.toMatchObject({code: 'not_found', message: 'No user was found with this NetID.'});

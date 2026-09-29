@@ -4,6 +4,7 @@ packages:
 
 # Encore's Windows Docker builder cannot copy pnpm junction points.
 nodeLinker: hoisted
+autoInstallPeers: false
 
 allowBuilds:
   esbuild: true

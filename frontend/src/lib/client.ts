@@ -70,8 +70,8 @@ export default class Client {
  */
 export interface ClientOptions {
     /**
-     * By default the client will use the inbuilt fetch function for making the API requests.
-     * however you can override it with your own implementation here if you want to run custom
+     * By default, the client will use the inbuilt fetch function for making the API requests.
+     * however, you can override it with your own implementation here if you want to run custom
      * code on each API request made or response received.
      */
     fetcher?: Fetcher
@@ -81,7 +81,7 @@ export interface ClientOptions {
 
     /**
      * Allows you to set the authentication data to be used for each
-     * request either by passing in a static object or by passing in
+     * request either by passing in a static object or bypassing in
      * a function which returns a new object for each request.
      */
     auth?: auth.AuthParams | AuthDataGenerator
@@ -680,8 +680,6 @@ export namespace shared {
         "full_name": string
         department: string
         title: string
-        groups: string[]
-        "groups_complete": boolean
         "fis_groups": string[]
         "has_it_department_access": boolean
         "has_ur_department_access": boolean
@@ -765,7 +763,7 @@ function encodeQuery(parts: Record<string, string | string[]>): string {
     return pairs.join("&")
 }
 
-// makeRecord takes a record and strips any undefined values from it,
+// makeRecord takes a record and strips any undefined values from it
 // and returns the same record with a narrower type.
 // @ts-ignore - TS ignore because makeRecord is not always used
 function makeRecord<K extends string | number | symbol, V>(record: Record<K, V | undefined>): Record<K, V> {
@@ -777,7 +775,7 @@ function makeRecord<K extends string | number | symbol, V>(record: Record<K, V |
     return record as Record<K, V>
 }
 
-// CallParameters is the type of the parameters to a method call, but require headers to be a Record type
+// CallParameters is the type of the parameters to a method call but require headers to be a Record type
 type CallParameters = Omit<RequestInit, "method" | "body" | "headers"> & {
     /** Headers to be sent with the request */
     headers?: Record<string, string>
@@ -816,14 +814,14 @@ class BaseClient {
 
         this.requestInit = options.requestInit ?? {};
 
-        // Setup what fetch function we'll be using in the base client
+        // Set up what fetch function we'll be using in the base client
         if (options.fetcher !== undefined) {
             this.fetcher = options.fetcher
         } else {
             this.fetcher = boundFetch
         }
 
-        // Setup an authentication data generator using the auth data token option
+        // Set up an authentication data generator using the auth data token option
         if (options.auth !== undefined) {
             const auth = options.auth
             if (typeof auth === "function") {
@@ -899,12 +897,9 @@ class BaseClient {
         const queryString = query ? '?' + encodeQuery(query) : ''
         const response = await this.fetcher(this.baseURL+path+queryString, init)
 
-        // handle any error responses
         if (!response.ok) {
-            // try and get the error message from the response body
             let body: APIErrorResponse = { code: ErrCode.Unknown, message: `request failed: status ${response.status}` }
 
-            // if we can get the structured error we should, otherwise give a best effort
             try {
                 const text = await response.text()
 
@@ -1024,7 +1019,7 @@ export enum ErrCode {
     /**
      * Unknown error. An example of where this error may be returned is
      * if a Status value received from another address space belongs to
-     * an error-space that is not known in this address space. Also
+     * an error-space that is not known in this address space. Also,
      * errors raised by APIs that do not return enough error information
      * may be converted to this error.
      *
@@ -1033,7 +1028,7 @@ export enum ErrCode {
     Unknown = "unknown",
 
     /**
-     * InvalidArgument indicates client specified an invalid argument.
+     * InvalidArgument indicates the client specified an invalid argument.
      * Note that this differs from FailedPrecondition. It indicates arguments
      * that are problematic regardless of the state of the system
      * (e.g., a malformed file name).
@@ -1043,7 +1038,7 @@ export enum ErrCode {
     InvalidArgument = "invalid_argument",
 
     /**
-     * DeadlineExceeded means operation expired before completion.
+     * DeadlineExceeded means the operation expired before completion.
      * For operations that change the state of the system, this error may be
      * returned even if the operation has completed successfully. For
      * example, a successful response from a server could have been delayed
@@ -1088,15 +1083,15 @@ export enum ErrCode {
      * a per-user quota, or perhaps the entire file system is out of space.
      *
      * This error code will be generated by the gRPC framework in
-     * out-of-memory and server overload situations, or when a message is
+     * out-of-memory and server overload situations or when a message is
      * larger than the configured maximum size.
      */
     ResourceExhausted = "resource_exhausted",
 
     /**
-     * FailedPrecondition indicates operation was rejected because the
+     * FailedPrecondition indicates the operation was rejected because the
      * system is not in a state required for the operation's execution.
-     * For example, directory to be deleted may be non-empty, an rmdir
+     * For example, the directory to be deleted may be non-empty, a rmdir
      * operation is applied to a non-directory, etc.
      *
      * A litmus test that may help a service implementor in deciding
@@ -1105,7 +1100,7 @@ export enum ErrCode {
      *  (b) Use Aborted if the client should retry at a higher-level
      *      (e.g., restarting a read-modify-write sequence).
      *  (c) Use FailedPrecondition if the client should not retry until
-     *      the system state has been explicitly fixed. E.g., if an "rmdir"
+     *      the system state has been explicitly fixed. E.g., if a "rmdir"
      *      fails because the directory is non-empty, FailedPrecondition
      *      should be returned since the client should not retry unless
      *      they have first fixed up the directory by deleting files from it.

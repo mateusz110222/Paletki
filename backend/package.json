@@ -11,25 +11,21 @@
     "gen:client": "encore gen client --output=../frontend/src/lib/client.ts --env=local && node ../frontend/scripts/prune-generated-client.mjs",
     "test": "node ./scripts/run-tests.mjs",
     "test:integration": "node ./scripts/run-integration-tests.mjs",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "node ../node_modules/typescript/bin/tsc -p tsconfig.json --noEmit",
     "lint": "eslint ."
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/node": "^20.5.7",
-    "eslint": "^10.8.0",
-    "globals": "^17.9.0",
-    "typescript": "^5.2.2",
-    "typescript-eslint": "^8.66.0",
-    "vitest": "^1.5.0"
+    "@types/node": "^24.19.0",
+    "eslint": "^10.11.0",
+    "globals": "^17.12.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
   },
   "dependencies": {
-    "dotenv": "^17.2.3",
-    "encore.dev": "^1.58.3",
-    "ldapts": "^9.0.0",
+    "dotenv": "^18.0.4",
+    "encore.dev": "^1.58.6",
+    "ldapts": "^9.2.0",
     "mysql2": "^3.24.4"
-  },
-  "optionalDependencies": {
-    "@rollup/rollup-linux-x64-gnu": "^4.13.0"
   }
 }

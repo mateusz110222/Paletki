@@ -1,6 +1,6 @@
 import {ToastProvider} from './components/ToastProvider';
 import React from 'react';
-import {BrowserRouter} from 'react-router-dom';
+import {BrowserRouter} from 'react-router';
 import {AuthProvider} from './auth/AuthContext.tsx';
 import {LanguageProvider} from './i18n/LanguageContext.tsx';
 import {AppRoutes} from './routes/AppRoutes.tsx';

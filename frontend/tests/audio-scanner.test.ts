@@ -69,7 +69,7 @@ test('sound preference defaults to enabled unless explicitly set to false', () =
         return storedValue === null ? true : storedValue !== 'false';
     };
 
-    // Brand new user / cleared localStorage -> should be ON
+    // Brand-new user / cleared localStorage -> should be ON
     assert.equal(resolveSoundEnabled(null), true);
 
     // User explicitly turned it off -> should be OFF

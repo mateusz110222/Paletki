@@ -38,7 +38,7 @@ export function DirectoryView() {
                         <div className="p-5 md:p-7 bg-brand-accent/5 border-b border-brand-border flex items-center gap-4">
                             <div className="p-3 rounded-xl bg-brand-accent/15 text-brand-accent"><UserRound size={26}/></div>
                             <div className="min-w-0">
-                                <h3 className="text-xl font-bold break-words">{result.full_name}</h3>
+                                <h3 className="text-xl font-bold wrap-break-word">{result.full_name}</h3>
                                 <p className="font-mono text-sm text-brand-accent mt-1">{result.net_id}</p>
                             </div>
                         </div>
@@ -46,11 +46,11 @@ export function DirectoryView() {
                             <dl className="grid md:grid-cols-2 gap-5">
                                 <div className="rounded-xl border border-brand-border p-4">
                                     <dt className="flex items-center gap-2 text-xs text-brand-text-muted mb-2"><Building2 size={15}/>{t('directory_department')}</dt>
-                                    <dd className="font-bold break-words">{result.department || t('directory_missing')}</dd>
+                                    <dd className="font-bold wrap-break-word">{result.department || t('directory_missing')}</dd>
                                 </div>
                                 <div className="rounded-xl border border-brand-border p-4">
                                     <dt className="text-xs text-brand-text-muted mb-2">{t('directory_job_title')}</dt>
-                                    <dd className="font-medium break-words">{result.title || t('directory_missing')}</dd>
+                                    <dd className="font-medium wrap-break-word">{result.title || t('directory_missing')}</dd>
                                 </div>
                             </dl>
                             <div className="rounded-xl bg-brand-bg p-4 space-y-2">
@@ -65,16 +65,6 @@ export function DirectoryView() {
                                 {result.fis_groups.length ? <ul className="mt-4 divide-y divide-brand-border rounded-xl border border-brand-border">
                                     {result.fis_groups.map(group => <li key={group} className="px-4 py-3 text-xs font-mono break-all">{group}</li>)}
                                 </ul> : <p className="mt-4 text-sm text-brand-text-muted">{t('directory_no_fis_groups')}</p>}
-                            </div>
-                            <div>
-                                <h4 className="flex items-center gap-2 font-bold"><UsersRound size={18}/>{t('directory_groups')}
-                                    <span className="px-2 py-0.5 rounded bg-brand-accent/15 text-brand-accent text-xs">{result.groups.length}</span>
-                                </h4>
-                                <p className="text-xs text-brand-text-muted mt-2">{t('directory_groups_hint')}</p>
-                                {!result.groups_complete && <p className="text-sm text-amber-400 mt-3">{t('directory_partial')}</p>}
-                                {result.groups.length ? <ul className="mt-4 divide-y divide-brand-border rounded-xl border border-brand-border max-h-96 overflow-y-auto">
-                                    {result.groups.map(group => <li key={group} className="px-4 py-3 text-xs font-mono break-all">{group}</li>)}
-                                </ul> : <p className="mt-4 text-sm text-brand-text-muted">{t('directory_no_groups')}</p>}
                             </div>
                         </div>
                     </section>

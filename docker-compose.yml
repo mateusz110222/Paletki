@@ -18,7 +18,12 @@ services:
   db-migrations:
     image: migrate/migrate
     volumes:
-      - ./backend/pallet/migrations:/migrations:ro
+      - type: bind
+        source: ${PALETKI_HOST_DIR:-.}/backend/pallet/migrations
+        target: /migrations
+        read_only: true
+        bind:
+          create_host_path: false
     command:
       - -path=/migrations
       - -database=postgres://encoredb_user:${POSTGRES_PASSWORD}@postgres-db:5432/pallets?sslmode=disable
@@ -35,7 +40,7 @@ services:
       db-migrations:
         condition: service_completed_successfully
     volumes:
-      - ./backend/certs/borgwarner-enterprise-root.pem:/etc/ssl/certs/borgwarner-enterprise-root.pem:ro
+      - ${PALETKI_HOST_DIR:-.}/backend/certs/borgwarner-enterprise-root.pem:/etc/ssl/certs/borgwarner-enterprise-root.pem:ro
     environment:
       PORT: 8080
       PALLETS_DB_PASSWORD: ${POSTGRES_PASSWORD}
@@ -69,8 +74,8 @@ services:
       - "${FRONTEND_HTTP_PORT:-8082}:80"
       - "${FIS_INGRESS_PORT:-4000}:4000"
     volumes:
-      - ./frontend/dist:/usr/share/nginx/html:ro
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${PALETKI_HOST_DIR:-.}/frontend/dist:/usr/share/nginx/html:ro
+      - ${PALETKI_HOST_DIR:-.}/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - backend
 

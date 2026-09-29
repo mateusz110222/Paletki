@@ -1,10 +1,10 @@
 # Paletki — Pallet Management & Lifecycle Tracking System
 
-[![Node.js](https://img.shields.io/badge/Node.js-22+-green.svg)](https://nodejs.org/)
-[![pnpm](https://img.shields.io/badge/pnpm-11.24.0-orange.svg)](https://pnpm.io/)
+[![Node.js](https://img.shields.io/badge/Node.js-24-green.svg)](https://nodejs.org/)
+[![pnpm](https://img.shields.io/badge/pnpm-11.25.0-orange.svg)](https://pnpm.io/)
 [![Encore.dev](https://img.shields.io/badge/Backend-Encore.dev-blue.svg)](https://encore.dev/)
 [![React](https://img.shields.io/badge/Frontend-React%2019-61dafb.svg)](https://react.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue.svg)](https://www.typescriptlang.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-7-blue.svg)](https://www.typescriptlang.org/)
 
 **Paletki** is a production-grade web application and integration platform designed to streamline the management, tracking, and servicing of physical pallets across factory production and wave/selective soldering lines.
 
@@ -110,13 +110,13 @@ flowchart TD
 
 ## Technology Stack
 
-| Layer | Technology |
-|---|---|
-| **Frontend** | React 19, TypeScript, Vite, Tailwind CSS, TanStack Query, Lucide Icons, React Router |
-| **Backend** | Encore.dev, Node.js 22+, TypeScript, PostgreSQL |
-| **Authentication** | Active Directory / LDAP over TLS (LDAPS), Token Authentication |
-| **Background Processing** | PostgreSQL Transactional Outbox, Lease Locking, Docker Compose Workers |
-| **Proxy & Ingress** | Nginx (multi-port segregation) |
+| Layer                     | Technology                                                                           |
+|---------------------------|--------------------------------------------------------------------------------------|
+| **Frontend**              | React 19, TypeScript, Vite, Tailwind CSS, TanStack Query, Lucide Icons, React Router |
+| **Backend**               | Encore.dev, Node.js 24, TypeScript, PostgreSQL                                       |
+| **Authentication**        | Active Directory / LDAP over TLS (LDAPS), Token Authentication                       |
+| **Background Processing** | PostgreSQL Transactional Outbox, Lease Locking, Docker Compose Workers               |
+| **Proxy & Ingress**       | Nginx (multi-port segregation)                                                       |
 
 ---
 
@@ -153,8 +153,8 @@ paletki/
 ## Getting Started
 
 ### Prerequisites
-* [Node.js](https://nodejs.org/) 22 or newer
-* [pnpm](https://pnpm.io/) 11.24.0
+* [Node.js](https://nodejs.org/) 24
+* [pnpm](https://pnpm.io/) 11.25.0
 * [Docker](https://www.docker.com/get-started) & Docker Compose
 * [Encore CLI](https://encore.dev/docs/install)
 
@@ -163,8 +163,8 @@ paletki/
 git clone https://github.com/your-username/Paletki.git
 cd Paletki
 
-# Install pnpm 11.24.0 globally if not already installed
-npm install --global pnpm@11.24.0
+# Install pnpm 11.25.0 globally if not already installed
+npm install --global pnpm@11.25.0
 
 # Install dependencies for both frontend and backend
 pnpm install
@@ -172,7 +172,7 @@ pnpm install
 
 > **Windows PowerShell Note:** If script execution is restricted, run using `.cmd` extensions:
 > ```powershell
-> npm.cmd install --global pnpm@11.24.0
+> npm.cmd install --global pnpm@11.25.0
 > pnpm.cmd install
 > ```
 
@@ -188,23 +188,23 @@ Copy-Item .env.example .env
 
 Key configuration variables:
 
-| Variable | Description | Default / Example |
-|---|---|---|
-| `VITE_DEV_API_BASE_URL` | Backend URL for frontend Vite dev mode | `http://localhost:4000` |
-| `LDAP_URL` | LDAPS server connection string | `ldaps://ldap.example.com:636` |
-| `FIS_DB_HOST` | Host of the FIS MySQL server with `users` and `groups` databases | `fis-db.local` |
-| `FIS_DB_PORT` | FIS MySQL port | `3306` |
-| `FIS_DB_USER` | Read-only account for FIS group lookup | `paletki_readonly` |
-| `FIS_DB_PASSWORD` | Password for the FIS read-only account | Set as the `FISDBPassword` Encore secret for local development |
-| `FIS_UR_GROUP` | FIS group for maintenance access | `Maintenance` |
-| `FIS_ME_GROUP` | FIS group for ME access | `proceng` |
-| `LDAP_LOOKUP_BIND_USER` | Directory service account for user lookup | `svc_lookup@example.com` |
-| `LDAP_LOOKUP_BIND_PASSWORD` | Password for directory service account | `secret` |
-| `FIS1_ROUTER_URL` | URL to FIS 1 router endpoint | `http://fis-router-1.local/router.php` |
-| `FIS2_ROUTER_URL` | URL to FIS 2 router endpoint | `http://fis-router-2.local/router.php` |
-| `FIS_OUTBOX_COMPLETED_RETENTION_DAYS` | Retention period for completed FIS outbox jobs | `30` |
-| `FRONTEND_HTTP_PORT` | Port exposed by Nginx for the Web App | `8082` |
-| `FIS_INGRESS_PORT` | Dedicated port for machine soldering calls (`/fis/*`) | `4000` |
+| Variable                              | Description                                                      | Default / Example                                              |
+|---------------------------------------|------------------------------------------------------------------|----------------------------------------------------------------|
+| `VITE_DEV_API_BASE_URL`               | Backend URL for frontend Vite dev mode                           | `http://localhost:4000`                                        |
+| `LDAP_URL`                            | LDAPS server connection string                                   | `ldaps://ldap.example.com:636`                                 |
+| `FIS_DB_HOST`                         | Host of the FIS MySQL server with `users` and `groups` databases | `fis-db.local`                                                 |
+| `FIS_DB_PORT`                         | FIS MySQL port                                                   | `3306`                                                         |
+| `FIS_DB_USER`                         | Read-only account for FIS group lookup                           | `paletki_readonly`                                             |
+| `FIS_DB_PASSWORD`                     | Password for the FIS read-only account                           | Set as the `FISDBPassword` Encore secret for local development |
+| `FIS_UR_GROUP`                        | FIS group for maintenance access                                 | `Maintenance`                                                  |
+| `FIS_ME_GROUP`                        | FIS group for ME access                                          | `proceng`                                                      |
+| `LDAP_LOOKUP_BIND_USER`               | Directory service account for user lookup                        | `svc_lookup@example.com`                                       |
+| `LDAP_LOOKUP_BIND_PASSWORD`           | Password for directory service account                           | `secret`                                                       |
+| `FIS1_ROUTER_URL`                     | URL to FIS 1 router endpoint                                     | `http://fis-router-1.local/router.php`                         |
+| `FIS2_ROUTER_URL`                     | URL to FIS 2 router endpoint                                     | `http://fis-router-2.local/router.php`                         |
+| `FIS_OUTBOX_COMPLETED_RETENTION_DAYS` | Retention period for completed FIS outbox jobs                   | `30`                                                           |
+| `FRONTEND_HTTP_PORT`                  | Port exposed by Nginx for the Web App                            | `8082`                                                         |
+| `FIS_INGRESS_PORT`                    | Dedicated port for machine soldering calls (`/fis/*`)            | `4000`                                                         |
 
 ### 3. Running in Development Mode
 Start both frontend and backend in parallel with a single command:
@@ -238,7 +238,7 @@ pnpm test:integration
 # Run TypeScript typechecks
 pnpm typecheck
 
-# Run ESLint across packages
+# Run ESLint on backend JavaScript scripts (TypeScript is checked by pnpm typecheck)
 pnpm lint
 
 # Run all verification steps together
@@ -262,6 +262,22 @@ pnpm build
 ```bash
 docker compose up -d
 ```
+
+For a Portainer stack created with **Web editor** or **Upload**, set the stack
+environment variable `PALETKI_HOST_DIR=/opt/paletki` (or the actual absolute
+path to this checkout on the Docker host). The same setting covers the
+migrations, LDAP certificate, frontend bundle, and Nginx configuration bind
+mounts. These files must already exist on the Docker host. Add the other
+variables from `.env` in Portainer's environment variables section; the Web
+editor does not load `/opt/paletki/.env` automatically. For a local
+`docker compose up -d` from the repository directory, use
+`PALETKI_HOST_DIR=./` as in `.env.example`.
+
+If Portainer reports `no migration found for version ...` while the SQL files
+exist under `/opt/paletki/backend/pallet/migrations`, check that
+`PALETKI_HOST_DIR` is set for the stack. The migrations bind mount is configured
+to fail when its source directory does not exist, rather than silently creating
+an empty directory.
 
 This launches:
 1. `postgres-db` — Dedicated PostgreSQL database.

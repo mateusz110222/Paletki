@@ -25,7 +25,7 @@
 body {
     background-color: var(--color-brand-bg);
     color: var(--color-brand-text);
-    font-family: var(--font-sans);
+    font-family: var(--font-sans), sans-serif;
     letter-spacing: -0.01em;
   }
 
@@ -227,17 +227,6 @@ html:has(.staff-screen) {
   box-shadow: 0 16px 38px rgba(0, 0, 0, 0.16);
 }
 
-/* Custom premium glow effects and animations */
-.glow-accent {
-  box-shadow: 0 0 20px rgba(99, 102, 241, 0.15);
-}
-.glow-accent:focus-within {
-  box-shadow: 0 0 25px rgba(99, 102, 241, 0.3);
-}
-.glow-error {
-  box-shadow: 0 0 20px rgba(239, 68, 68, 0.15);
-}
-
 /* Expands only up to the sound button bounds, so playback cannot create page overflow. */
 @keyframes operator-sound-ripple {
   from {
@@ -258,7 +247,7 @@ html:has(.staff-screen) {
   from {
     opacity: var(--ui-enter-opacity, 1);
     transform: translate3d(
-      var(--ui-enter-translate-x, 0),
+      0,
       var(--ui-enter-translate-y, 0),
       0
     ) scale(var(--ui-enter-scale, 1));
@@ -313,10 +302,6 @@ html:has(.staff-screen) {
 
 .animate-in.fade-in {
   --ui-enter-opacity: 0;
-}
-
-.animate-in.zoom-in-95 {
-  --ui-enter-scale: 0.95;
 }
 
 .animate-in.slide-in-from-bottom-4 {
@@ -658,6 +643,11 @@ html { scrollbar-gutter: stable; }
 .admin-table-scroll input[type='checkbox'] { width: 1rem; height: 1rem; accent-color: var(--color-brand-accent); }
 
 /* Keep the native scrollbar below the sticky header, including its gutter. */
+.admin-table-frame {
+  --admin-header-height: 3rem;
+  --admin-scrollbar-width: 0px;
+}
+
 @supports selector(::-webkit-scrollbar) {
   .admin-table-scroll::-webkit-scrollbar-track:vertical {
     margin-top: var(--admin-header-height, 3rem);

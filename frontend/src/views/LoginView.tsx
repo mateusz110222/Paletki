@@ -2,6 +2,7 @@ import React, {} from 'react';
 import { AlertCircle, ChevronDown, Eye, EyeOff, IdCard, Key, Loader2, Lock, MonitorCog, ShieldCheck, User } from 'lucide-react';
 
 import {useLoginView} from '../hooks/useLoginView';
+import {LanguageSwitcher} from '../i18n/LanguageContext.tsx';
 export const LoginView: React.FC = () => {
     const {
         t,
@@ -22,7 +23,7 @@ export const LoginView: React.FC = () => {
         handleOperatorLogin,
     } = useLoginView();
     return (
-        <div className="min-h-dvh box-border w-full bg-brand-bg flex justify-center px-4 py-2 sm:py-4 relative overflow-x-clip font-sans">
+        <div className="min-h-dvh box-border w-full bg-brand-bg flex justify-center px-4 pt-16 pb-4 sm:pt-20 sm:pb-6 relative overflow-x-clip font-sans">
             {/* Dynamic visual background elements */}
             <div className="fixed inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
             <div
@@ -31,6 +32,10 @@ export const LoginView: React.FC = () => {
             <div
                 className="login-glow login-glow-secondary absolute -bottom-40 -right-40 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl"
             />
+            </div>
+
+            <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-20">
+                <LanguageSwitcher/>
             </div>
 
             <div

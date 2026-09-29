@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {Outlet, useLocation} from 'react-router-dom';
+import {Outlet, useLocation} from 'react-router';
 import {useAuth} from '../auth/AuthContext.tsx';
 import {LanguageSwitcher, useTranslation} from '../i18n/LanguageContext.tsx';
 import {Sidebar} from './Sidebar.tsx';

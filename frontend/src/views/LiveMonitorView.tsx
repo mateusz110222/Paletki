@@ -1,6 +1,6 @@
 import { DisplayModeControl } from '../components/DisplayModeControl';
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 
 import { AlertCircle, AlertTriangle, BarChart3, CheckCircle2, LogIn, Package, RefreshCw, ScanBarcode, ShieldAlert, Tv, Wrench } from 'lucide-react';
 import { LanguageSwitcher } from '../i18n/LanguageContext.tsx';

@@ -44,10 +44,6 @@ export const dictionaries = {
         directory_access_hint: 'Dostęp wynika z grup FIS: IT — fisadmin_group lub admin_group; UR — Maintenance; ME — proceng.',
         directory_fis_groups: 'Grupy FIS',
         directory_no_fis_groups: 'Użytkownik nie należy do żadnej grupy FIS.',
-        directory_groups: 'Bezpośrednie grupy AD',
-        directory_groups_hint: 'Atrybut memberOf: bez grup zagnieżdżonych i grupy podstawowej użytkownika.',
-        directory_no_groups: 'LDAP nie zwrócił żadnych bezpośrednich grup.',
-        directory_partial: 'Serwer zwrócił ograniczoną listę grup — poniższe wyniki nie są kompletne.',
         directory_missing: 'Nie podano w LDAP',
         directory_error: 'Nie udało się pobrać użytkownika. Spróbuj ponownie.',
         directory_read_only: 'Tylko odczyt · dostęp administratora FIS',
@@ -495,10 +491,6 @@ export const dictionaries = {
         directory_access_hint: 'Access is based on FIS groups: IT — fisadmin_group or admin_group; maintenance — Maintenance; ME — proceng.',
         directory_fis_groups: 'FIS groups',
         directory_no_fis_groups: 'The user has no FIS group membership.',
-        directory_groups: 'Direct AD groups',
-        directory_groups_hint: 'The memberOf attribute: excludes nested groups and the user’s primary group.',
-        directory_no_groups: 'LDAP returned no direct groups.',
-        directory_partial: 'The server returned a limited group list — the results below are incomplete.',
         directory_missing: 'Not specified in LDAP',
         directory_error: 'Could not look up the user. Please try again.',
         directory_read_only: 'Read only · FIS administrator access',
@@ -949,9 +941,11 @@ export const LanguageSwitcher: React.FC = () => {
         <div
             className="flex items-center bg-brand-surface border border-brand-border rounded-lg p-1 text-xs font-bold font-mono">
             <button
+                type="button"
                 onClick={() => setLanguage('pl')}
                 title={t('language_polish')}
                 aria-label={t('language_polish')}
+                aria-pressed={language === 'pl'}
                 className={`px-2 py-1 rounded transition-all flex items-center gap-1 ${language === 'pl'
                     ? 'bg-brand-accent text-brand-bg font-extrabold shadow'
                     : 'text-brand-text-muted hover:text-brand-text'
@@ -960,9 +954,11 @@ export const LanguageSwitcher: React.FC = () => {
                 <span aria-hidden="true">🇵🇱</span> PL
             </button>
             <button
+                type="button"
                 onClick={() => setLanguage('en')}
                 title={t('language_english')}
                 aria-label={t('language_english')}
+                aria-pressed={language === 'en'}
                 className={`px-2 py-1 rounded transition-all flex items-center gap-1 ${language === 'en'
                     ? 'bg-brand-accent text-brand-bg font-extrabold shadow'
                     : 'text-brand-text-muted hover:text-brand-text'

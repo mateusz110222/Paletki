@@ -1,9 +1,9 @@
-interface ImportMetaWithFisEnv extends ImportMeta {
+type ImportMetaWithFisEnv = ImportMeta & {
     readonly env?: {
         readonly FIS1_UNIT_HISTORY_URL?: string;
         readonly FIS2_UNIT_HISTORY_URL?: string;
     };
-}
+};
 
 const env = (import.meta as ImportMetaWithFisEnv).env;
 

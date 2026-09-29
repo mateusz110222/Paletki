@@ -5,32 +5,31 @@ import { defineConfig } from 'vite';
 
 export default defineConfig(() => {
   return {
-    envDir: resolve(__dirname, '..'),
+    envDir: resolve(import.meta.dirname, '..'),
     envPrefix: ['VITE_', 'FIS1_UNIT_HISTORY_URL', 'FIS2_UNIT_HISTORY_URL'],
     plugins: [react(), tailwindcss()],
     build: {
       target: 'es2022',
-      minify: 'terser' as const,
-      terserOptions: {
-        compress: {
-          passes: 2,
-          drop_console: true,
-          drop_debugger: true,
-        },
-      },
-      rollupOptions: {
+      rolldownOptions: {
         output: {
-          manualChunks: {
-            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-            'vendor-query': ['@tanstack/react-query'],
-            'vendor-icons': ['lucide-react'],
+          minify: {
+            compress: {dropConsole: true, dropDebugger: true},
+            mangle: true,
+            codegen: true,
+          },
+          codeSplitting: {
+            groups: [
+              {name: 'vendor-react', test: /[\\/]node_modules[\\/](?:react|react-dom|react-router)(?:[\\/]|$)/, priority: 30},
+              {name: 'vendor-query', test: /[\\/]node_modules[\\/]@tanstack[\\/]react-query[\\/]/, priority: 20},
+              {name: 'vendor-icons', test: /[\\/]node_modules[\\/]lucide-react[\\/]/, priority: 10},
+            ],
           },
         },
       },
     },
     resolve: {
       alias: {
-        '@backend': resolve(__dirname, '..', 'backend'),
+        '@backend': resolve(import.meta.dirname, '..', 'backend'),
       },
     },
   };

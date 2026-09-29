@@ -51,11 +51,7 @@ export function asLoginResponse(value: shared.LoginResponse): LoginResponse {
     const runtimeValue = value as shared.LoginResponse & {expiresAt?: unknown};
     const expiresAt = value.expires_at ?? runtimeValue.expiresAt;
     if (
-        value.status !== true ||
-        !value.data ||
-        typeof value.token !== 'string' ||
-        value.token.length === 0 ||
-        typeof expiresAt !== 'string' ||
+        !value.status || !value.data || typeof value.token !== 'string' || value.token.length === 0 || typeof expiresAt !== 'string' ||
         !Number.isFinite(Date.parse(expiresAt))
     ) {
         throw new Error('API returned an invalid login session');

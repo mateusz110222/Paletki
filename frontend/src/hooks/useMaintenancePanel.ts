@@ -1,4 +1,4 @@
-import {useSearchParams} from 'react-router-dom';
+import {useSearchParams} from 'react-router';
 import {useToast} from '../components/ToastProvider';
 import React, {useCallback, useMemo, useState} from 'react';
 import {getErrorMessage} from '../lib/errors.ts';

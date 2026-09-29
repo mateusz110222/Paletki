@@ -529,7 +529,7 @@ document.addEventListener("DOMContentLoaded", function () {
         ?.addEventListener("submit", formHandler);
     if (palletSerialNumAuto !== undefined) {
         palletSerialNumber.value = palletSerialNumAuto;
-        formHandler();
+        void formHandler();
     } else {
         palletSerialNumber.focus();
     }

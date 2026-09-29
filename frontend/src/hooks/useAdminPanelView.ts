@@ -6,7 +6,7 @@ import { useTranslation } from '../i18n/LanguageContext.tsx';
 import { Pallet } from '@backend/shared/types';
 import { useAdminPanel } from '../hooks/useAdminPanel.ts';
 
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router";
 
 export function useAdminPanelView(props: Parameters<typeof useAdminPanel>[0], panel: ReturnType<typeof useAdminPanel>) {
     const {data, actions} = panel;

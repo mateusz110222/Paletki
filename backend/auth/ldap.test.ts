@@ -22,15 +22,15 @@ function mockClient(searchEntries: Array<Record<string, string | string[]>> = []
 }
 
 describe('directory lookup', () => {
-    it('looks up an exact NetID and returns department and deduplicated direct groups', async () => {
+    it('looks up an exact NetID without requesting AD groups', async () => {
         const client = mockClient([{dn: 'CN=Test', sAMAccountName: 'test', displayName: 'Test User',
             department: 'UR', title: 'Technician', memberOf: ['CN=B,DC=test', 'CN=A,DC=test', 'CN=A,DC=test']}]);
         expect(await lookupLdapUser(client, 'test', 'DC=test', 3000)).toEqual({
             net_id: 'test', full_name: 'Test User', department: 'UR', title: 'Technician',
-            groups: ['CN=A,DC=test', 'CN=B,DC=test'], groups_complete: true,
         });
         expect(client.search).toHaveBeenCalledWith('DC=test', expect.objectContaining({
             filter: '(&(objectCategory=person)(objectClass=user)(sAMAccountName=test))', sizeLimit: 2, timeLimit: 3,
+            attributes: ['sAMAccountName', 'displayName', 'cn', 'department', 'title'],
         }));
     });
 
@@ -40,15 +40,8 @@ describe('directory lookup', () => {
         expect(client.search).not.toHaveBeenCalled();
     });
 
-    it('handles scalar groups and reports ranged results honestly', async () => {
-        expect((await lookupLdapUser(mockClient([{dn: 'CN=Test', memberOf: 'CN=A,DC=test'}]), 'test', 'DC=test', 1000)).groups).toEqual(['CN=A,DC=test']);
-        expect((await lookupLdapUser(mockClient([{dn: 'CN=Test', 'memberOf;range=0-1499': ['CN=A,DC=test']}]), 'test', 'DC=test', 1000)).groups_complete).toBe(false);
-        expect((await lookupLdapUser(mockClient([{dn: 'CN=Test', 'memberOf;range=0-*': ['CN=A,DC=test']}]), 'test', 'DC=test', 1000)).groups_complete).toBe(true);
-    });
-
-    it('handles missing groups, unknown users and ambiguous results', async () => {
+    it('handles missing attributes, unknown users and ambiguous results', async () => {
         const result = await lookupLdapUser(mockClient([{dn: 'CN=Test'}]), 'test', 'DC=test', 1000);
-        expect(result.groups).toEqual([]);
         expect(result.full_name).toBe('test');
         await expect(lookupLdapUser(mockClient(), 'test', 'DC=test', 1000)).rejects.toBeInstanceOf(LdapProfileNotFoundError);
         await expect(lookupLdapUser(mockClient([{dn: 'a'}, {dn: 'b'}]), 'test', 'DC=test', 1000)).rejects.toBeInstanceOf(LdapProfileAmbiguousError);
@@ -98,7 +91,8 @@ describe("LDAP authentication", () => {
     it("returns a canonical directory profile and bounded search options", async () => {
         const client = mockClient([{
             dn: "CN=Operator,DC=example,DC=com",
-            displayName: "Test Operator",
+            givenName: "Test",
+            sn: "Operator",
             department: "Production",
             title: "Operator",
             userPrincipalName: "canonical.operator@example.com",
@@ -108,7 +102,7 @@ describe("LDAP authentication", () => {
         await expect(authenticateLdapUser(
             client, identity, "operator", "secret", "DC=example,DC=com", 5000,
         )).resolves.toEqual({
-            fullName: "Test Operator",
+            fullName: "Operator, Test",
             department: "Production",
             title: "Operator",
             username: "canonical.operator@example.com",
@@ -118,8 +112,16 @@ describe("LDAP authentication", () => {
         expect(client.search).toHaveBeenCalledWith("DC=example,DC=com", expect.objectContaining({
             sizeLimit: 2,
             timeLimit: 5,
-            attributes: expect.not.arrayContaining(["mail", "givenName", "sn"]),
+            attributes: expect.arrayContaining(["givenName", "sn"]),
         }));
+        expect(vi.mocked(client.search).mock.calls[0][1]?.attributes).not.toContain("displayName");
+    });
+
+    it("rejects a directory profile without a given name or surname", async () => {
+        const client = mockClient([{dn: "CN=Test", displayName: "Test Operator (Blonie)"}]);
+        await expect(authenticateLdapUser(
+            client, identity, "operator", "secret", "DC=example,DC=com", 5000,
+        )).rejects.toBeInstanceOf(LdapProfileNotFoundError);
     });
 
     it("rejects a missing directory profile", async () => {

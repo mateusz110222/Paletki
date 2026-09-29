@@ -1,5 +1,5 @@
 import React, {useCallback, useMemo} from 'react';
-import {Navigate, Route, Routes} from 'react-router-dom';
+import {Navigate, Route, Routes} from 'react-router';
 import {Pallet, PalletModel, Project} from '@backend/shared/types';
 import {useAuth} from '../auth/AuthContext.tsx';
 import {useQuery, useQueryClient} from '@tanstack/react-query';

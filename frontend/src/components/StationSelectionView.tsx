@@ -1,6 +1,6 @@
 import React from 'react';
 import {Factory, LayoutGrid} from 'lucide-react';
-import {Link} from 'react-router-dom';
+import {Link} from 'react-router';
 import type {ProductionStation} from '@backend/shared/types';
 import {LanguageSwitcher, useTranslation} from '../i18n/LanguageContext.tsx';
 

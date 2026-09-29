@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useRef} from 'react';
-import {useSearchParams} from 'react-router-dom';
+import {useSearchParams} from 'react-router';
 import {Maximize, Minimize} from 'lucide-react';
 import {useTranslation} from '../i18n/LanguageContext';
 import {useToast} from './ToastProvider';

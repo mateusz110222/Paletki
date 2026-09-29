@@ -1,7 +1,7 @@
 import { useToast } from '../components/ToastProvider';
 import { useEffect, useMemo, useState } from 'react';
 
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import { AuditLog, Pallet } from '@backend/shared/types';
 import { useTranslation } from '../i18n/LanguageContext.tsx';
 import { useAuth } from '../auth/AuthContext.tsx';
@@ -135,23 +135,10 @@ export function usePalletHistoryView() {
 
     const handleCopyPalletId = async () => {
         if (!pallet) return;
-        try {
-            await navigator.clipboard.writeText(pallet.pallet_id);
-            setIsCopied(true);
-            notify(language === 'pl' ? 'Skopiowano ID palety.' : 'Pallet ID copied.');
-            setTimeout(() => setIsCopied(false), 2000);
-        } catch {
-            // fallback
-            const input = document.createElement('input');
-            input.value = pallet.pallet_id;
-            document.body.appendChild(input);
-            input.select();
-            document.execCommand('copy');
-            document.body.removeChild(input);
-            setIsCopied(true);
-            notify(language === 'pl' ? 'Skopiowano ID palety.' : 'Pallet ID copied.');
-            setTimeout(() => setIsCopied(false), 2000);
-        }
+        await navigator.clipboard.writeText(pallet.pallet_id);
+        setIsCopied(true);
+        notify(language === 'pl' ? 'Skopiowano ID palety.' : 'Pallet ID copied.');
+        setTimeout(() => setIsCopied(false), 2000);
     };
 
     const handleExportCSV = () => {
