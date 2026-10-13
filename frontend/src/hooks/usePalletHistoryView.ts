@@ -105,6 +105,7 @@ export function usePalletHistoryView() {
                     entry.id,
                     entry.operator_id,
                     entry.description,
+                    entry.comment,
                     entry.previous_status,
                     entry.new_status,
                     localizedStatusLabels[entry.previous_status],
@@ -153,7 +154,8 @@ export function usePalletHistoryView() {
             'Poprzedni Status',
             'Nowy Status',
             'Operator',
-            'Opis / Powód'
+            'Opis / Powód',
+            'Komentarz'
         ];
 
         const rows = filteredHistory.map(entry => [
@@ -165,7 +167,8 @@ export function usePalletHistoryView() {
             escapeCsvCell(entry.previous_status),
             escapeCsvCell(entry.new_status),
             escapeCsvCell(entry.operator_id),
-            escapeCsvCell(entry.description)
+            escapeCsvCell(entry.description),
+            escapeCsvCell(entry.comment ?? '')
         ].join(';'));
 
         const csvContent = '\uFEFF' + [headers.join(';'), ...rows].join('\r\n');

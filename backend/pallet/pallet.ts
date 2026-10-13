@@ -1,14 +1,14 @@
 import {api, APIError, Header, Query} from "encore.dev/api";
 import type {Max, Min} from "encore.dev/validate";
 import {db} from "./db";
-import {AuditLog, Pallet, PALLET_STATUSES, PalletStatus} from "../shared/types";
+import {AuditLog, Pallet, PALLET_STATUSES, PalletStatus, PalletMachine} from "../shared/types";
 import {t} from "../shared/i18n";
 import {
     encodeAuditChanges,
     encodeAuditDescription,
     localizeAuditLog,
 } from "./audit-description";
-import {requirePalletManagementUser} from "../shared/authorization";
+import {requirePalletManagementUser, requireMaintenanceUser} from "../shared/authorization";
 import {
     type FisUnit,
     type MaxCycles,
@@ -62,6 +62,7 @@ interface AuditPageParams extends LocalizedRequest {
 }
 
 interface AddPalletParams extends LocalizedRequest {
+    machine: PalletMachine;
     pallet_id: PalletID;
     project: ShortText;
     model: ShortText;
@@ -78,6 +79,7 @@ export interface AddPalletResponse {
 }
 
 interface AddPalletRangeParams extends LocalizedRequest {
+    machine: PalletMachine;
     first_pallet_id: PalletID;
     last_pallet_id: PalletID;
     project: ShortText;
@@ -98,6 +100,7 @@ export interface AddPalletRangeResponse {
 }
 
 interface UpdatePalletParams extends LocalizedRequest {
+    machine?: PalletMachine;
     pallet_id: string;
     fis?: FisUnit | null;
     nests?: NestCount | null;
@@ -157,7 +160,7 @@ export const GetAllPallets = api(
         `;
         const hasMore = rows.length > limit;
         return {
-            pallets: rows.slice(0, limit).map(toPalletDTO),
+            pallets: rows.slice(0, limit).map(row => toPalletDTO(row, params.acceptLanguage)),
             next_cursor: hasMore ? rows[limit - 1]?.id : undefined,
         };
     },
@@ -174,14 +177,14 @@ export const GetPallet = api(
         `;
         if (!pallet) throw APIError.notFound(t("pallet_not_found", params.acceptLanguage));
 
-        return {pallet: toPalletDTO(pallet)};
+        return {pallet: toPalletDTO(pallet, params.acceptLanguage)};
     },
 );
 
 export const GetPalletHistory = api(
     {method: "GET", path: "/pallets/:pallet_id/history", expose: true, auth: true},
     async (params: GetPalletHistoryParams): Promise<GetPalletHistoryResponse> => {
-        requirePalletManagementUser();
+        requireMaintenanceUser();
         const palletId = normalizePalletId(params.pallet_id);
         if (!palletId) throw APIError.invalidArgument(t("pallet_id_empty", params.acceptLanguage));
 
@@ -240,6 +243,7 @@ export const AddPallet = api(
         const requestedProject = params.project?.trim();
         const requestedModel = params.model?.trim();
         const fis = params.fis;
+        if (!["WSM", "SSM", "COAT"].includes(params.machine)) throw APIError.invalidArgument(t("machine_invalid", params.acceptLanguage));
         const status = params.status;
         const operator = requirePalletManagementUser().fullName;
 
@@ -289,7 +293,7 @@ export const AddPallet = api(
                         nests = ${params.nests},
                         status = ${status},
                         block_reason = ${params.block_reason?.trim() ?? null},
-                        fis = ${fis},
+                        fis = ${fis}, machine = ${params.machine},
                         created_at = NOW(),
                         created_by = ${operator},
                         updated_at = NOW(),
@@ -303,10 +307,10 @@ export const AddPallet = api(
                 await tx.exec`
                     INSERT INTO pallets (
                         pallet_id, project_id, model_id, max_cycles, nests, status, block_reason,
-                        fis, created_by, updated_by, last_operation_description
+                        fis, machine, created_by, updated_by, last_operation_description
                     ) VALUES (
                         ${palletId}, ${project_id}, ${model_id}, ${params.max_cycles}, ${params.nests}, ${status},
-                        ${params.block_reason?.trim() ?? null}, ${fis}, ${operator}, ${operator},
+                        ${params.block_reason?.trim() ?? null}, ${fis}, ${params.machine}, ${operator}, ${operator},
                         ${encodeAuditDescription("audit_registered")}
                     )
                 `;
@@ -340,6 +344,7 @@ export const AddPalletRange = api(
         const requestedProject = params.project?.trim();
         const requestedModel = params.model?.trim();
         const fis = params.fis;
+        if (!["WSM", "SSM", "COAT"].includes(params.machine)) throw APIError.invalidArgument(t("machine_invalid", params.acceptLanguage));
         const status = params.status;
         const operator = requirePalletManagementUser().fullName;
 
@@ -393,7 +398,7 @@ export const AddPalletRange = api(
                         UPDATE pallets
                         SET project_id = ${project_id}, model_id = ${model_id}, max_cycles = ${maxCycles},
                             current_cycles = 0, total_cycles = 0, nests = ${params.nests}, status = ${status},
-                            block_reason = ${params.block_reason?.trim() ?? null}, fis = ${fis},
+                            block_reason = ${params.block_reason?.trim() ?? null}, fis = ${fis}, machine = ${params.machine},
                             created_at = NOW(), created_by = ${operator}, updated_at = NOW(), updated_by = ${operator},
                             deleted_at = NULL, deleted_by = NULL,
                             last_operation_description = ${encodeAuditDescription("audit_registered")}
@@ -403,10 +408,10 @@ export const AddPalletRange = api(
                     await tx.exec`
                         INSERT INTO pallets (
                             pallet_id, project_id, model_id, max_cycles, nests, status, block_reason,
-                            fis, created_by, updated_by, last_operation_description
+                            fis, machine, created_by, updated_by, last_operation_description
                         ) VALUES (
                             ${palletId}, ${project_id}, ${model_id}, ${maxCycles}, ${params.nests}, ${status},
-                            ${params.block_reason?.trim() ?? null}, ${fis}, ${operator}, ${operator},
+                            ${params.block_reason?.trim() ?? null}, ${fis}, ${params.machine}, ${operator}, ${operator},
                             ${encodeAuditDescription("audit_registered")}
                         )
                     `;
@@ -444,10 +449,13 @@ export const UpdatePallet = api(
             `;
             if (!existing) throw APIError.notFound(t("pallet_not_found", lang));
             const newFis = params.fis ?? existing.fis;
+            const newMachine = params.machine ?? existing.machine;
+            if (!["WSM", "SSM", "COAT"].includes(newMachine)) throw APIError.invalidArgument(t("machine_invalid", lang));
             const newNests = params.nests ?? existing.nests;
             const newMaxCycles = params.max_cycles ?? existing.max_cycles;
             const newStatus = params.status ?? existing.status;
-            const newBlockReason = newStatus === "Blocked" ? (params.block_reason ?? existing.block_reason) : null;
+            const newBlockReason = newStatus === "Blocked" ? (params.block_reason ?? existing.block_reason)
+                : newStatus === existing.status ? existing.block_reason : null;
 
             if (newFis !== 1 && newFis !== 2) throw APIError.invalidArgument(t("fis_unsupported", lang));
             if (!isSafePositiveInteger(newNests) || !isSafePositiveInteger(newMaxCycles)) {
@@ -460,7 +468,10 @@ export const UpdatePallet = api(
                 throw APIError.invalidArgument(t("block_reason_required", lang));
             }
 
+            if (existing.status === "Blocked" && newStatus !== "Blocked" && !params.block_reason?.trim()) throw APIError.invalidArgument(t("unblock_comment_required", lang));
+
             const changes: Parameters<typeof encodeAuditChanges>[0] = [];
+            if (existing.machine !== newMachine) changes.push({key: "audit_change_machine", variables: {from: existing.machine, to: newMachine}});
             if (existing.fis !== newFis) changes.push({key: "audit_change_fis", variables: {from: existing.fis ?? 0, to: newFis}});
             if (existing.nests !== newNests) changes.push({key: "audit_change_nests", variables: {from: existing.nests, to: newNests}});
             if (existing.max_cycles !== newMaxCycles) changes.push({key: "audit_change_max_cycles", variables: {from: existing.max_cycles, to: newMaxCycles}});
@@ -468,12 +479,14 @@ export const UpdatePallet = api(
             const description = changes.length > 0
                 ? encodeAuditChanges(changes)
                 : encodeAuditDescription("audit_edited");
+            const finalDescription = existing.status === "Blocked" && newStatus !== "Blocked"
+                ? encodeAuditDescription("audit_unblocked", {}, params.block_reason) : description;
 
             await tx.exec`
                 UPDATE pallets
-                SET fis = ${newFis}, nests = ${newNests}, max_cycles = ${newMaxCycles}, status = ${newStatus},
+                SET machine = ${newMachine}, fis = ${newFis}, nests = ${newNests}, max_cycles = ${newMaxCycles}, status = ${newStatus},
                     block_reason = ${newBlockReason}, updated_at = NOW(), updated_by = ${operator},
-                    last_operation_description = ${description}
+                    last_operation_description = ${finalDescription}
                 WHERE pallet_id = ${palletId}
             `;
 

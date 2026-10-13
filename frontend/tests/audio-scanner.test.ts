@@ -1,3 +1,4 @@
+import {getPalletScanTone} from '../src/lib/scannerFeedback';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { dictionaries } from '../src/i18n/LanguageContext.tsx';
@@ -80,20 +81,13 @@ test('sound preference defaults to enabled unless explicitly set to false', () =
 });
 
 test('pallet status to scan feedback tone mapping', () => {
-    const resolveScanTone = (pallet: Pick<Pallet, 'status' | 'current_cycles' | 'max_cycles'>): 'success' | 'warning' | 'error' => {
-        if (pallet.status === 'Blocked') return 'error';
-        const isExceededCycles = pallet.max_cycles > 0 && pallet.current_cycles >= pallet.max_cycles;
-        const isDamaged = pallet.status === 'Damaged';
-        const isWashing = pallet.status === 'Washing_Required';
-        if (isDamaged || isWashing || isExceededCycles) return 'warning';
-        return 'success';
-    };
+    const resolveScanTone = (pallet: Pick<Pallet, 'status' | 'current_cycles' | 'max_cycles'>) => getPalletScanTone(pallet.status, pallet.max_cycles > 0 && pallet.current_cycles >= pallet.max_cycles);
 
     // Healthy active pallet
     assert.equal(resolveScanTone({ status: 'Active', current_cycles: 10, max_cycles: 100 }), 'success');
 
     // Damaged pallet
-    assert.equal(resolveScanTone({ status: 'Damaged', current_cycles: 10, max_cycles: 100 }), 'warning');
+    assert.equal(resolveScanTone({ status: 'Damaged', current_cycles: 10, max_cycles: 100 }), 'error');
 
     // Washing required pallet
     assert.equal(resolveScanTone({ status: 'Washing_Required', current_cycles: 10, max_cycles: 100 }), 'warning');

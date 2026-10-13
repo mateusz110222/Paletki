@@ -1,6 +1,6 @@
 import React from 'react';
 import {NavLink} from 'react-router';
-import {FolderTree, BarChart3, LayoutDashboard, LogOut, LucideIcon, Scan, Tv, Wrench, UserSearch, X, Code2} from 'lucide-react';
+import {BookOpen, FolderTree, BarChart3, LayoutDashboard, LogOut, LucideIcon, Scan, Tv, Wrench, UserSearch, X, Code2} from 'lucide-react';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
 
 interface NavItem {
@@ -35,9 +35,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ...(canManagePallets ? [{path: '/admin', label: t('nav_admin'), icon: LayoutDashboard}] : []),
         ...(!isMaintenanceOnly ? [{path: '/operator', label: t('nav_operator'), icon: Scan}] : []),
         ...(canAccessMaintenance ? [{path: '/maintenance', label: t('nav_maintenance'), icon: Wrench}] : []),
-        {path: '/live', label: t('nav_live'), icon: Tv},
-        {path: '/dashboard', label: t('nav_public_dashboard'), icon: BarChart3},
+        ...(canAccessMaintenance ? [{path: '/reports', label: t('nav_reports'), icon: BarChart3}] : []),
+        {path: '/dashboards', label: t('nav_dashboards'), icon: Tv},
         ...(hasITDepartmentAccess ? [{path: '/directory', label: t('nav_directory'), icon: UserSearch}] : []),
+        {path: '/documentation', label: t('nav_documentation'), icon: BookOpen},
     ];
 
     const navigation = (onNavigate?: () => void) => (

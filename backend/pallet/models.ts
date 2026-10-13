@@ -1,3 +1,4 @@
+import {localizeAuditDescription} from "./audit-description";
 import type {AuditLog, Pallet, PalletStatus} from "../shared/types";
 
 export interface PalletRecord {
@@ -12,6 +13,7 @@ export interface PalletRecord {
     status: PalletStatus;
     block_reason: string | null;
     fis: 1 | 2;
+    machine: Pallet["machine"];
     created_at: Date;
     created_by: string;
     updated_at: Date;
@@ -31,7 +33,7 @@ export interface AuditLogRecord {
     description: string;
 }
 
-export function toPalletDTO(row: PalletRecord): Pallet {
+export function toPalletDTO(row: PalletRecord, lang?: string): Pallet {
     return {
         id: row.id,
         pallet_id: row.pallet_id,
@@ -42,8 +44,9 @@ export function toPalletDTO(row: PalletRecord): Pallet {
         total_cycles: row.total_cycles,
         nests: row.nests,
         status: row.status,
-        block_reason: row.block_reason,
+        block_reason: row.block_reason ? localizeAuditDescription(row.block_reason, lang) : row.block_reason,
         fis: row.fis,
+        machine: row.machine,
         created_at: row.created_at.toISOString(),
         created_by: row.created_by,
         updated_at: row.updated_at.toISOString(),

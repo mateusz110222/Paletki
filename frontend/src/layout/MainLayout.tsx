@@ -1,4 +1,5 @@
-import React, {useState} from 'react';
+import {ViewBoundary} from '../components/ViewBoundary';
+import React, {useState, type ReactNode} from 'react';
 import {Outlet, useLocation} from 'react-router';
 import {useAuth} from '../auth/AuthContext.tsx';
 import {LanguageSwitcher, useTranslation} from '../i18n/LanguageContext.tsx';
@@ -7,7 +8,7 @@ import {Menu, UserCheck} from 'lucide-react';
 import {useDocumentMetadata} from '../hooks/useDocumentMetadata.ts';
 import {useEscapeKey} from '../hooks/useEscapeKey.ts';
 
-export const MainLayout: React.FC = () => {
+export const MainLayout: React.FC<{children?: ReactNode}> = ({children}) => {
     const {user, isGuest, hasITDepartmentAccess, canManagePallets, isMaintenanceOnly, canAccessMaintenance, logout} = useAuth();
     const {t, language} = useTranslation();
     const location = useLocation();
@@ -15,10 +16,12 @@ export const MainLayout: React.FC = () => {
     useEscapeKey(mobileNavOpen, () => setMobileNavOpen(false));
 
     const getPageTitle = (pathname: string) => {
-        if (pathname.startsWith('/admin/pallets/') && pathname.endsWith('/history')) {
+        if ((pathname.startsWith('/admin/pallets/') || pathname.startsWith('/maintenance/pallets/')) && pathname.endsWith('/history')) {
             return {title: t('history_page_title'), sub: t('history_page_subtitle')};
         }
         switch (pathname) {
+            case '/documentation':
+                return {title: t('nav_documentation'), sub: t('documentation_subtitle')};
             case '/catalog':
                 return {title: t('nav_catalog'), sub: t('catalog_subtitle')};
             case '/directory':
@@ -27,8 +30,20 @@ export const MainLayout: React.FC = () => {
                 return {title: t('panel_admin_title'), sub: t('panel_admin_subtitle')};
             case '/operator':
                 return {title: t('panel_operator_title'), sub: t('panel_operator_subtitle')};
+            case '/dashboards':
+                return {title: t('nav_dashboards'), sub: t('dashboard_hub_intro')};
+            case '/maintenance/service':
+                return {title: t('maintenance_service_title'), sub: t('panel_maint_subtitle')};
+            case '/maintenance/history':
+                return {title: t('maintenance_history_title'), sub: t('maintenance_history_description')};
+            case '/maintenance/washing':
+                return {title: t('washing_scanner_title'), sub: t('washing_scanner_intro')};
+            case '/maintenance/defects':
+                return {title: t('defects_title'), sub: t('maintenance_defects_description')};
+            case '/reports':
+                return {title: t('reports_title'), sub: t('reports_intro')};
             case '/maintenance':
-                return {title: t('panel_maint_title'), sub: t('panel_maint_subtitle')};
+                return {title: t('maintenance_hub_title'), sub: t('maintenance_hub_intro')};
             case '/live':
                 return {title: t('panel_live_title'), sub: t('panel_live_subtitle')};
             default:
@@ -94,7 +109,7 @@ export const MainLayout: React.FC = () => {
                 </div>
 
                 {/* Dynamic Widoki (Admin, Operator, Maintenance, Live) */}
-                <Outlet/>
+                <ViewBoundary>{children ?? <Outlet/>}</ViewBoundary>
             </main>
         </div>
     );

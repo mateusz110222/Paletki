@@ -8,14 +8,14 @@ import {Sidebar} from '../src/layout/Sidebar.tsx';
 import {dictionaries, LanguageProvider} from '../src/i18n/LanguageContext.tsx';
 
 for (const [it, ur, me, landing, paths] of [
-    [true, false, false, '/admin', ['/catalog', '/admin', '/operator', '/maintenance', '/live', '/dashboard', '/directory']],
-    [false, true, false, '/maintenance', ['/maintenance', '/live', '/dashboard']],
-    [true, true, false, '/admin', ['/catalog', '/admin', '/operator', '/maintenance', '/live', '/dashboard', '/directory']],
-    [false, false, false, '/operator', ['/operator', '/live', '/dashboard']],
-    [false, false, true, '/admin', ['/catalog', '/admin', '/operator', '/maintenance', '/live', '/dashboard']],
-    [false, true, true, '/admin', ['/catalog', '/admin', '/operator', '/maintenance', '/live', '/dashboard']],
-    [true, false, true, '/admin', ['/catalog', '/admin', '/operator', '/maintenance', '/live', '/dashboard', '/directory']],
-    [true, true, true, '/admin', ['/catalog', '/admin', '/operator', '/maintenance', '/live', '/dashboard', '/directory']],
+    [true, false, false, '/admin', ['/catalog', '/admin', '/operator', '/maintenance', '/dashboards', '/directory']],
+    [false, true, false, '/maintenance', ['/maintenance', '/dashboards']],
+    [true, true, false, '/admin', ['/catalog', '/admin', '/operator', '/maintenance', '/dashboards', '/directory']],
+    [false, false, false, '/operator', ['/operator', '/dashboards']],
+    [false, false, true, '/admin', ['/catalog', '/admin', '/operator', '/maintenance', '/dashboards']],
+    [false, true, true, '/admin', ['/catalog', '/admin', '/operator', '/maintenance', '/dashboards']],
+    [true, false, true, '/admin', ['/catalog', '/admin', '/operator', '/maintenance', '/dashboards', '/directory']],
+    [true, true, true, '/admin', ['/catalog', '/admin', '/operator', '/maintenance', '/dashboards', '/directory']],
 ] as const) {
     test(`view access and sidebar: IT=${it}, UR=${ur}, ME=${me}`, () => {
         const access = getViewAccess({has_it_department_access: it, has_ur_department_access: ur, has_me_department_access: me});
@@ -28,7 +28,9 @@ for (const [it, ur, me, landing, paths] of [
             <Sidebar {...access} onLogout={() => {}}/>
         </MemoryRouter></LanguageProvider>);
         const hrefs = [...html.matchAll(/href="([^"]+)"/g)].map(match => match[1]);
-        assert.deepEqual(hrefs, paths);
+        const expected = [...paths] as string[];
+        if (it || ur || me) expected.splice(expected.indexOf('/dashboards'), 0, '/reports');
+        assert.deepEqual(hrefs, [...expected, '/documentation']);
     });
 }
 

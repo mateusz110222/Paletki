@@ -1,3 +1,5 @@
+import {Link} from 'react-router';
+import {OperatorReports} from '../components/OperatorReports';
 import React from 'react';
 import {
     AlertCircle,
@@ -35,6 +37,7 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300" id="maintenance-panel-container">
+            <Link to="/maintenance" className="inline-flex min-h-10 items-center gap-2 text-xs font-bold text-brand-text-muted hover:text-brand-accent">← {t('maintenance_back')}</Link>
             {/* Top statistics section in Bento Grid Style */}
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
                 <div
@@ -257,7 +260,7 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
                     backdropClassName="bg-brand-bg/80 backdrop-blur-md"
                 >
                     <div
-                        className="relative bg-brand-surface border border-brand-border w-full max-w-xl rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)]">
+                        className="relative bg-brand-surface border border-brand-border w-full max-w-xl max-h-[85dvh] rounded-2xl overflow-y-auto shadow-[0_0_50px_rgba(0,0,0,0.5)]">
                         {/* Modal Header */}
                         <div
                             className="bg-brand-surface-high p-6 border-b border-brand-border flex justify-between items-center">
@@ -284,6 +287,7 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
                         </div>
 
                         {/* Modal Body */}
+                        <div className="px-8 pt-6"><OperatorReports key={data.selectedPallet.pallet_id} palletId={data.selectedPallet.pallet_id}/></div>
                         <form onSubmit={actions.handleServiceLogSubmit} className="p-8 space-y-6">
                             {data.modalError && (
                                 <div

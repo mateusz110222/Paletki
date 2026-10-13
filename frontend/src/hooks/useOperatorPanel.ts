@@ -1,3 +1,4 @@
+import {getPalletScanTone} from '../lib/scannerFeedback';
 import {useToast} from '../components/ToastProvider';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Pallet, PalletStatus} from '@backend/shared/types';
@@ -6,7 +7,7 @@ import {useGlobalErrorModal} from "../hooks/useGlobalErrorModal.ts";
 import {useSearchParams} from "react-router";
 import {useAuth} from "../auth/AuthContext.tsx";
 import {asPallet} from "../lib/api.ts";
-import {useQueryClient} from '@tanstack/react-query';
+import {useQuery, useQueryClient} from '@tanstack/react-query';
 import {
     initAudioUnlock,
     prepareScanAudio,
@@ -30,6 +31,9 @@ export const useOperatorPanel = () => {
     const queryClient = useQueryClient();
     const {errorModalState, hideGlobalError} = useGlobalErrorModal();
 
+    const defectsQuery = useQuery({queryKey: ['defects'], queryFn: () => apiClient.pallet.GetDefects(), staleTime: 0});
+    const [selectedDefect, setSelectedDefect] = useState('');
+    const [unavailablePallet, setUnavailablePallet] = useState<Pallet | null>(null);
     const [scannedId, setScannedId] = useState('');
     const [lastScannedId, setLastScannedId] = useState('');
     const [activePallet, setActivePallet] = useState<Pallet | null>(null);
@@ -106,7 +110,7 @@ export const useOperatorPanel = () => {
 
         document.body.addEventListener('click', handleBodyClick);
         return () => document.body.removeEventListener('click', handleBodyClick);
-    }, [activePallet, isOtherFaultOpen]);
+    }, [activePallet, unavailablePallet, isOtherFaultOpen]);
 
     useEffect(() => () => {
         scanAbortRef.current?.abort();
@@ -173,6 +177,8 @@ export const useOperatorPanel = () => {
         setIsScanning(true);
         setScanStatus('IDLE');
         setScanFeedback(null);
+        setUnavailablePallet(null);
+        setPendingFault(null);
         if (soundEnabled) prepareScanAudio();
 
         try {
@@ -183,20 +189,32 @@ export const useOperatorPanel = () => {
             const pallet = asPallet(response.pallet);
             if (requestId !== scanRequestRef.current) return;
 
+            setLastScannedId(pallet.pallet_id);
+            setScannedId('');
+
+            processedUrlIdRef.current = pallet.pallet_id;
+            const newParams = new URLSearchParams(searchParams);
+            newParams.set('palletID', pallet.pallet_id);
+            setSearchParams(newParams, {replace: true});
+
             if (!canOpenPalletInOperatorPanel(pallet.status)) {
                 if (soundEnabledRef.current) void playScanErrorSound();
                 setActivePallet(null);
+                setUnavailablePallet(pallet);
                 setScanStatus('ERROR');
-                setScanFeedback({tone: 'error', message: `${palletUpper}: ${t('op_blocked_pallet_unavailable')}`});
+                setScanFeedback({tone: 'error', message: `${palletUpper}: ${t(pallet.status === 'Damaged' ? 'op_scan_warning_damaged' : 'op_blocked_pallet_unavailable')}`});
                 return;
             }
 
             const isExceededCycles = pallet.max_cycles > 0 && pallet.current_cycles >= pallet.max_cycles;
-            const isDamaged = pallet.status === 'Damaged';
             const isWashing = pallet.status === 'Washing_Required';
-            const isWarningCondition = isDamaged || isWashing || isExceededCycles;
+            const tone = getPalletScanTone(pallet.status, isExceededCycles);
 
-            if (isWarningCondition) {
+            if (tone === 'error') {
+                if (soundEnabledRef.current) void playScanErrorSound();
+                setScanStatus('ERROR');
+                setScanFeedback({tone: 'error', message: `${pallet.pallet_id}: ${t('op_scan_warning_damaged')}`});
+            } else if (tone === 'warning') {
                 if (soundEnabledRef.current) void playScanWarningSound();
                 setScanStatus('WARNING');
                 let warningMsg = t('op_scan_warning_damaged');
@@ -213,12 +231,6 @@ export const useOperatorPanel = () => {
             }
 
             setActivePallet(pallet);
-            setLastScannedId(pallet.pallet_id);
-
-            processedUrlIdRef.current = pallet.pallet_id;
-            const newParams = new URLSearchParams(searchParams);
-            newParams.set('palletID', pallet.pallet_id);
-            setSearchParams(newParams);
         } catch (error: unknown) {
             if (controller.signal.aborted || requestId !== scanRequestRef.current) return;
             console.error('Błąd skanowania:', error);
@@ -235,21 +247,28 @@ export const useOperatorPanel = () => {
     }, [apiClient, language, scannedId, searchParams, setSearchParams, soundEnabled, t]);
 
     useEffect(() => {
+        // Reset consumption only when the URL itself changes, not when a scan
+        // clears the input while a router transition is still pending.
+        if (!palletIDFromUrl.trim()) processedUrlIdRef.current = null;
+    }, [palletIDFromUrl]);
+
+    useEffect(() => {
         const upperUrlId = palletIDFromUrl.trim().toUpperCase();
 
         if (upperUrlId && processedUrlIdRef.current !== upperUrlId) {
-            processedUrlIdRef.current = upperUrlId;
             const scanTimer = window.setTimeout(() => {
-                setScannedId(upperUrlId);
+                if (processedUrlIdRef.current === upperUrlId) return;
+                processedUrlIdRef.current = upperUrlId;
                 void handleScanSubmit(undefined, upperUrlId);
             }, 0);
             return () => window.clearTimeout(scanTimer);
         }
     }, [handleScanSubmit, palletIDFromUrl]);
 
-    const openFaultModal = useCallback((name: string, status: PalletStatus) => {
+    const openFaultModal = useCallback((name: string, status: PalletStatus, defect?: number | 'other') => {
         setCustomFaultText('');
         setPendingFault({name, status});
+        setSelectedDefect(status === 'Damaged' ? defect === undefined ? '' : String(defect) : 'washing');
     }, []);
 
     const closeFaultModal = useCallback(() => {
@@ -257,23 +276,22 @@ export const useOperatorPanel = () => {
     }, [isSubmitting]);
 
     const handleReportFault = useCallback(async () => {
-        if (!pendingFault || !customFaultText.trim() || isSubmitting) return;
+        if (!pendingFault || isSubmitting || (pendingFault.status === 'Damaged' && !selectedDefect) || (selectedDefect === 'other' && !customFaultText.trim())) return;
         if (!activePallet) {
             triggerToast(t('op_no_pallet_scanned'));
             return;
         }
 
         setIsSubmitting(true);
-        const faultName = `${pendingFault.name}: ${customFaultText.trim()}`;
-        const description = t('op_fault_audit_description', {faultName});
+        const name = pendingFault.status === 'Washing_Required' ? pendingFault.name : defectsQuery.data?.defects.find(d => String(d.id) === selectedDefect)?.name ?? t('op_other_fault_type');
+        const faultName = `${name}${customFaultText.trim() ? ': ' + customFaultText.trim() : ''}`;
 
         try {
-            await apiClient.pallet.ChangePalletStatus({
+            await apiClient.pallet.CreateOperatorReport({
                 pallet_id: activePallet.pallet_id,
-                new_status: pendingFault.status,
-                block_reason: description,
-                reset_cycles: false,
-                acceptLanguage: language,
+                kind: pendingFault.status === 'Washing_Required' ? 'washing' : 'defect',
+                defect_id: pendingFault.status === 'Washing_Required' || selectedDefect === 'other' ? null : Number(selectedDefect),
+                description: customFaultText.trim(), acceptLanguage: language,
             });
 
             triggerToast(t('op_fault_reported_with_name', {faultName}));
@@ -290,15 +308,25 @@ export const useOperatorPanel = () => {
         } finally {
             setIsSubmitting(false);
         }
-    }, [activePallet, apiClient, language, queryClient, t, triggerToast, pendingFault, customFaultText, isSubmitting]);
+    }, [activePallet, apiClient, language, queryClient, t, triggerToast, pendingFault, customFaultText, selectedDefect, defectsQuery.data, isSubmitting]);
 
     const handleClearActivePallet = useCallback(() => {
+        scanAbortRef.current?.abort();
+        ++scanRequestRef.current;
+        setIsScanning(false);
         setActivePallet(null);
+        setUnavailablePallet(null);
+        setScanFeedback(null);
+        setScanStatus('IDLE');
         setScannedId('');
-        if (barcodeInputRef.current) {
-            barcodeInputRef.current.focus();
-        }
-    }, []);
+        // Router navigation can commit after the local reset. Keep the old URL
+        // consumed until the effect observes its removal, avoiding a second scan.
+        processedUrlIdRef.current = searchParams.get('palletID')?.trim().toUpperCase() || null;
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.delete('palletID');
+        setSearchParams(nextParams, {replace: true});
+        requestAnimationFrame(() => barcodeInputRef.current?.focus());
+    }, [searchParams, setSearchParams]);
 
     // Operator Hotkeys: 1, 2, 3 to report quick faults when active pallet is open
     useEffect(() => {
@@ -318,7 +346,7 @@ export const useOperatorPanel = () => {
                 openFaultModal(t('op_washing_required'), 'Washing_Required');
             } else if (e.key === '3') {
                 e.preventDefault();
-                openFaultModal(t('op_pockets_error'), 'Damaged');
+                openFaultModal(t('op_other_fault_type'), 'Damaged', 'other');
             } else if (e.key === 'Escape') {
                 e.preventDefault();
                 handleClearActivePallet();
@@ -327,11 +355,11 @@ export const useOperatorPanel = () => {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [activePallet, handleClearActivePallet, openFaultModal, isOtherFaultOpen, isSubmitting, t]);
+    }, [activePallet, handleClearActivePallet, openFaultModal, isOtherFaultOpen, isSubmitting, t, defectsQuery.data]);
 
     return {
         data: {
-            scannedId,
+            scannedId, unavailablePallet, selectedDefect, defects: defectsQuery.data?.defects ?? [], defectsLoading: defectsQuery.isPending, defectsError: defectsQuery.isError,
             lastScannedId,
             activePallet,
             scanStatus,
@@ -352,7 +380,7 @@ export const useOperatorPanel = () => {
             setVolumeLevel: updateVolumeLevel,
             cycleVolumeLevel,
             setScannedId: (value: string) => setScannedId(value.toUpperCase()),
-            openFaultModal,
+            openFaultModal, setSelectedDefect: (value: string) => {setSelectedDefect(value); if (value !== 'other') setCustomFaultText('');},
             closeFaultModal,
             setCustomFaultText,
             handleScanSubmit,

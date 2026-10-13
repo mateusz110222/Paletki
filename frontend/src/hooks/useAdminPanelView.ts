@@ -28,15 +28,18 @@ export function useAdminPanelView(props: Parameters<typeof useAdminPanel>[0], pa
     const selectedProjectFromUrl = searchParams.get('project') || 'ALL';
     const selectedModelFromUrl = searchParams.get('model') || 'ALL';
     const selectedStatusFromUrl = searchParams.get('status') || 'ALL';
+    const machineFromUrl = searchParams.get('machine');
+    const selectedMachineFromUrl = machineFromUrl && ['WSM', 'SSM', 'COAT'].includes(machineFromUrl) ? machineFromUrl : 'ALL';
     const searchTermFromURL = searchParams.get('searchTerm') || '';
     const {
         setSearchTerm,
         setSelectedModel,
         setSelectedProject,
         setSelectedStatus,
+        setSelectedMachine,
     } = actions;
     const hasActiveFilters = selectedProjectFromUrl !== 'ALL' || selectedModelFromUrl !== 'ALL' ||
-        selectedStatusFromUrl !== 'ALL' || Boolean(searchTermFromURL);
+        selectedStatusFromUrl !== 'ALL' || selectedMachineFromUrl !== 'ALL' || Boolean(searchTermFromURL);
     const cycleStepEvery = Number(data.cycleStepEvery);
     const cycleStepAmount = Number(data.cycleStepAmount);
     const rangeCycleStepValid = data.addMode !== 'range' || !data.cycleSteppingEnabled || Boolean(
@@ -58,13 +61,16 @@ export function useAdminPanelView(props: Parameters<typeof useAdminPanel>[0], pa
         navigate(`/admin/pallets/${encodeURIComponent(pallet.pallet_id)}/history`);
     };
 
+    useEffect(() => {setSelectedMachine(selectedMachineFromUrl);}, [selectedMachineFromUrl, setSelectedMachine]);
+
     const clearFilters = () => {
         const nextParams = new URLSearchParams(searchParams);
-        ['project', 'model', 'status', 'searchTerm'].forEach((key) => nextParams.delete(key));
+        ['project', 'model', 'status', 'machine', 'searchTerm'].forEach((key) => nextParams.delete(key));
         setSearchParams(nextParams);
         actions.setSelectedProject('ALL');
         actions.setSelectedModel('ALL');
         actions.setSelectedStatus('ALL');
+        actions.setSelectedMachine('ALL');
         actions.setSearchTerm('');
     };
 
@@ -102,11 +108,13 @@ export function useAdminPanelView(props: Parameters<typeof useAdminPanel>[0], pa
         selectedProjectFromUrl,
         selectedModelFromUrl,
         selectedStatusFromUrl,
+        selectedMachineFromUrl,
         searchTermFromURL,
         setSearchTerm,
         setSelectedModel,
         setSelectedProject,
         setSelectedStatus,
+        setSelectedMachine,
         hasActiveFilters,
         cycleStepEvery,
         cycleStepAmount,

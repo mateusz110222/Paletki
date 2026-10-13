@@ -11,7 +11,7 @@ import { Pagination } from '../components/Pagination.tsx';
 import { formatHistoryEntries, formatOperatorsCount } from '../i18n/pluralization.ts';
 
 import {usePalletHistoryView} from '../hooks/usePalletHistoryView';
-export const PalletHistoryView: React.FC = () => {
+export const PalletHistoryView: React.FC<{backPath?: string}> = ({backPath = '/admin'}) => {
     const {
         navigate,
         t,
@@ -77,10 +77,10 @@ export const PalletHistoryView: React.FC = () => {
                 <p className="mt-2 text-sm text-red-300">{error}</p>
                 <button
                     type="button"
-                    onClick={() => navigate('/admin')}
+                    onClick={() => navigate(backPath)}
                     className="mt-6 inline-flex items-center gap-2 rounded-lg border border-brand-border bg-brand-surface px-4 py-2 text-xs font-bold uppercase text-brand-text transition-colors hover:border-brand-accent hover:text-brand-accent"
                 >
-                    <ArrowLeft size={15}/> {t('history_back_to_admin')}
+                    <ArrowLeft size={15}/> {t(backPath === '/admin' ? 'history_back_to_admin' : 'history_back_to_lookup')}
                 </button>
             </div>
         );
@@ -91,10 +91,10 @@ export const PalletHistoryView: React.FC = () => {
             <div className="flex items-center justify-between">
                 <button
                     type="button"
-                    onClick={() => navigate('/admin')}
+                    onClick={() => navigate(backPath)}
                     className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-brand-text-muted transition-colors hover:text-brand-accent"
                 >
-                    <ArrowLeft size={16}/> {t('history_back_to_admin')}
+                    <ArrowLeft size={16}/> {t(backPath === '/admin' ? 'history_back_to_admin' : 'history_back_to_lookup')}
                 </button>
 
                 <button
@@ -146,7 +146,7 @@ export const PalletHistoryView: React.FC = () => {
                                 {pallet.status && <PalletStatusSpan status={pallet.status}/>}
                             </div>
                             <p className="mt-2 text-sm font-semibold text-brand-text">
-                                {pallet.project} <span className="text-brand-text-muted">•</span> {pallet.model}
+                                {pallet.project} <span className="text-brand-text-muted">•</span> {pallet.model} · {t('label_machine')}: {pallet.machine}
                             </p>
                         </div>
                     </div>
@@ -210,32 +210,32 @@ export const PalletHistoryView: React.FC = () => {
                             ))}
                         </select>
                     </label>
-                    <label className="relative">
+                    <label className="relative block">
                         <span className="sr-only">{t('history_event_filter')}</span>
-                        <Filter className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-brand-text-muted" size={15}/>
+                        <Filter className="pointer-events-none absolute left-3 top-1/2 z-10 shrink-0 -translate-y-1/2 text-brand-text-muted" size={15}/>
                         <select
                             value={eventType}
                             onChange={(event) => {
                                 setEventType(event.target.value as EventType);
                                 setPage(1);
                             }}
-                            className="h-11 w-full rounded-lg border border-brand-border bg-brand-bg pl-9 pr-3 text-xs font-semibold text-brand-text outline-none"
+                            className="h-11 w-full rounded-lg border border-brand-border bg-brand-bg history-select-with-icon pl-10 pr-3 text-xs font-semibold text-brand-text outline-none"
                         >
                             <option value="all">{t('history_all_events')}</option>
                             <option value="status">{t('history_status_changes')}</option>
                             <option value="update">{t('history_updates')}</option>
                         </select>
                     </label>
-                    <label className="relative">
+                    <label className="relative block">
                         <span className="sr-only">{t('history_operator_filter')}</span>
-                        <UserRound className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-brand-text-muted" size={15}/>
+                        <UserRound className="pointer-events-none absolute left-3 top-1/2 z-10 shrink-0 -translate-y-1/2 text-brand-text-muted" size={15}/>
                         <select
                             value={operator}
                             onChange={(event) => {
                                 setOperator(event.target.value);
                                 setPage(1);
                             }}
-                            className="h-11 w-full rounded-lg border border-brand-border bg-brand-bg pl-9 pr-3 text-xs font-semibold text-brand-text outline-none"
+                            className="h-11 w-full rounded-lg border border-brand-border bg-brand-bg history-select-with-icon pl-10 pr-3 text-xs font-semibold text-brand-text outline-none"
                         >
                             <option value="ALL">{t('history_all_operators')}</option>
                             {operators.map((name) => <option key={name} value={name}>{name}</option>)}
@@ -298,7 +298,8 @@ export const PalletHistoryView: React.FC = () => {
             ) : (
                 <div className="relative space-y-4 before:absolute before:bottom-6 before:left-4.75 before:top-6 before:w-px before:bg-brand-border sm:before:left-6.75">
                     {visibleHistory.map((entry: AuditLog) => {
-                        const isStatusChange = entry.previous_status !== entry.new_status;
+                        const isUnblock = entry.event_kind === 'unblock';
+                        const isStatusChange = entry.event_kind === 'status' || (!entry.event_kind && entry.previous_status !== entry.new_status);
                         return (
                             <article key={entry.id} className="relative pl-12 sm:pl-16">
                                 <div className={`absolute left-3 top-6 z-10 h-4 w-4 rounded-full border-[3px] bg-brand-surface sm:left-5 ${
@@ -308,17 +309,17 @@ export const PalletHistoryView: React.FC = () => {
                                     <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                                         <div className="min-w-0">
                                             <p className="text-[0.625rem] font-black uppercase tracking-[0.16em] text-brand-accent">
-                                                {isStatusChange ? t('status_change') : t('status_on_modification')}
+                                                {isUnblock ? t('history_unblocked') : isStatusChange ? t('status_change') : t('status_on_modification')}
                                             </p>
-                                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                                            {!isUnblock && <div className="mt-2 flex flex-wrap items-center gap-2">
                                                 {renderStatus(entry.previous_status, entry.description)}
                                                 {isStatusChange && (
                                                     <>
-                                                        <ArrowRight size={14} className="text-brand-text-muted"/>
+                                                        <ArrowRight size={14} className="shrink-0 text-brand-text-muted"/>
                                                         {renderStatus(entry.new_status, entry.description)}
                                                     </>
                                                 )}
-                                            </div>
+                                            </div>}
                                         </div>
                                         <div className="flex shrink-0 items-center gap-2 text-[0.6875rem] font-mono text-brand-text-muted">
                                             <CalendarClock size={14}/>
@@ -326,12 +327,13 @@ export const PalletHistoryView: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    {entry.description && (
+                                    {entry.description && !isUnblock && (
                                         <p className="mt-4 rounded-lg border border-brand-border/60 bg-brand-bg/70 px-4 py-3 text-xs leading-relaxed text-brand-text">
                                             {entry.description}
                                         </p>
                                     )}
 
+                                    {isUnblock && entry.comment && <div className="mt-4 rounded-xl border border-brand-border/60 bg-brand-bg/70 px-4 py-3"><p className="text-[10px] font-bold uppercase tracking-wider text-brand-text-muted">{t('history_comment')}</p><p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-brand-text">{entry.comment}</p></div>}
                                     <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-brand-border/50 pt-3 text-[0.625rem] text-brand-text-muted">
                                         <span className="inline-flex items-center gap-1.5">
                                             <UserRound size={13}/>

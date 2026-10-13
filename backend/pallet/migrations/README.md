@@ -13,10 +13,12 @@ zgodnie z konfiguracją `pallet/db.ts` i `encore.app`.
 | `4_auth_sessions.up.sql`          | Sesje logowania i indeks czasu wygaśnięcia.                                                                 |
 | `5_fis_outbox.up.sql`             | Kolejka synchronizacji FIS, wszystkie jej indeksy i początkowy stan uzgadniania danych.                     |
 | `6_production_tracking.up.sql`    | Historia stanowisk z kluczem `(station, pallet_id)` oraz zdarzenia naliczania cykli.                        |
+| `7_defects_reports_machine.up.sql` | Słownik defektów, edytowalne zgłoszenia operatorów, maszyna WSM/SSM/COAT i zamykanie zgłoszeń po obsłudze. |
+| `8_status_tracking_and_release_audit.up.sql` | Data wejścia w status i okresy serwisowe niezależne od audytu; bez wpisów automatycznego mycia; osobne odblokowanie. |
 
 Indeksy są przy tabelach, których dotyczą. Poprawki kolejki FIS i klucza
-stanowisk są częścią ich definicji. Nie ma tymczasowych kolumn nazw w paletkach,
-przepisywania danych ani wyłączania wyzwalaczy na czas konwersji.
+stanowisk są częścią ich definicji. Nie ma tymczasowych kolumn nazw w paletkach ani wyłączania wyzwalaczy.
+Migracje 7 i 8 uzupełniają maszynę, datę statusu i okresy serwisowe istniejących rekordów.
 
 Po pierwszym wdrożeniu tego zestawu kolejne zmiany schematu należy dodawać
-jako nowe migracje od numeru 7, bez zmieniania wykonanych plików.
+jako nowe migracje od numeru 9, bez zmieniania wykonanych plików.

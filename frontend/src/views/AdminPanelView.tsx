@@ -79,6 +79,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
         selectedProjectFromUrl,
         selectedModelFromUrl,
         selectedStatusFromUrl,
+        selectedMachineFromUrl,
         searchTermFromURL,
         hasActiveFilters,
         cycleStepEvery,
@@ -256,6 +257,20 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                     {t(`status_${status.toLowerCase()}` as TranslationKey)}
                                 </option>
                             ))}
+                        </select>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                        <label htmlFor="admin-filter-machine" className="text-[0.625rem] uppercase font-bold text-brand-text-muted">{t('filter_by_machine')}</label>
+                        <select id="admin-filter-machine" value={selectedMachineFromUrl} onChange={event => {
+                            const value = event.target.value;
+                            const params = new URLSearchParams(searchParams);
+                            if (value === 'ALL') params.delete('machine'); else params.set('machine', value);
+                            setSearchParams(params);
+                            actions.setSelectedMachine(value);
+                        }} className="bg-brand-bg border border-brand-border text-xs rounded p-2 text-brand-text font-medium focus:ring-1 focus:ring-brand-accent">
+                            <option value="ALL">{t('all_machines')}</option>
+                            {['WSM', 'SSM', 'COAT'].map(machine => <option key={machine} value={machine}>{machine}</option>)}
                         </select>
                     </div>
 
@@ -600,6 +615,10 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 </SelectField>
                             </div>
 
+                            <SelectField label={t('label_machine')} value={data.newMachine} required onChange={e => actions.setNewMachine(e.target.value as 'WSM' | 'SSM' | 'COAT')}>
+                                <option value="">{t('machine_select')}</option>
+                                {['WSM', 'SSM', 'COAT'].map(machine => <option key={machine}>{machine}</option>)}
+                            </SelectField>
                             {/* Sekcja parametrów technicznych: Cykle, Gniazda, FIS */}
                             <div className="grid grid-cols-3 gap-3">
                                 <InputField
@@ -778,6 +797,9 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 </div>
                             </div>
 
+                            <SelectField label={t('label_machine')} value={data.editMachine} required onChange={e => actions.setEditMachine(e.target.value as 'WSM' | 'SSM' | 'COAT')}>
+                                {['WSM', 'SSM', 'COAT'].map(machine => <option key={machine}>{machine}</option>)}
+                            </SelectField>
                             {/* Sekcja parametrów technicznych: FIS, Gniazda (nests), Limit Cykli (max_cycles) */}
                             <div className="grid grid-cols-3 gap-3">
                                 <SelectField
@@ -827,11 +849,11 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                             </SelectField>
 
                             {/* Powód Blokady (gdy wybrany status to Blocked) */}
-                            {data.editStatus === 'Blocked' && (
+                            {(data.editStatus === 'Blocked' || data.selectedPalletForEdit.status === 'Blocked') && (
                                 <TextareaField
-                                    label={<>{t('label_block_reason')} *</>}
-                                    value={data.editBlockReason}
-                                    onChange={(e) => actions.setEditBlockReason(e.target.value)}
+                                    label={<>{t(data.editStatus === 'Blocked' ? 'label_block_reason' : 'unblock_comment')} *</>}
+                                    value={data.editStatus === 'Blocked' ? data.editBlockReason : data.editUnblockComment}
+                                    onChange={(e) => data.editStatus === 'Blocked' ? actions.setEditBlockReason(e.target.value) : actions.setEditUnblockComment(e.target.value)}
                                     rows={3}
                                     placeholder={t('block_reason_required')}
                                     required
@@ -968,10 +990,11 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                             <p className="font-semibold">{data.selectedPalletForUnblock.project} · {data.selectedPalletForUnblock.model}</p>
                             {data.selectedPalletForUnblock.block_reason && <p className="mt-2 break-words text-brand-text-muted">{t('block_reason')}: {data.selectedPalletForUnblock.block_reason}</p>}
                         </div>
+                        <TextareaField label={t('unblock_comment')} value={data.unblockComment} onChange={e => actions.setUnblockComment(e.target.value)} required maxLength={1000} disabled={status.isSubmitting} />
                         {data.unblockError && <p role="alert" className="rounded-lg border border-rose-400/30 bg-rose-400/10 p-3 text-sm text-rose-200">{data.unblockError}</p>}
                         <div className="flex gap-3 border-t border-brand-border pt-4">
                             <button autoFocus type="button" disabled={status.isSubmitting} onClick={actions.closeUnblock} className="min-h-12 flex-1 rounded-xl border border-brand-border px-4 text-sm font-bold disabled:opacity-50">{t('btn_cancel')}</button>
-                            <button type="button" disabled={status.isSubmitting} onClick={() => void actions.handleConfirmUnblock()} className="min-h-12 flex-1 rounded-xl bg-emerald-400 px-4 text-sm font-black text-brand-bg disabled:opacity-50">{status.isSubmitting ? t('saving') : t('btn_unblock')}</button>
+                            <button type="button" disabled={status.isSubmitting || !data.unblockComment.trim()} onClick={() => void actions.handleConfirmUnblock()} className="min-h-12 flex-1 rounded-xl bg-emerald-400 px-4 text-sm font-black text-brand-bg disabled:opacity-50">{status.isSubmitting ? t('saving') : t('btn_unblock')}</button>
                         </div>
                     </section>
                 </ModalTransition>}

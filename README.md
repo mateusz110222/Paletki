@@ -18,7 +18,7 @@ The system enforces automated lifecycle workflows, cycle limit tracking, FIS gro
 * **Real-Time Statuses**: `Active`, `Washing_Required`, `Damaged`, and `Blocked`.
 * **Automatic Washing Trigger**: Database triggers automatically transition pallets to `Washing_Required` when `current_cycles >= max_cycles`.
 * **Soft Deletion & Reactivation**: Pallets can be safely deleted (soft-delete). Re-registering an existing deleted pallet ID reactivates it cleanly without unique constraint collisions.
-* **Audit Trail**: Every change (creation, status update, parameter edit, blocking, deletion, reactivation) is immutably logged with localized change descriptions and operator attribution.
+* **Audit Trail**: Every change (creation, status update, parameter edit, blocking, deletion, reactivation) is logged with localized change descriptions and operator attribution.
 * **Audit Trail Export**: Full export of audit logs to JSON/CSV for compliance and analysis.
 * **Project Model Catalog**: Pallet models are registered once per project. The pallet form first selects a project and then exposes only models assigned to that project.
 * **Copy Pallet Data**: An inventory action pre-fills a new-pallet form from an existing pallet while requiring a new pallet ID.
@@ -40,7 +40,7 @@ The FIS MySQL host must be reachable from the backend container. Grant the confi
 * **Dedicated Machine Ingress Port**: Separate network port (`FIS_INGRESS_PORT`, default `4000`) for soldering machines calling `/fis/*`, isolating factory equipment from management UI endpoints.
 
 ### 4. Operator Barcode Scanner UI & Maintenance Suite
-* **Fast Barcode Workflow**: Instant barcode input handling with custom audio cues (success/error chimes) and hotkeys (`1`, `2`, `3`) for reporting common faults in seconds.
+* **Fast Barcode Workflow**: Instant barcode input handling with custom audio cues (success/error chimes) and hotkeys (`1`, `2`) for reporting common faults in seconds.
 * **Transparent Error Handling**: Direct presentation of backend validation and business rule messages (e.g. duplicate IDs, invalid status transitions) instead of generic placeholders.
 * **Bilingual Localization**: Full Polish (PL) and English (EN) support across all views, audit records, and server messages.
 * **Safe Session & Export Handling**: Expired browser sessions are rejected during restoration, and CSV exports neutralize spreadsheet formulas in user-controlled fields.
@@ -51,7 +51,10 @@ The FIS MySQL host must be reachable from the backend container. Grant the confi
 3. Add a pallet by entering its ID, selecting the project, and then choosing a model from the filtered list.
 4. To create a similar pallet, use the **Copy** action in the inventory table. Project, model, cycle limit, nests, and FIS are copied, while the new pallet ID remains empty and must be unique.
 
-Migration `7_create_pallet_models.up.sql` automatically imports distinct project/model pairs already used by existing pallets, so upgrading an existing installation does not require manual catalog reconstruction.
+The current fresh-install schema creates the project/model catalog in migration
+`1_project_model_catalog.up.sql`. The complete eight-migration set is described in
+[the migration guide](backend/pallet/migrations/README.md). Before upgrading an
+older installation, compare its schema and migration history and back up the database.
 
 ### 6. Public Live Dashboard
 * **No sign-in required**: both the original project monitor at `/live` and the operational dashboard at `/dashboard` can be opened directly or embedded in another dashboard.
@@ -63,6 +66,32 @@ Migration `7_create_pallet_models.up.sql` automatically imports distinct project
 * **Read-only data feed**: `/public/dashboard` intentionally excludes employee names, service comments, block reasons, and raw audit history.
 
 ---
+
+## Application Documentation (PL / EN)
+
+Open **Documentation** in the application menu (`/documentation`). Every signed-in
+session, including operators, can read all chapters; links to application panels
+follow the session's permissions. Search covers instructions, tables and API
+examples, ignores accents and case, and matches every word in the query. Share a
+chapter with `/documentation?section=status-counters`.
+
+The [standalone documentation](docs/Paletki.html) contains both languages, styles,
+search and print layout in one file. Download or copy it and open it locally in a
+browser; it does not need a server or internet access. Printing includes all
+chapters in the selected language.
+
+The guide distinguishes the current FIS soldering page using `soldering.php`
+(inspected on 2026-10-08) from the repository's Encore integration. The running
+CGI page is not updated by building Paletki.
+
+```bash
+pnpm docs:build  # regenerate docs/Paletki.html from shared bilingual content
+pnpm docs:check  # verify that the checked-in HTML is current, without rewriting it
+```
+
+The standard frontend build also regenerates the HTML. Update documentation in
+`frontend/src/documentation/content.ts`, then regenerate and commit the HTML
+together with its source.
 
 ## Architecture Overview
 
@@ -324,3 +353,26 @@ Deploy the backend and station script together for this simplified request contr
 The `/fis/*` routes intentionally have no user session because they are consumed by
 legacy machines. Access to the machine ingress port must therefore be limited to
 trusted production networks at the firewall or reverse proxy.
+
+## PalletX improvements
+
+- Maintenance manages the shared defect catalog (add, rename, delete). Scanner defects set `Damaged`; “Other” requires a description. Washing remains a separate action with its own editable report.
+- UR/ME/IT can edit open reports. The original report and its linked history entry are overwritten atomically: no previous text or correction event is retained. Original operator and reporting time remain; the report exposes its last editor and edit time. Returning a pallet to production closes its reports.
+- Unblocking requires a comment; blocked pallets show their reason in the scanner.
+- Pallets have a required machine (`WSM`, `SSM`, `COAT`), independent of FIS. Migration 7 assigns WSM to existing pallets. No old damage reports are imported.
+- `/reports` provides paginated history/current-state reports for UR/ME/IT and complete XLSX export. Dates cover complete days in Europe/Warsaw. Current-state dates refer to status entry, not the last production cycle. Project/model/machine columns show current metadata.
+- `pnpm test:postgres` runs endpoint and migration tests on its own disposable PostgreSQL Docker container; it does not require Encore's daemon or touch the application's database.
+
+### Updated navigation and audit
+
+The menu has one Dashboard entry (`/dashboards`) with Live and Operations choices. Maintenance (`/maintenance`) opens a choice of service (`/maintenance/service`) and the separate defect catalog (`/maintenance/defects`). Public `/live` and `/dashboard` links remain available.
+
+Migration 8 stops logging automatic washing transitions, tracks status entry time separately and preserves dashboard service durations in service periods. Unblocking displays its own comment separately from the status. Legacy combined release descriptions are corrected without changing the original comment, author or date.
+
+Frontend scripts resolve Vite, ESLint and tsx from the workspace directly to avoid stale Windows `.bin` paths after pnpm hoisting.
+
+The UR after-washing scanner (`/maintenance/washing`) confirms completed washing on Active/Washing_Required pallets, including early washing. `POST /pallets/confirm-washing` requires UR/ME/IT, the scanned cycle count and its updated_at version, resets only current cycles and records one manual audit event. Damaged/Blocked pallets and stale scanned counts are rejected. No extra database migration is required beyond migration 8.
+
+The Maintenance hub uses four tiles in a 2×2 desktop layout. `/maintenance/history` accepts a scanned or typed pallet ID and opens the existing history viewer at `/maintenance/pallets/:palletId/history`. Individual history is available to UR/ME/IT; bulk audit remains ME/IT only. The operator scanner displays Damaged and Blocked pallets as read-only reason cards. The defect description field appears only for Other and is cleared when switching to a catalog defect; washing reports need no operator comment.
+
+Frontend area bundles (operator, maintenance, dashboards and admin) load on first entry through a shared Suspense resource per area. Once resolved, all views in that area read the module synchronously, avoiding a loading flash on their first visit. All screens within an area share its module; documentation is loaded separately. The authenticated shell remains visible during loading or module errors; reload is manual and keeps the current URL. Full inventory queries run only for admin and maintenance service, with router catalog queries only for admin. Production build emits a Vite manifest and verifies that area modules are absent from the shell static dependency graph and do not eagerly import each other; XLSX stays deferred until export.

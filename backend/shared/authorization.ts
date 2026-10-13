@@ -24,3 +24,11 @@ export function requirePalletManagementUser(): AuthData {
     }
     return auth;
 }
+
+export function requireMaintenanceUser(): AuthData {
+    const auth = requireAuthenticatedUser();
+    if (!auth.hasITDepartmentAccess && !auth.hasMEDepartmentAccess && !auth.hasURDepartmentAccess) {
+        throw APIError.permissionDenied(t("auth_management_required"));
+    }
+    return auth;
+}

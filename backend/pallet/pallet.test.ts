@@ -24,6 +24,19 @@ describe("backend translations", () => {
 });
 
 describe("localized audit descriptions", () => {
+    it("interpolates both legacy double braces and new single braces", () => {
+        expect(t("audit_change_machine", "pl", {from: "WSM", to: "COAT"})).toBe("maszyna: WSM → COAT");
+        expect(t("audit_unblocked_cycle_limit", "pl", {maxCycles: 200})).toContain("200 cykli");
+        expect(t("audit_cycle_limit", "en", {maxCycles: 200})).toContain("200 cycles");
+    });
+    it("separates legacy release comments from automatic washing wording", () => {
+        const log = localizeAuditLog({id: 17, pallet_id: "PAL-1", timestamp: new Date(0), operator_id: "IT",
+            previous_status: "Blocked", new_status: "Washing_Required",
+            description: encodeAuditDescription("audit_unblocked_cycle_limit", {maxCycles: 200}, "Checked")}, "pl");
+        expect(log.event_kind).toBe("unblock");
+        expect(log.comment).toBe("Checked");
+        expect(log.description).not.toMatch(/mycie|maxCycles|Checked/);
+    });
     it("localizes encoded descriptions at read time", () => {
         const encoded = encodeAuditDescription("audit_cycle_limit", {maxCycles: 200});
         expect(localizeAuditDescription(encoded, "pl")).toContain("200 cykli");

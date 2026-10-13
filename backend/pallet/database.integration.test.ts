@@ -52,6 +52,7 @@ type PalletRangeClient = {
             cycle_step_every?: number;
             cycle_step_amount?: MaxCycles;
             nests: NestCount;
+            machine: 'WSM' | 'SSM' | 'COAT';
             status: 'Active';
             fis: FisUnit;
             acceptLanguage?: string;
@@ -82,6 +83,7 @@ async function addPallet(id: string, model = 'MODEL-A', cycles = 2): Promise<voi
         model: shortText(model),
         max_cycles: maxCycles(cycles),
         nests: nests(2),
+        machine: 'WSM',
         status: 'Active',
         fis: fisUnit(1),
         acceptLanguage: 'en',
@@ -95,6 +97,7 @@ async function addPalletForProject(id: string, project: string, model: string): 
         model: shortText(model),
         max_cycles: maxCycles(200),
         nests: nests(2),
+        machine: 'WSM',
         status: 'Active',
         fis: fisUnit(1),
         acceptLanguage: 'en',
@@ -223,7 +226,7 @@ describe('PostgreSQL pallet integration', () => {
         expect(await fis.RegisterSolderingCycle(request)).toMatchObject({current_cycles: 2, total_cycles: 2, pallet_status: 'Washing_Required'});
         await expect(fis.RegisterSolderingCycle(request)).rejects.toMatchObject({code: 'failed_precondition'});
         expect(await db.queryRow`SELECT new_status FROM pallet_audit_logs WHERE pallet_id = 'PALLET-CYCLES' AND new_status = 'Washing_Required' LIMIT 1`)
-            .toEqual({new_status: 'Washing_Required'});
+            .toBeNull();
     });
 
     it('does not lose concurrent cycle increments', async () => {
@@ -290,7 +293,8 @@ describe('PostgreSQL pallet integration', () => {
             cycle_step_every: 2,
             cycle_step_amount: maxCycles(10),
             nests: nests(2),
-            status: 'Active',
+            machine: 'WSM',
+        status: 'Active',
             fis: fisUnit(1),
             acceptLanguage: 'en',
         }, callOptions);
@@ -315,7 +319,8 @@ describe('PostgreSQL pallet integration', () => {
             model: shortText('MODEL-A'),
             max_cycles: maxCycles(200),
             nests: nests(2),
-            status: 'Active',
+            machine: 'WSM',
+        status: 'Active',
             fis: fisUnit(1),
             acceptLanguage: 'en',
         }, callOptions)).rejects.toThrow();

@@ -49,7 +49,7 @@ describe("pallet authorization policy", () => {
 
     it("keeps blocked pallets out of the operator panel", () => {
         expect(canOpenPalletInOperatorPanel("Active")).toBe(true);
-        expect(canOpenPalletInOperatorPanel("Damaged")).toBe(true);
+        expect(canOpenPalletInOperatorPanel("Damaged")).toBe(false);
         expect(canOpenPalletInOperatorPanel("Washing_Required")).toBe(true);
         expect(canOpenPalletInOperatorPanel("Blocked")).toBe(false);
     });

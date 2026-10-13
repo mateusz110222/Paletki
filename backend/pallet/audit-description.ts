@@ -1,6 +1,5 @@
 import {AuditLog} from "../shared/types";
 import type {AuditLogRecord} from "./models";
-import {toAuditLogDTO} from "./models";
 import {SupportedLanguage, t, TranslationKey} from "../shared/i18n";
 
 const PREFIX = "i18n:";
@@ -55,9 +54,17 @@ export function localizeAuditLog(log: AuditLogRecord, lang?: SupportedLanguage |
             ? t("system_operator", lang)
             : log.operator_id;
 
+    let encoded: EncodedAuditDescription | undefined;
+    if (log.description.startsWith(PREFIX)) {
+        try {encoded = JSON.parse(log.description.slice(PREFIX.length));} catch { /* Legacy plain text. */ }
+    }
+    const isUnblock = encoded?.key === 'audit_unblocked' || encoded?.key === 'audit_unblocked_cycle_limit';
     return {
-        ...toAuditLogDTO(log),
+        ...log,
+        event_kind: isUnblock ? 'unblock' : encoded?.key === 'audit_updated' || encoded?.key === 'audit_edited' ? 'update' : log.previous_status !== log.new_status ? 'status' : 'update',
+        ...(isUnblock && encoded?.comment ? {comment: encoded.comment} : {}),
+        timestamp: log.timestamp.toISOString(),
         operator_id: operatorId,
-        description: localizeAuditDescription(log.description, lang),
+        description: isUnblock ? t("audit_unblocked", lang) : localizeAuditDescription(log.description, lang),
     };
 }

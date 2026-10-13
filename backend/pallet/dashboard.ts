@@ -80,17 +80,8 @@ export const GetPublicDashboard = api(
                 p.status,
                 p.current_cycles,
                 p.max_cycles,
-                COALESCE(status_change.timestamp, p.updated_at) AS status_changed_at
+                p.status_changed_at
             FROM pallet_details p
-            LEFT JOIN LATERAL (
-                SELECT timestamp
-                FROM pallet_audit_logs
-                WHERE pallet_id = p.pallet_id
-                  AND new_status = p.status
-                  AND previous_status <> new_status
-                ORDER BY id DESC
-                LIMIT 1
-            ) status_change ON TRUE
             WHERE p.deleted_at IS NULL
               AND (
                   ${showAll}::boolean
@@ -104,21 +95,10 @@ export const GetPublicDashboard = api(
                 SELECT
                     finished.timestamp AS finished_at,
                     EXTRACT(EPOCH FROM (finished.timestamp - started.timestamp)) / 60.0 AS duration_minutes
-                FROM pallet_audit_logs finished
+                FROM (SELECT pallet_id, started_at, finished_at AS timestamp FROM pallet_service_periods WHERE completed) finished
                 JOIN pallet_details serviced_pallet ON serviced_pallet.pallet_id = finished.pallet_id
-                JOIN LATERAL (
-                    SELECT timestamp
-                    FROM pallet_audit_logs started
-                    WHERE started.pallet_id = finished.pallet_id
-                      AND started.id < finished.id
-                      AND started.new_status = finished.previous_status
-                      AND started.previous_status <> started.new_status
-                    ORDER BY started.id DESC
-                    LIMIT 1
-                ) started ON TRUE
-                WHERE finished.new_status = 'Active'
-                  AND finished.previous_status IN ('Washing_Required', 'Damaged')
-                  AND finished.timestamp >= CURRENT_DATE - INTERVAL '13 days'
+                CROSS JOIN LATERAL (SELECT finished.started_at AS timestamp) started
+                WHERE finished.timestamp >= CURRENT_DATE - INTERVAL '13 days'
                   AND (
                       ${showAll}::boolean
                       OR serviced_pallet.project = ANY(${selectedProjects}::text[])
@@ -147,21 +127,10 @@ export const GetPublicDashboard = api(
                 COALESCE(ROUND(AVG(duration_minutes))::int, 0) AS average_minutes
             FROM (
                 SELECT EXTRACT(EPOCH FROM (finished.timestamp - started.timestamp)) / 60.0 AS duration_minutes
-                FROM pallet_audit_logs finished
+                FROM (SELECT pallet_id, started_at, finished_at AS timestamp FROM pallet_service_periods WHERE completed) finished
                 JOIN pallet_details serviced_pallet ON serviced_pallet.pallet_id = finished.pallet_id
-                JOIN LATERAL (
-                    SELECT timestamp
-                    FROM pallet_audit_logs started
-                    WHERE started.pallet_id = finished.pallet_id
-                      AND started.id < finished.id
-                      AND started.new_status = finished.previous_status
-                      AND started.previous_status <> started.new_status
-                    ORDER BY started.id DESC
-                    LIMIT 1
-                ) started ON TRUE
-                WHERE finished.new_status = 'Active'
-                  AND finished.previous_status IN ('Washing_Required', 'Damaged')
-                  AND finished.timestamp >= NOW() - INTERVAL '30 days'
+                CROSS JOIN LATERAL (SELECT finished.started_at AS timestamp) started
+                WHERE finished.timestamp >= NOW() - INTERVAL '30 days'
                   AND (
                       ${showAll}::boolean
                       OR serviced_pallet.project = ANY(${selectedProjects}::text[])

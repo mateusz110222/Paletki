@@ -33,6 +33,7 @@ export const StationSelectionView: React.FC<StationSelectionViewProps> = ({
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
+                        <Link to="/dashboards" className="rounded-lg border border-white/10 px-3 py-2.5 text-[10px] font-bold text-slate-200">{t('dashboard_hub_title')}</Link>
                         <LanguageSwitcher/>
                         <Link to="/" className="rounded-lg border border-white/10 bg-white/4 px-3 py-2.5 text-[10px] font-bold text-slate-200 hover:bg-white/8">
                             {t('dashboard_staff_panel')}

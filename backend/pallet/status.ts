@@ -29,6 +29,7 @@ interface BlockPalletParams extends LocalizedAuthorizedRequest {
 }
 
 interface PalletActionParams extends LocalizedAuthorizedRequest {
+    comment: AuditReason;
     pallet_id: PalletID;
 }
 
@@ -63,16 +64,17 @@ async function changePalletStatus(
             FOR UPDATE
         `;
         if (!row) throw APIError.notFound(t("pallet_not_found", lang));
+        if (row.status === "Blocked" && newStatus !== "Blocked" && !blockReason?.trim()) throw APIError.invalidArgument(t("unblock_comment_required", lang));
         if (maintenanceOnly && row.status !== 'Damaged' && row.status !== 'Washing_Required') {
             throw APIError.permissionDenied(t('auth_maintenance_required', lang));
         }
         if (operatorPanelRequest && !canOpenPalletInOperatorPanel(row.status)) {
-            throw APIError.permissionDenied(t('auth_operator_blocked', lang));
+            throw APIError.permissionDenied(t(row.status === 'Damaged' ? 'auth_operator_damaged' : 'auth_operator_blocked', lang));
         }
 
         await tx.exec`
             UPDATE pallets
-            SET status = ${newStatus}, block_reason = ${blockReason}, updated_by = ${operator},
+            SET status = ${newStatus}, block_reason = ${newStatus === "Active" ? null : blockReason}, updated_by = ${operator},
                 updated_at = NOW(), current_cycles = CASE WHEN ${resetCycles} THEN 0 ELSE current_cycles END,
                 last_operation_description = ${description}
             WHERE pallet_id = ${palletId} AND deleted_at IS NULL
@@ -143,12 +145,13 @@ export const UnblockPallet = api(
         const operator = requirePalletManagementUser().fullName;
         if (!palletId) throw APIError.invalidArgument(t("pallet_id_empty", params.acceptLanguage));
 
+        if (!params.comment?.trim()) throw APIError.invalidArgument(t("unblock_comment_required", params.acceptLanguage));
         await changePalletStatus(
             palletId,
             "Active",
             operator,
-            null,
-            encodeAuditDescription("audit_unblocked"),
+            params.comment?.trim() || null,
+            encodeAuditDescription("audit_unblocked", {}, params.comment),
             false,
             params.acceptLanguage,
         );

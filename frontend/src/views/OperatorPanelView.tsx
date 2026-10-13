@@ -1,14 +1,13 @@
+import type {PalletStatus} from '@backend/shared/types';
 import React from 'react';
-import { AlertTriangle, Box, ChevronRight, Edit3, Layers, Scan, Volume1, Volume2, VolumeX, WashingMachine, Wifi, WifiOff, X } from 'lucide-react';
+import { AlertTriangle, Box, ChevronRight, Edit3, Layers, Scan, LockKeyhole, ArrowRight, Volume1, Volume2, VolumeX, WashingMachine, Wifi, WifiOff, X } from 'lucide-react';
 import { useTranslation } from '../i18n/LanguageContext.tsx';
-import { PalletStatus } from '@backend/shared/types';
 import { useOperatorPanel } from '../hooks/useOperatorPanel.ts';
 import { PalletStatusSpan } from "../components/PalletStatusSpan.tsx";
 import { GlobalErrorModal } from "../components/GlobalErrorModal.tsx";
 import { useEscapeKey } from "../hooks/useEscapeKey.ts";
 import { ModalFormActions } from "../components/ModalFormActions.tsx";
 import { ModalPresence, ModalTransition } from '../components/ModalTransition.tsx';
-import { OPERATOR_OTHER_FAULT_STATUS } from '@backend/shared/permissions';
 
 export const OperatorPanelView: React.FC = () => {
     const { data, actions } = useOperatorPanel();
@@ -18,9 +17,11 @@ export const OperatorPanelView: React.FC = () => {
     const maxCycles = data.activePallet?.max_cycles || 1;
     const cyclePercentage = Math.min(100, Math.round((currentCycles / maxCycles) * 100));
 
-    useEscapeKey(data.errorModalState.isOpen || data.isOtherFaultOpen, () => {
+    useEscapeKey(data.errorModalState.isOpen || data.isOtherFaultOpen || data.unavailablePallet !== null, () => {
         if (data.errorModalState.isOpen) {
             actions.hideGlobalError();
+        } else if (data.unavailablePallet) {
+            actions.handleClearActivePallet();
         } else if (!data.isSubmitting) {
             actions.closeFaultModal();
         }
@@ -154,11 +155,11 @@ export const OperatorPanelView: React.FC = () => {
                     </div>
                 </div>
             </div>
-            {data.scanFeedback && (
+            {data.scanFeedback && !data.unavailablePallet && (
                 <div
                     role={data.scanFeedback.tone === 'error' ? 'alert' : 'status'}
                     className={`rounded-2xl border p-5 sm:p-6 text-lg sm:text-xl font-black flex items-center gap-3 shadow-lg transition-all animate-in fade-in duration-200 ${data.scanFeedback.tone === 'error'
-                            ? 'border-rose-400/50 bg-rose-400/10 text-rose-200 shadow-rose-950/30'
+                            ? 'border-red-500/60 bg-red-500/10 text-red-200 shadow-red-950/30'
                             : data.scanFeedback.tone === 'warning'
                                 ? 'border-amber-400/50 bg-amber-400/10 text-amber-200 shadow-amber-950/30'
                                 : 'border-emerald-400/40 bg-emerald-400/10 text-emerald-200 shadow-emerald-950/30'
@@ -171,7 +172,7 @@ export const OperatorPanelView: React.FC = () => {
                 </div>
             )}
             {/* 1. SEKCJA SKANERA (Gdy brak aktywnej palety) */}
-            {!data.activePallet && (
+            {!data.activePallet && !data.unavailablePallet && (
                 <section
                     className="bg-brand-surface border border-brand-border/80 rounded-2xl overflow-hidden shadow-2xl relative">
                     <div
@@ -231,7 +232,7 @@ export const OperatorPanelView: React.FC = () => {
                                 {data.isScanning
                                     ? t('op_scanning')
                                     : data.scanStatus === 'ERROR'
-                                        ? t('op_scan_retry')
+                                        ? t(data.unavailablePallet ? 'op_blocked_scan_status' : 'op_scan_retry')
                                         : t('op_waiting_for_scanner')}
                             </div>
                             <p id="pallet-scanner-help" className="text-xs leading-relaxed text-brand-text-muted">
@@ -248,6 +249,35 @@ export const OperatorPanelView: React.FC = () => {
             )}
 
             {/* 2. KARTA AKTYWNEJ PALETY (Wyświetlana po zeskanowaniu) */}
+            {data.unavailablePallet && <section aria-labelledby="blocked-pallet-title" className="relative overflow-hidden rounded-2xl border border-brand-border bg-brand-surface shadow-xl">
+                <div className="h-1 bg-rose-400/80"/>
+                <div className="space-y-6 p-6 sm:p-8">
+                    <header className="flex items-start justify-between gap-4">
+                        <div className="flex min-w-0 items-start gap-4">
+                            <span className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-rose-400/25 bg-rose-400/10 text-rose-300">{data.unavailablePallet.status === 'Blocked' ? <LockKeyhole size={24}/> : <AlertTriangle size={24}/>}</span>
+                            <div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-rose-300">{t(data.unavailablePallet.status === 'Blocked' ? 'op_blocked_title' : 'op_damaged_title')}</p>
+                                <h2 id="blocked-pallet-title" className="mt-1 break-all font-mono text-3xl font-black tracking-tight text-brand-text sm:text-4xl">{data.unavailablePallet.pallet_id}</h2>
+                                <p className="mt-2 text-xs text-brand-text-muted">{data.unavailablePallet.project} · {data.unavailablePallet.model} · {data.unavailablePallet.machine}</p></div>
+                        </div>
+                        <button type="button" aria-label={t('op_scan_next')} onClick={actions.handleClearActivePallet} className="rounded-xl border border-brand-border bg-brand-bg p-2.5 text-brand-text-muted transition-colors hover:text-brand-text"><X size={20}/></button>
+                    </header>
+                    <div role="alert" className="rounded-xl border border-rose-400/20 bg-rose-400/5 px-5 py-4">
+                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-rose-300">{t(data.unavailablePallet.status === 'Blocked' ? 'block_reason' : 'reason_for_reporting')}</p>
+                        <p className="mt-2 whitespace-pre-wrap break-words text-base font-semibold leading-relaxed text-brand-text">{data.unavailablePallet.block_reason || t(data.unavailablePallet.status === 'Blocked' ? 'block_reason_missing' : 'op_damage_reason_missing')}</p>
+                    </div>
+                    <div className="grid items-center gap-5 border-t border-brand-border pt-5 md:grid-cols-2">
+                        <p className="max-w-md text-sm leading-relaxed text-brand-text-muted">{t(data.unavailablePallet.status === 'Blocked' ? 'op_blocked_help' : 'op_damaged_help')}</p>
+                        <form id="scanner-form" onSubmit={e => actions.handleScanSubmit(e)} className="relative">
+                            <label htmlFor="pallet-scanner-input" className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-brand-text-muted">{t('op_scan_next')}</label>
+                            <div className="flex items-center gap-2 rounded-xl border border-brand-border bg-brand-bg px-4 focus-within:border-brand-accent">
+                                <Scan size={19} className="shrink-0 text-brand-text-muted"/>
+                                <input id="pallet-scanner-input" ref={actions.barcodeInputRef} value={data.scannedId} onChange={handleInputChange} onFocus={e => e.target.select()} aria-label={t('op_scan_input_label')} autoComplete="off" disabled={data.isScanning} className="min-w-0 flex-1 bg-transparent py-3.5 font-mono text-sm font-bold uppercase tracking-wider text-brand-text outline-none"/>
+                                <button type="submit" disabled={data.isScanning} aria-label={t('btn_scan')} className="rounded-lg p-2 text-brand-accent hover:bg-brand-accent/10"><ArrowRight size={18}/></button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </section>}
             {data.activePallet && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in slide-in-from-bottom-4 duration-300">
 
@@ -258,7 +288,7 @@ export const OperatorPanelView: React.FC = () => {
                         {/* Nagłówek Karty */}
                         <div>
                             <div
-                                className="flex justify-between items-start gap-4 pb-6 border-b border-brand-border/60">
+                                className="flex flex-wrap justify-between items-start gap-4 pb-6 border-b border-brand-border/60">
                                 <div>
                                     <span
                                         className="text-[0.6875rem] font-black text-brand-accent uppercase tracking-[0.2em] mb-1 block">
@@ -269,7 +299,7 @@ export const OperatorPanelView: React.FC = () => {
                                     </h3>
                                 </div>
                                 <div className="flex items-center gap-3 shrink-0">
-                                    <PalletStatusSpan status={data.activePallet.status as PalletStatus}
+                                    <PalletStatusSpan emphasis status={data.activePallet.status as PalletStatus}
                                         block_reason={data.activePallet.block_reason} />
                                     <button
                                         onClick={actions.handleClearActivePallet}
@@ -305,7 +335,7 @@ export const OperatorPanelView: React.FC = () => {
                                     </div>
                                     <div className="min-w-0">
                                         <p className="text-[0.625rem] font-extrabold text-brand-text-muted uppercase tracking-wider">{t('op_project_model')}</p>
-                                        <p className="text-lg font-black text-brand-text truncate">{data.activePallet.model || '-'}</p>
+                                        <p className="text-lg font-black text-brand-text truncate">{data.activePallet.model || '-'} · {data.activePallet.machine}</p>
                                     </div>
                                 </div>
                             </div>
@@ -354,62 +384,15 @@ export const OperatorPanelView: React.FC = () => {
 
                             <div className="space-y-3">
                                 {[
-                                    {
-                                        id: 'mechanical',
-                                        keyNum: '1',
-                                        label: t('op_mechanical_damage'),
-                                        status: "Damaged",
-                                        icon: <Edit3 size={18} />
-                                    },
-                                    {
-                                        id: 'dirty',
-                                        keyNum: '2',
-                                        label: t('op_washing_required'),
-                                        status: "Washing_Required",
-                                        icon: <WashingMachine size={18} />
-                                    },
-                                    {
-                                        id: 'pockets',
-                                        keyNum: '3',
-                                        label: t('op_pockets_error'),
-                                        status: "Damaged",
-                                        icon: <AlertTriangle size={18} />
-                                    },
-                                ].map((fault) => (
-                                    <button
-                                        key={fault.id}
-                                        disabled={data.isSubmitting}
-                                        onClick={() => actions.openFaultModal(fault.label, fault.status as PalletStatus)}
-                                        className="w-full group flex items-center justify-between p-4 bg-brand-bg/70 hover:bg-red-500/10 border border-brand-border/80 hover:border-red-500/40 rounded-xl transition-all text-left disabled:opacity-50 active:scale-[0.98]"
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <span
-                                                className="p-2 bg-brand-surface border border-brand-border/60 group-hover:border-red-500/30 rounded-lg text-brand-text-muted group-hover:text-red-400 transition-colors">
-                                                {fault.icon}
-                                            </span>
-                                            <span
-                                                className="text-xs font-bold text-brand-text group-hover:text-white transition-colors">{fault.label}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-mono text-[0.625rem] font-bold px-1.5 py-0.5 rounded bg-brand-surface border border-brand-border text-brand-text-muted group-hover:border-red-500/40 group-hover:text-red-400">
-                                                [{fault.keyNum}]
-                                            </span>
-                                            <ChevronRight size={16}
-                                                className="text-brand-text-muted group-hover:text-red-400 group-hover:translate-x-1 transition-all" />
-                                        </div>
-                                    </button>
-                                ))}
+                                    {name: t('op_mechanical_damage'), key: '1', icon: Edit3, status: 'Damaged' as const, defect: undefined},
+                                    {name: t('op_washing_required'), key: '2', icon: WashingMachine, status: 'Washing_Required' as const, defect: undefined},
+                                ].map(({name, key, icon: Icon, status, defect}) => <button key={key} type="button" disabled={data.isSubmitting} onClick={() => actions.openFaultModal(name, status, defect)} className="group flex w-full items-center justify-between gap-3 rounded-xl border border-brand-border/80 bg-brand-bg/70 p-4 text-left transition-colors hover:border-red-400/40 hover:bg-red-400/5 disabled:opacity-50">
+                                    <span className="flex min-w-0 items-center gap-3"><span className="rounded-lg border border-brand-border/60 bg-brand-surface p-2 text-brand-text-muted group-hover:text-red-300"><Icon size={18}/></span><span className="text-xs font-bold text-brand-text">{name}</span></span>
+                                    <span className="flex shrink-0 items-center gap-2"><kbd className="rounded border border-brand-border bg-brand-surface px-1.5 py-0.5 font-mono text-[10px] font-bold text-brand-text-muted">[{key}]</kbd><ChevronRight size={16} className="text-brand-text-muted"/></span>
+                                </button>)}
                             </div>
                         </div>
-
-                        {/* Przycisk Inna Usterka */}
-                        <button
-                            disabled={data.isSubmitting}
-                            onClick={() => actions.openFaultModal(t('op_other_fault_type'), OPERATOR_OTHER_FAULT_STATUS)}
-                            className="w-full py-3.5 px-4 border-2 border-dashed border-brand-border/80 hover:border-brand-accent/80 bg-brand-bg/30 hover:bg-brand-accent/5 rounded-xl text-xs font-black text-brand-text-muted hover:text-brand-accent transition-all uppercase tracking-wider disabled:opacity-50 active:scale-[0.98]"
-                        >
-                            + {t('op_other_fault_type')}
-                        </button>
+                        <button type="button" disabled={data.isSubmitting} onClick={() => actions.openFaultModal(t('op_other_fault_type'), 'Damaged', 'other')} className="min-h-12 w-full rounded-xl border-2 border-dashed border-brand-border bg-brand-bg/30 px-4 py-3 text-xs font-black uppercase tracking-wider text-brand-text-muted transition-colors hover:border-brand-accent/60 hover:text-brand-accent disabled:opacity-50">+ {t('op_other_fault_type')} [3]</button>
                     </div>
                 </div>
             )}
@@ -430,7 +413,7 @@ export const OperatorPanelView: React.FC = () => {
                                 className="p-5 border-b border-brand-border/80 flex justify-between items-center bg-brand-bg/40">
                                 <h3 id="operator-fault-title" className="font-black text-brand-text uppercase tracking-tight text-sm flex items-center gap-2">
                                     <AlertTriangle size={18} className="text-red-400" />
-                                    {t('op_describe_fault')}
+                                    {t(data.pendingFault?.status === 'Washing_Required' ? 'op_washing_required' : 'op_describe_fault')}
                                 </h3>
                                 <button onClick={() => actions.closeFaultModal()}
                                     disabled={data.isSubmitting}
@@ -441,25 +424,35 @@ export const OperatorPanelView: React.FC = () => {
                                 </button>
                             </div>
                             <div className="p-6 space-y-4">
-                                <p className="text-sm font-bold text-brand-text">{data.pendingFault?.name}</p>
-                                <textarea
-                                    autoFocus
+                                {data.pendingFault?.status === 'Damaged' ? <p className="text-sm font-bold text-brand-text">{data.pendingFault.name}</p> : <p className="text-sm leading-relaxed text-brand-text-muted">{t('op_washing_confirm_hint')}</p>}
+                                {data.pendingFault?.status === 'Damaged' && <label className="flex flex-col gap-3 text-sm text-brand-text">
+                                    <span>{t('defect_label')}</span>
+                                    <select autoFocus required value={data.selectedDefect} onChange={e => actions.setSelectedDefect(e.target.value)} className="w-full rounded-xl border border-brand-border bg-brand-bg p-3" disabled={data.isSubmitting}>
+                                        <option value="">{t('defect_select')}</option>
+                                        {data.defects.map(defect => <option key={defect.id} value={defect.id}>{defect.name}</option>)}
+                                        <option value="other">{t('op_other_fault_type')}</option>
+                                    </select>
+                                    {data.defectsLoading && <span role="status">{t('features_loading')}</span>}
+                                    {data.defectsError && <span role="alert">{t('defects_load_error')}</span>}
+                                </label>}
+                                {data.selectedDefect === 'other' && <textarea
                                     aria-label={t('op_describe_fault')}
                                     required
+                                    maxLength={2000}
                                     disabled={data.isSubmitting}
                                     className="w-full bg-brand-bg border border-brand-border/80 rounded-xl p-4 text-brand-text text-sm focus:ring-4 focus:ring-red-500/10 outline-none min-h-27.5 transition-all resize-none"
                                     placeholder={t('op_fault_description_placeholder')}
                                     value={data.customFaultText}
                                     onChange={(e) => actions.setCustomFaultText(e.target.value)}
-                                />
+                                />}
                                 <ModalFormActions
                                     onCancel={() => actions.closeFaultModal()}
                                     submitType="button"
                                     onSubmit={actions.handleReportFault}
-                                    submitLabel={t('op_report_damage')}
+                                    submitLabel={t(data.pendingFault?.status === 'Washing_Required' ? 'op_report_washing' : 'op_report_damage')}
                                     submittingLabel={t('saving')}
                                     isSubmitting={data.isSubmitting}
-                                    submitDisabled={!data.customFaultText.trim()}
+                                    submitDisabled={(data.pendingFault?.status === 'Damaged' && !data.selectedDefect) || (data.selectedDefect === 'other' && !data.customFaultText.trim())}
                                     variant="danger"
                                 />
                             </div>

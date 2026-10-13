@@ -198,6 +198,7 @@ export namespace pallet {
     }
 
     export interface AddPalletParams {
+        machine: "WSM" | "SSM" | "COAT"
         "pallet_id": shared.PalletID
         project: shared.ShortText
         model: shared.ShortText
@@ -215,6 +216,7 @@ export namespace pallet {
     }
 
     export interface AddPalletRangeParams {
+        machine: "WSM" | "SSM" | "COAT"
         "first_pallet_id": shared.PalletID
         "last_pallet_id": shared.PalletID
         project: shared.ShortText
@@ -323,6 +325,7 @@ export namespace pallet {
     }
 
     export interface PalletActionParams {
+        comment: string
         "pallet_id": shared.PalletID
         acceptLanguage?: string
     }
@@ -351,6 +354,7 @@ export namespace pallet {
     }
 
     export interface UpdatePalletParams {
+        machine?: "WSM" | "SSM" | "COAT"
         fis?: shared.FisUnit | null
         nests?: shared.NestCount | null
         "max_cycles"?: shared.MaxCycles | null
@@ -402,6 +406,38 @@ export namespace pallet {
             this.UpdatePallet = this.UpdatePallet.bind(this)
         }
 
+
+        public async ConfirmPalletWashing(params: {pallet_id: string; expected_cycles: number; expected_updated_at: string; comment?: string; acceptLanguage?: string}): Promise<{pallet: shared.Pallet; reset: boolean}> {
+            const {acceptLanguage, ...body} = params;
+            const resp = await this.baseClient.callTypedAPI('POST', '/pallets/confirm-washing', JSON.stringify(body), {headers: makeRecord({'accept-language': acceptLanguage})}); return await resp.json();
+        }
+        public async GetDefects(): Promise<{defects: import('@backend/shared/types').Defect[]}> {
+            const resp = await this.baseClient.callTypedAPI('GET', '/defects'); return await resp.json();
+        }
+        public async AddDefect(params: {name: string; acceptLanguage?: string}): Promise<import('@backend/shared/types').Defect> {
+            const resp = await this.baseClient.callTypedAPI('POST', '/defects', JSON.stringify({name: params.name}), {headers: makeRecord({'accept-language': params.acceptLanguage})}); return await resp.json();
+        }
+        public async UpdateDefect(id: number, params: {name: string; acceptLanguage?: string}): Promise<import('@backend/shared/types').Defect> {
+            const resp = await this.baseClient.callTypedAPI('PUT', `/defects/${encodeURIComponent(id)}`, JSON.stringify({name: params.name}), {headers: makeRecord({'accept-language': params.acceptLanguage})}); return await resp.json();
+        }
+        public async DeleteDefect(id: number, params: {acceptLanguage?: string}): Promise<void> {
+            await this.baseClient.callTypedAPI('DELETE', `/defects/${encodeURIComponent(id)}`, undefined, {headers: makeRecord({'accept-language': params.acceptLanguage})});
+        }
+        public async GetOperatorReports(params: {pallet_id: string}): Promise<{reports: import('@backend/shared/types').OperatorReport[]}> {
+            const resp = await this.baseClient.callTypedAPI('GET', '/operator-reports', undefined, {query: makeRecord({pallet_id: params.pallet_id})}); return await resp.json();
+        }
+        public async CreateOperatorReport(params: {kind?: "defect" | "washing"; pallet_id: string; defect_id?: number | null; description?: string; acceptLanguage?: string}): Promise<import('@backend/shared/types').OperatorReport> {
+            const {acceptLanguage, ...body} = params;
+            const resp = await this.baseClient.callTypedAPI('POST', '/operator-reports', JSON.stringify(body), {headers: makeRecord({'accept-language': acceptLanguage})}); return await resp.json();
+        }
+        public async EditOperatorReport(id: number, params: {pallet_id: string; version: number; defect_id?: number | null; description?: string; acceptLanguage?: string}): Promise<import('@backend/shared/types').OperatorReport> {
+            const {acceptLanguage, ...body} = params;
+            const resp = await this.baseClient.callTypedAPI('PUT', `/operator-reports/${encodeURIComponent(id)}`, JSON.stringify(body), {headers: makeRecord({'accept-language': acceptLanguage})}); return await resp.json();
+        }
+        public async GetReports(params: {mode: 'history' | 'current'; from?: string; to?: string; statuses?: string; limit?: number; offset?: number; acceptLanguage?: string}): Promise<{rows: import('@backend/shared/types').ReportRow[]; next_offset?: number}> {
+            const {acceptLanguage, ...query} = params;
+            const resp = await this.baseClient.callTypedAPI('GET', '/pallets/reports', undefined, {query: makeRecord({mode: query.mode, from: query.from, to: query.to, statuses: query.statuses, limit: query.limit?.toString(), offset: query.offset?.toString()}), headers: makeRecord({'accept-language': acceptLanguage})}); return await resp.json();
+        }
         public async UpdateProject(id: number, params: UpdateProjectParams): Promise<void> {
             const headers = makeRecord<string, string>({
                 "accept-language": params.acceptLanguage,
@@ -457,6 +493,7 @@ export namespace pallet {
 
             // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
             const body: Record<string, any> = {
+                machine: params.machine,
                 "block_reason": params["block_reason"],
                 fis:            params.fis,
                 "max_cycles":   params["max_cycles"],
@@ -478,6 +515,7 @@ export namespace pallet {
             })
 
             const body: Record<string, any> = {
+                machine: params.machine,
                 "block_reason":     params["block_reason"],
                 fis:                params.fis,
                 "first_pallet_id": params["first_pallet_id"],
@@ -634,6 +672,7 @@ export namespace pallet {
 
             // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
             const body: Record<string, any> = {
+                comment: params.comment,
                 "pallet_id": params["pallet_id"],
             }
 
@@ -648,6 +687,7 @@ export namespace pallet {
 
             // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
             const body: Record<string, any> = {
+                machine: params.machine,
                 "block_reason": params["block_reason"],
                 fis:            params.fis,
                 "max_cycles":   params["max_cycles"],
@@ -664,6 +704,8 @@ export namespace pallet {
 
 export namespace shared {
     export interface AuditLog {
+        event_kind?: "unblock" | "status" | "update"
+        comment?: string
         id: number
         "pallet_id": string
         timestamp: string
@@ -701,6 +743,7 @@ export namespace shared {
     export type NestCount = number
 
     export interface Pallet {
+        machine: "WSM" | "SSM" | "COAT"
         id: number
         "pallet_id": string
         project: string

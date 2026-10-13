@@ -4,7 +4,7 @@ const OPERATOR_ALLOWED_STATUSES: PalletStatus[] = ["Damaged", "Washing_Required"
 export const OPERATOR_OTHER_FAULT_STATUS: PalletStatus = "Damaged";
 
 export function canOpenPalletInOperatorPanel(status: PalletStatus): boolean {
-    return status !== "Blocked";
+    return status !== "Blocked" && status !== "Damaged";
 }
 
 export function canChangePalletStatus(

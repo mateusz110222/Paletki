@@ -682,3 +682,11 @@ html.tv-mode:has(.dashboard-screen) { font-size: clamp(1.25rem, 1.041667vw, 2.5r
 html { background-color: var(--color-brand-bg); color-scheme: dark; }
 html.tv-mode, html:fullscreen { scrollbar-gutter: auto; }
 html::backdrop { background: var(--color-brand-bg); }
+
+/* Icon-bearing history filters must retain room for their leading icon,
+   including Chromium's customizable select control. */
+@layer base {
+  select.history-select-with-icon:not([multiple]):not([size]) {
+    padding-left: 2.5rem !important;
+  }
+}

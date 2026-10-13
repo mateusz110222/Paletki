@@ -145,6 +145,7 @@ export const LiveMonitorView: React.FC = () => {
                         <Link to={`/dashboard?station=${encodeURIComponent(selectedStation?.station ?? 'ALL')}`} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-brand-border bg-brand-bg px-3 text-[0.625rem] font-bold text-brand-text-muted hover:border-brand-accent/50 hover:text-brand-text">
                             <BarChart3 size="0.875rem"/><span className="hidden sm:inline">{t('nav_public_dashboard')}</span>
                         </Link>
+                        <Link to="/dashboards" className="inline-flex min-h-10 items-center rounded-lg border border-brand-border px-3 text-[10px] font-bold text-brand-text-muted hover:text-brand-text">{t('dashboard_hub_title')}</Link>
                         <Link to="/" className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-brand-border bg-brand-bg px-3 text-[0.625rem] font-bold text-brand-text-muted hover:border-brand-accent/50 hover:text-brand-text">
                             <LogIn size="0.875rem"/><span className="hidden sm:inline">{t('dashboard_staff_panel')}</span>
                         </Link>

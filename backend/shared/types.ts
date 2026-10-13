@@ -13,6 +13,8 @@ export const PALLET_STATUSES: readonly PalletStatus[] = [
 ];
 
 export interface AuditLog {
+    event_kind?: "unblock" | "status" | "update";
+    comment?: string;
     id: number;
     pallet_id: string;
     timestamp: string;
@@ -22,7 +24,20 @@ export interface AuditLog {
     description: string;
 }
 
+export type PalletMachine = "WSM" | "SSM" | "COAT";
+
+export interface Defect { id: number; name: string; }
+
+export interface OperatorReport {
+    kind: "defect" | "washing";
+    id: number; pallet_id: string; audit_log_id: number;
+    defect_id: number | null; defect_name: string; description: string;
+    operator_id: string; created_at: string; closed_at: string | null;
+    version: number; edited_by: string | null; edited_at: string | null;
+}
+
 export interface Pallet {
+    machine: PalletMachine;
     id: number;
     pallet_id: string;
     project: string;
@@ -120,4 +135,10 @@ export interface DirectoryUser {
     has_it_department_access: boolean;
     has_ur_department_access: boolean;
     has_me_department_access: boolean;
+}
+
+export interface ReportRow {
+    id: number; pallet_id: string; project: string; model: string; machine: PalletMachine;
+    previous_status: string | null; status: string; timestamp: string;
+    defect: string | null; description: string; operator: string;
 }

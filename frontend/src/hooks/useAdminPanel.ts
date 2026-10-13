@@ -3,7 +3,7 @@ import {parseTableSort, readPreference, savePreference, sortPallets, type TableS
 import {useToast} from '../components/ToastProvider';
 import React, {useCallback, useMemo, useRef, useState} from 'react';
 import {getErrorMessage} from '../lib/errors';
-import {Pallet, PalletModel, PalletStatus, Project} from '@backend/shared/types';
+import {Pallet, PalletModel, PalletStatus, PalletMachine, Project} from '@backend/shared/types';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
 import {useGlobalErrorModal} from "./useGlobalErrorModal.ts";
 import {useAuth} from "../auth/AuthContext.tsx";
@@ -45,6 +45,7 @@ export const useAdminPanel = ({
     const [selectedProject, setSelectedProject] = useState('ALL');
     const [selectedModel, setSelectedModel] = useState('ALL');
     const [selectedStatus, setSelectedStatus] = useState('ALL');
+    const [selectedMachine, setSelectedMachine] = useState('ALL');
 
     // Modals state
     const [isAddOpen, setIsAddOpen] = useState(false);
@@ -53,6 +54,7 @@ export const useAdminPanel = ({
     const [selectedPalletForBlock, setSelectedPalletForBlock] = useState<Pallet | null>(null);
     const [selectedPalletForEdit, setSelectedPalletForEdit] = useState<Pallet | null>(null);
     const [selectedPalletForUnblock, setSelectedPalletForUnblock] = useState<Pallet | null>(null);
+    const [unblockComment, setUnblockComment] = useState('');
     const [unblockError, setUnblockError] = useState('');
     const unblockRunningRef = useRef(false);
     const [selectedPalletForDelete, setSelectedPalletForDelete] = useState<Pallet | null>(null);
@@ -69,14 +71,17 @@ export const useAdminPanel = ({
     const [cycleStepEvery, setCycleStepEvery] = useState('10');
     const [cycleStepAmount, setCycleStepAmount] = useState('10');
     const [newNests, setNewNests] = useState('1');
+    const [newMachine, setNewMachine] = useState<PalletMachine | ''>('');
     const [newFis, setNewFis] = useState('1');
 
     // Edit Form inputs state
+    const [editMachine, setEditMachine] = useState<PalletMachine>('WSM');
     const [editFis, setEditFis] = useState('1');
     const [editNests, setEditNests] = useState('1');
     const [editMaxCycles, setEditMaxCycles] = useState('200');
     const [editStatus, setEditStatus] = useState<PalletStatus>('Active');
     const [editBlockReason, setEditBlockReason] = useState('');
+    const [editUnblockComment, setEditUnblockComment] = useState('');
 
     // Error & Status handling
     const [validationError, setValidationError] = useState('');
@@ -106,6 +111,10 @@ export const useAdminPanel = ({
         setSelectedStatus(status);
         setCurrentPage(1);
     }, []);
+    const updateSelectedMachine = useCallback((machine: string) => {
+        setSelectedMachine(machine);
+        setCurrentPage(1);
+    }, []);
     const updatePageSize = useCallback((size: number) => {
         setPageSize(size);
         setCurrentPage(1);
@@ -119,8 +128,8 @@ export const useAdminPanel = ({
         const matchesModel = selectedModel === 'ALL' || p.model === selectedModel;
         const matchesStatus = selectedStatus === 'ALL' || p.status === selectedStatus;
 
-        return matchesSearch && matchesProject && matchesModel && matchesStatus;
-    }), [pallets, searchTerm, selectedModel, selectedProject, selectedStatus]);
+        return matchesSearch && matchesProject && matchesModel && matchesStatus && (selectedMachine === 'ALL' || p.machine === selectedMachine);
+    }), [pallets, searchTerm, selectedModel, selectedProject, selectedStatus, selectedMachine]);
 
     const sortedPallets = useMemo(() => sortPallets(filteredPallets, sort, language), [filteredPallets, sort, language]);
     const totalPages = Math.max(1, Math.ceil(filteredPallets.length / pageSize));
@@ -193,6 +202,7 @@ export const useAdminPanel = ({
         setCycleStepAmount('10');
         setNewNests('1');
         setNewFis('1');
+        setNewMachine('');
         setValidationError('');
     };
 
@@ -213,6 +223,7 @@ export const useAdminPanel = ({
         setCycleStepAmount('10');
         setNewNests(String(pallet.nests));
         setNewFis(String(pallet.fis));
+        setNewMachine(pallet.machine);
         setValidationError('');
         setIsAddOpen(true);
     };
@@ -246,6 +257,7 @@ export const useAdminPanel = ({
             setValidationError(t('model_required'));
             return;
         }
+        if (!newMachine) { setValidationError(t('machine_invalid')); return; }
         if (!newFis || parseInt(newFis) <= 0) {
             setValidationError(t('fis_invalid'));
             return;
@@ -271,6 +283,7 @@ export const useAdminPanel = ({
             }
             const fis: 1 | 2 = fisValue;
             const details = {
+                machine: newMachine,
                 project: newProject,
                 model: newModel,
                 max_cycles: parseInt(newMaxCycles) || 200,
@@ -345,6 +358,7 @@ export const useAdminPanel = ({
     };
 
     const handleUnblock = (pallet: Pallet) => {
+        setUnblockComment('');
         setUnblockError('');
         setSelectedPalletForUnblock(pallet);
     };
@@ -353,11 +367,12 @@ export const useAdminPanel = ({
     };
     const handleConfirmUnblock = async () => {
         if (!selectedPalletForUnblock || unblockRunningRef.current) return;
+        if (!unblockComment.trim()) { setUnblockError(t('unblock_comment_required')); return; }
         unblockRunningRef.current = true;
         setIsSubmitting(true);
         setUnblockError('');
         try {
-            await apiClient.pallet.UnblockPallet({pallet_id: selectedPalletForUnblock.pallet_id, acceptLanguage: language});
+            await apiClient.pallet.UnblockPallet({comment: unblockComment.trim(), pallet_id: selectedPalletForUnblock.pallet_id, acceptLanguage: language});
             setSelectedPalletForUnblock(null);
             notify(language === 'pl' ? 'Paleta została odblokowana.' : 'Pallet unblocked.');
             await fetchPallets();
@@ -397,10 +412,12 @@ export const useAdminPanel = ({
     const handleOpenEditModal = (pallet: Pallet) => {
         setSelectedPalletForEdit(pallet);
         setEditFis(String(pallet.fis ?? 1));
+        setEditMachine(pallet.machine);
         setEditNests(String(pallet.nests ?? 1));
         setEditMaxCycles(String(pallet.max_cycles ?? 200));
         setEditStatus(pallet.status || 'Active');
         setEditBlockReason(pallet.block_reason || '');
+        setEditUnblockComment('');
         setEditError('');
         setIsEditOpen(true);
     };
@@ -425,6 +442,7 @@ export const useAdminPanel = ({
             setEditError(t('validation_required_fields'));
             return;
         }
+        if (selectedPalletForEdit.status === 'Blocked' && editStatus !== 'Blocked' && !editUnblockComment.trim()) { setEditError(t('unblock_comment_required')); return; }
         if (editStatus === 'Blocked' && !editBlockReason.trim()) {
             setEditError(t('block_reason_required'));
             return;
@@ -439,11 +457,12 @@ export const useAdminPanel = ({
                 return;
             }
             await apiClient.pallet.UpdatePallet(selectedPalletForEdit.pallet_id, {
+                machine: editMachine,
                 fis: fisVal,
                 nests: nestsVal,
                 max_cycles: maxCyclesVal,
                 status: editStatus,
-                block_reason: editStatus === 'Blocked' ? editBlockReason.trim() : null,
+                block_reason: editStatus === 'Blocked' ? editBlockReason.trim() : selectedPalletForEdit.status === 'Blocked' ? editUnblockComment.trim() : null,
                 acceptLanguage: language,
             });
 
@@ -504,12 +523,12 @@ export const useAdminPanel = ({
             selectedPalletForEdit,
             selectedPalletForDelete,
             selectedPalletForUnblock,
-            unblockError,
-            editFis,
+            unblockError, unblockComment,
+            editFis, editMachine,
             editNests,
             editMaxCycles,
             editStatus,
-            editBlockReason,
+            editBlockReason, editUnblockComment,
             editError,
             newId,
             newLastId,
@@ -522,7 +541,7 @@ export const useAdminPanel = ({
             cycleStepAmount,
             rangeCyclePreview,
             newNests,
-            newFis,
+            newFis, newMachine,
             validationError,
             blockError,
             filteredPallets,
@@ -548,6 +567,7 @@ export const useAdminPanel = ({
             setSelectedProject: updateSelectedProject,
             setSelectedModel: updateSelectedModel,
             setSelectedStatus: updateSelectedStatus,
+            setSelectedMachine: updateSelectedMachine,
             setCurrentPage,
             setSort: updateSort,
             setIsAddOpen: (open: boolean) => {
@@ -566,11 +586,11 @@ export const useAdminPanel = ({
             setBlockReason,
             setSelectedPalletForEdit,
             setSelectedPalletForDelete,
-            setEditFis,
+            setEditFis, setEditMachine,
             setEditNests,
             setEditMaxCycles,
             setEditStatus,
-            setEditBlockReason,
+            setEditBlockReason, setEditUnblockComment,
             setEditError,
             setNewId,
             setNewLastId,
@@ -585,7 +605,7 @@ export const useAdminPanel = ({
             setCycleStepEvery,
             setCycleStepAmount,
             setNewNests,
-            setNewFis,
+            setNewFis, setNewMachine,
             setValidationError,
             handleAddPallet,
             handleOpenAddPallet,
@@ -593,7 +613,7 @@ export const useAdminPanel = ({
             handleBlockClick,
             handleConfirmBlock,
             handleUnblock,
-            handleConfirmUnblock,
+            handleConfirmUnblock, setUnblockComment,
             closeUnblock,
             handleConfirmDeletePallet,
             handleOpenEditModal,

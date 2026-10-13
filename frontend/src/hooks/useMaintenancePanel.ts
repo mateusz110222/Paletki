@@ -101,7 +101,7 @@ export function useMaintenancePanel({pallets}: UseMaintenancePanelProps) {
                 acceptLanguage: language,
             });
 
-            await fetchPallets();
+            await Promise.all([fetchPallets(), queryClient.invalidateQueries({queryKey: ['operator-reports']}), queryClient.invalidateQueries({queryKey: ['reports']})]);
             setSelectedPallet(null);
             notify(language === 'pl' ? 'Zapisano obsługę palety.' : 'Pallet service saved.');
         } catch (error: unknown) {
