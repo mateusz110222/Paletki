@@ -1,4 +1,6 @@
 import type {Pallet} from '@backend/shared/types';
+export const ADMIN_SORT_STORAGE_KEY = 'palletx.admin.sort';
+export const ADMIN_COLUMNS_STORAGE_KEY = 'palletx.admin.columns';
 export const SORT_KEYS = ['pallet_id', 'project', 'model', 'fis', 'current_cycles', 'status', 'created_by', 'created_at'] as const;
 export type SortKey = typeof SORT_KEYS[number];
 export type TableSort = {key: SortKey; direction: 'asc' | 'desc'};
@@ -17,11 +19,14 @@ export function readPreference(key: string): string | null {
 export function savePreference(key: string, value: unknown) {
     try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* Storage is optional. */ }
 }
-export function readHiddenColumns(): OptionalColumn[] {
+export function parseHiddenColumns(raw: string | null): OptionalColumn[] {
     try {
-        const value: unknown = JSON.parse(readPreference('palletx.admin.columns') ?? '[]');
+        const value: unknown = JSON.parse(raw ?? '[]');
         return Array.isArray(value) ? OPTIONAL_COLUMNS.filter(key => value.includes(key)) : [];
     } catch { return []; }
+}
+export function readHiddenColumns(): OptionalColumn[] {
+    return parseHiddenColumns(readPreference(ADMIN_COLUMNS_STORAGE_KEY));
 }
 export function sortPallets(pallets: Pallet[], sort: TableSort, locale: string) {
     const compare = new Intl.Collator(locale, {numeric: true, sensitivity: 'base'});

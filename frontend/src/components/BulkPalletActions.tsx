@@ -9,6 +9,7 @@ import {ModalPresence, ModalTransition} from './ModalTransition';
 import {useEscapeKey} from '../hooks/useEscapeKey';
 import {escapeCsvCell} from '../lib/csv';
 import {getErrorMessage} from '../lib/errors';
+import {refreshPalletData} from '../lib/queryCache';
 
 export function BulkPalletActions({pallets, onClear, onCompleted}: {pallets: Pallet[]; onClear: () => void; onCompleted: (ids: string[]) => void}) {
     const {language, t} = useTranslation();
@@ -62,7 +63,7 @@ export function BulkPalletActions({pallets, onClear, onCompleted}: {pallets: Pal
             setFailures(failed);
             notify(pl ? `Zmieniono: ${done.length}. Nieudane: ${failed.length}.` : `Updated: ${done.length}. Failed: ${failed.length}.`, failed.length ? 'error' : 'success');
             if (!failed.length) setSnapshot(null);
-            await queryClient.invalidateQueries({queryKey: ['pallets']});
+            await refreshPalletData(queryClient);
         } finally { runningRef.current = false; setBusy(false); }
     };
     return <>

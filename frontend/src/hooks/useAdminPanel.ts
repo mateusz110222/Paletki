@@ -1,7 +1,9 @@
 import {matchesPalletSearch} from '../lib/palletSearch';
-import {parseTableSort, readPreference, savePreference, sortPallets, type TableSort} from '../lib/tablePreferences';
+import {ADMIN_SORT_STORAGE_KEY, parseTableSort, readPreference, savePreference, sortPallets, type TableSort} from '../lib/tablePreferences';
+import {postBroadcastMessage, subscribeBroadcast} from '../lib/broadcastSync';
+import {refreshPalletData} from '../lib/queryCache';
 import {useToast} from '../components/ToastProvider';
-import React, {useCallback, useMemo, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {getErrorMessage} from '../lib/errors';
 import {Pallet, PalletModel, PalletStatus, PalletMachine, Project} from '@backend/shared/types';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
@@ -90,8 +92,20 @@ export const useAdminPanel = ({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
 
-    const [sort, setSort] = useState(() => parseTableSort(readPreference('palletx.admin.sort')));
-    const updateSort = (value: TableSort) => {setSort(value);savePreference('palletx.admin.sort', value);setCurrentPage(1);};
+    const [sort, setSort] = useState(() => parseTableSort(readPreference(ADMIN_SORT_STORAGE_KEY)));
+    useEffect(() => {
+        return subscribeBroadcast((message) => {
+            if (message.type === 'table:preferences' && message.sort) {
+                setSort(prev => (prev.key === message.sort!.key && prev.direction === message.sort!.direction ? prev : message.sort!));
+            }
+        });
+    }, []);
+    const updateSort = (value: TableSort) => {
+        setSort(value);
+        savePreference(ADMIN_SORT_STORAGE_KEY, value);
+        postBroadcastMessage({type: 'table:preferences', sort: value});
+        setCurrentPage(1);
+    };
     const [pageSize, setPageSize] = useState(50);
     const [currentPage, setCurrentPage] = useState(1);
 
@@ -183,7 +197,7 @@ export const useAdminPanel = ({
 
     const fetchPallets = async () => {
         try {
-            await queryClient.invalidateQueries({queryKey: ['pallets']});
+            await refreshPalletData(queryClient);
         } catch (error) {
             console.error("Failed to fetch pallets:", error);
             showGlobalError(t('error_fetching_pallets_title'), getErrorMessage(error, t('error_connecting_to_encore')));

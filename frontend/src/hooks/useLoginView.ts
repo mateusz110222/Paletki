@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import { useTranslation } from '../i18n/LanguageContext';
 import { useAuth } from '../auth/AuthContext';
 import { useDocumentMetadata } from '../hooks/useDocumentMetadata.ts';
+import { subscribeBroadcast } from '../lib/broadcastSync.ts';
 import { getErrorMessage } from '../lib/errors';
 
 export function useLoginView() {
@@ -23,6 +24,15 @@ export function useLoginView() {
         language,
     );
 
+    useEffect(() => {
+        return subscribeBroadcast((message) => {
+            if (message.type === 'auth:logout' || message.type === 'auth:session') {
+                setErrorMessage(null);
+                setPassword('');
+            }
+        });
+    }, []);
+
     const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (!username.trim() || !password) return;
@@ -32,11 +42,13 @@ export function useLoginView() {
 
         try {
             const result = await login(username.trim(), password);
+            setPassword('');
 
             if (!result.status) {
                 setErrorMessage(result.message);
             }
         } catch (error: unknown) {
+            setPassword('');
             setErrorMessage(getErrorMessage(error, t('auth_error')));
         } finally {
             setLoading(false);

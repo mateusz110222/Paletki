@@ -1,4 +1,5 @@
-import React, {createContext, ReactNode, use, useState} from 'react';
+import React, {createContext, ReactNode, use, useCallback, useEffect, useState} from 'react';
+import {LANGUAGE_STORAGE_KEY, postBroadcastMessage, subscribeBroadcast} from '../lib/broadcastSync.ts';
 
 export type Language = 'pl' | 'en';
 
@@ -1154,7 +1155,38 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export const LanguageProvider: React.FC<{ children: ReactNode }> = ({children}) => {
-    const [language, setLanguage] = useState<Language>('pl');
+    const [language, setLanguageState] = useState<Language>(() => {
+        try {
+            const saved = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+            return saved === 'en' || saved === 'pl' ? saved : 'pl';
+        } catch {
+            return 'pl';
+        }
+    });
+
+    useEffect(() => {
+        if (typeof document !== 'undefined' && document.documentElement) {
+            document.documentElement.lang = language;
+        }
+    }, [language]);
+
+    useEffect(() => {
+        return subscribeBroadcast((message) => {
+            if (message.type === 'lang:change') {
+                setLanguageState(message.language);
+            }
+        });
+    }, []);
+
+    const setLanguage = useCallback((lang: Language) => {
+        setLanguageState(lang);
+        try {
+            localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
+        } catch {
+            // Keep language active in memory when storage is unavailable
+        }
+        postBroadcastMessage({type: 'lang:change', language: lang});
+    }, []);
 
     const t = (key: TranslationKey, variables: Record<string, string | number> = {}): string => {
         return Object.entries(variables).reduce(

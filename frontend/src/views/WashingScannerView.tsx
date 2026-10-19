@@ -7,6 +7,7 @@ import {useAuth} from '../auth/AuthContext';
 import {useTranslation} from '../i18n/LanguageContext';
 import {asPallet} from '../lib/api';
 import {getErrorMessage} from '../lib/errors';
+import {refreshPalletData} from '../lib/queryCache';
 import {PalletStatusSpan} from '../components/PalletStatusSpan';
 import {TextareaField} from '../components/FormFields';
 
@@ -56,7 +57,7 @@ export function WashingScannerView() {
         try {
             const response = await apiClient.pallet.ConfirmPalletWashing({pallet_id: pallet.pallet_id,
                 expected_cycles: pallet.current_cycles, expected_updated_at: pallet.updated_at, comment: comment.trim(), acceptLanguage: language});
-            await Promise.all([cache.invalidateQueries({queryKey: ['pallets']}), cache.invalidateQueries({queryKey: ['operator-reports']}), cache.invalidateQueries({queryKey: ['reports']})]);
+            await refreshPalletData(cache);
             if (mounted.current) {
                 setFeedback({error: false, text: response.reset ? t('washing_success', {palletId: pallet.pallet_id}) : t('washing_already_zero')});
                 clear();

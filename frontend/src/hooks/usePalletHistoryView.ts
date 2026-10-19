@@ -8,6 +8,7 @@ import { useAuth } from '../auth/AuthContext.tsx';
 import { getFisUnitHistoryUrl } from '../config/fis.ts';
 
 import { asPallet } from '../lib/api.ts';
+import { subscribeBroadcast } from '../lib/broadcastSync.ts';
 
 import { escapeCsvCell } from '../lib/csv.ts';
 import { getErrorMessage } from '../lib/errors.ts';
@@ -35,8 +36,20 @@ export function usePalletHistoryView() {
     const [operator, setOperator] = useState('ALL');
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(25);
+    const [refreshTick, setRefreshTick] = useState(0);
     const notify = useToast();
     const [isCopied, setIsCopied] = useState(false);
+
+    useEffect(() => {
+        return subscribeBroadcast((message) => {
+            if (
+                message.type === 'query:invalidate' &&
+                message.queryKeys.some(key => key[0] === 'pallets')
+            ) {
+                setRefreshTick(tick => tick + 1);
+            }
+        });
+    }, []);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -77,7 +90,7 @@ export function usePalletHistoryView() {
 
         void fetchPalletHistory();
         return () => controller.abort();
-    }, [apiClient, language, palletId, t]);
+    }, [apiClient, language, palletId, refreshTick, t]);
 
     const localizedStatusLabels = useMemo<Record<string, string>>(() => ({
         Active: t('status_active'),

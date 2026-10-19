@@ -1,5 +1,5 @@
-
-import { readHiddenColumns, savePreference, type OptionalColumn, type SortKey } from '../lib/tablePreferences';
+import { ADMIN_COLUMNS_STORAGE_KEY, readHiddenColumns, savePreference, type OptionalColumn, type SortKey } from '../lib/tablePreferences';
+import { postBroadcastMessage, subscribeBroadcast } from '../lib/broadcastSync';
 import { useEffect, useState } from 'react';
 
 import { useTranslation } from '../i18n/LanguageContext.tsx';
@@ -13,6 +13,13 @@ export function useAdminPanelView(props: Parameters<typeof useAdminPanel>[0], pa
     const {t, language} = useTranslation();
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [hiddenColumns, setHiddenColumns] = useState(readHiddenColumns);
+    useEffect(() => {
+        return subscribeBroadcast((message) => {
+            if (message.type === 'table:preferences' && message.hiddenColumns) {
+                setHiddenColumns(message.hiddenColumns);
+            }
+        });
+    }, []);
     const selectedPallets = props.pallets.filter(p => selectedIds.includes(p.pallet_id));
     const toggleSelected = (id: string) => setSelectedIds(ids => ids.includes(id) ? ids.filter(value => value !== id) : [...ids, id]);
     const pageIds = data.paginatedPallets.map(p => p.pallet_id);
@@ -20,7 +27,9 @@ export function useAdminPanelView(props: Parameters<typeof useAdminPanel>[0], pa
     const togglePage = () => setSelectedIds(ids => allPageSelected ? ids.filter(id => !pageIds.includes(id)) : [...new Set([...ids, ...pageIds])]);
     const toggleColumn = (key: OptionalColumn) => {
         const next = hiddenColumns.includes(key) ? hiddenColumns.filter(value => value !== key) : [...hiddenColumns, key];
-        setHiddenColumns(next); savePreference('palletx.admin.columns', next);
+        setHiddenColumns(next);
+        savePreference(ADMIN_COLUMNS_STORAGE_KEY, next);
+        postBroadcastMessage({type: 'table:preferences', hiddenColumns: next});
     };
     const sortBy = (key: SortKey) => actions.setSort({key, direction: data.sort.key === key ? (data.sort.direction === 'asc' ? 'desc' : 'asc') : (key === 'created_at' ? 'desc' : 'asc')});
     const navigate = useNavigate();

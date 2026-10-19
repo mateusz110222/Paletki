@@ -1,7 +1,6 @@
 import {BarChart3, Tv} from 'lucide-react';
 import {useTranslation} from '../i18n/LanguageContext';
 import {useAuth} from '../auth/AuthContext';
-import {MainLayout} from '../layout/MainLayout';
 import {PanelChoiceCard} from '../components/PanelChoiceCard';
 
 export function DashboardHubView() {
@@ -16,5 +15,5 @@ export function DashboardHubView() {
             <PanelChoiceCard to="/dashboard" title={t('dashboard_operations_title')} description={t('dashboard_operations_description')} eyebrow={t('dashboard_operations_eyebrow')} icon={BarChart3} tone="teal"/>
         </div>
     </section>;
-    return isAuthenticated ? <MainLayout>{content}</MainLayout> : <main className="min-h-dvh bg-brand-bg p-6 text-brand-text sm:p-12">{content}</main>;
+    return content;
 }

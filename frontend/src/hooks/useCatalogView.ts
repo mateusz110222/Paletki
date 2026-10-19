@@ -4,6 +4,7 @@ import {useQuery, useQueryClient} from '@tanstack/react-query';
 import {useAuth} from '../auth/AuthContext';
 import {useTranslation} from '../i18n/LanguageContext';
 import {getErrorMessage} from '../lib/errors';
+import {invalidateAndBroadcast} from '../lib/queryCache';
 import {useEscapeKey} from './useEscapeKey';
 import {getCatalogEntries, type CatalogEntry as Entry} from '../lib/catalog';
 
@@ -70,7 +71,7 @@ export function useCatalogView() {
             }
             setSelected(null);
             setSuccess(true);
-            await Promise.all([cache.invalidateQueries({queryKey: ['projects']}), cache.invalidateQueries({queryKey: ['models']}), cache.invalidateQueries({queryKey: ['pallets']})]);
+            await invalidateAndBroadcast(cache, [['projects'], ['models'], ['pallets'], ['public-projects'], ['public-dashboard']]);
         } catch (err) {
             setError(getErrorMessage(err, t('catalog_error')));
         } finally {

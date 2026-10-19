@@ -1,13 +1,15 @@
 import {lazyBundle} from '../lib/lazyBundle';
 import {ViewBoundary} from '../components/ViewBoundary';
 
-import React, {lazy, useCallback, useMemo} from 'react';
+import React, {lazy, useCallback, useEffect, useMemo, useRef} from 'react';
 import {Navigate, Route, Routes, useLocation} from 'react-router';
 import {Pallet, PalletModel, Project} from '@backend/shared/types';
 import {useAuth} from '../auth/AuthContext.tsx';
 import {useQuery, useQueryClient} from '@tanstack/react-query';
 import {asPallet, publicApi} from '../lib/api.ts';
+import {subscribeBroadcast} from '../lib/broadcastSync.ts';
 import {loadPalletPages} from '../lib/palletPages';
+import {syncSessionQueries} from '../lib/queryCache';
 
 import {MainLayout} from '../layout/MainLayout.tsx'
 
@@ -38,11 +40,34 @@ const LiveMonitorView = dashboardsBundle.view('LiveMonitorView');
 const DocumentationView = lazy(() => import('../views/DocumentationView.tsx').then(module => ({default: module.DocumentationView})));
 
 export const AppRoutes: React.FC = () => {
-    const {isAuthenticated} = useAuth();
+    const {isAuthenticated, apiClient} = useAuth();
+    const queryClient = useQueryClient();
+    const previousApiClient = useRef(apiClient);
+
+    useEffect(() => {
+        if (previousApiClient.current === apiClient) return;
+        previousApiClient.current = apiClient;
+        // Child query observers have now installed the new API client.
+        void syncSessionQueries(queryClient, isAuthenticated);
+    }, [apiClient, isAuthenticated, queryClient]);
+
+    useEffect(() => {
+        return subscribeBroadcast((message) => {
+            if (message.type === 'query:invalidate') {
+                message.queryKeys.forEach((queryKey) => {
+                    void queryClient.invalidateQueries({queryKey});
+                });
+            }
+        });
+    }, [queryClient]);
 
     return (
         <ViewBoundary><Routes>
-            <Route path="/dashboards" element={<DashboardHubView/>}/>
+            <Route path="/dashboards" element={isAuthenticated ? <MainLayout><DashboardHubView/></MainLayout> : (
+                <main className="min-h-dvh bg-brand-bg p-6 text-brand-text sm:p-12">
+                    <ViewBoundary><DashboardHubView/></ViewBoundary>
+                </main>
+            )}/>
             <Route path="/live" element={<LiveMonitorView/>}/>
             <Route path="/dashboard" element={<PublicDashboardView/>}/>
             <Route path="/*" element={isAuthenticated ? <AuthenticatedRoutes/> : <LoginView/>}/>

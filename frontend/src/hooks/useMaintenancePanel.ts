@@ -1,7 +1,8 @@
 import {useSearchParams} from 'react-router';
 import {useToast} from '../components/ToastProvider';
-import React, {useCallback, useMemo, useState} from 'react';
+import React, {useMemo, useState} from 'react';
 import {getErrorMessage} from '../lib/errors.ts';
+import {refreshPalletData} from '../lib/queryCache.ts';
 import {Pallet, PalletStatus} from '@backend/shared/types';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
 import {useAuth} from '../auth/AuthContext.tsx';
@@ -31,14 +32,6 @@ export function useMaintenancePanel({pallets}: UseMaintenancePanelProps) {
         else next.delete('searchTerm');
         setSearchParams(next);
     };
-
-    const fetchPallets = useCallback(async () => {
-        await queryClient.invalidateQueries({queryKey: ['pallets']});
-    }, [queryClient]);
-
-    if (!user) {
-        window.location.href = "/login";
-    }
 
     const repairPallets = useMemo(() => {
         return (pallets || []).filter(p => p.status === 'Damaged');
@@ -101,7 +94,7 @@ export function useMaintenancePanel({pallets}: UseMaintenancePanelProps) {
                 acceptLanguage: language,
             });
 
-            await Promise.all([fetchPallets(), queryClient.invalidateQueries({queryKey: ['operator-reports']}), queryClient.invalidateQueries({queryKey: ['reports']})]);
+            await refreshPalletData(queryClient);
             setSelectedPallet(null);
             notify(language === 'pl' ? 'Zapisano obsługę palety.' : 'Pallet service saved.');
         } catch (error: unknown) {

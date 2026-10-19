@@ -8,6 +8,7 @@ import {ModalFormActions} from './ModalFormActions';
 import {useEscapeKey} from '../hooks/useEscapeKey';
 import {InputField} from './FormFields';
 import {getErrorMessage} from '../lib/errors';
+import {invalidateAndBroadcast} from '../lib/queryCache';
 
 export function DefectCatalog() {
     const {apiClient} = useAuth();
@@ -48,7 +49,7 @@ export function DefectCatalog() {
             if (selected.mode === 'add') await apiClient.pallet.AddDefect({name: name.trim(), acceptLanguage: language});
             else if (selected.mode === 'edit') await apiClient.pallet.UpdateDefect(selected.id!, {name: name.trim(), acceptLanguage: language});
             else await apiClient.pallet.DeleteDefect(selected.id!, {acceptLanguage: language});
-            await cache.invalidateQueries({queryKey: ['defects']});
+            await invalidateAndBroadcast(cache, [['defects']]);
             setSelected(null);
         } catch (e) {setError(getErrorMessage(e, t('catalog_error')));}
         finally {runningRef.current = false; setBusy(false);}

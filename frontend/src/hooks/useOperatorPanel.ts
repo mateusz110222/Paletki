@@ -7,6 +7,8 @@ import {useGlobalErrorModal} from "../hooks/useGlobalErrorModal.ts";
 import {useSearchParams} from "react-router";
 import {useAuth} from "../auth/AuthContext.tsx";
 import {asPallet} from "../lib/api.ts";
+import {postBroadcastMessage, SOUND_ENABLED_STORAGE_KEY, subscribeBroadcast} from '../lib/broadcastSync.ts';
+import {refreshPalletData} from '../lib/queryCache.ts';
 import {useQuery, useQueryClient} from '@tanstack/react-query';
 import {
     initAudioUnlock,
@@ -121,7 +123,7 @@ export const useOperatorPanel = () => {
     const triggerToast = useToast();
     const [soundEnabled, setSoundEnabled] = useState(() => {
         try {
-            const saved = localStorage.getItem('palletx.scan-sound');
+            const saved = localStorage.getItem(SOUND_ENABLED_STORAGE_KEY);
             return saved === null ? true : saved !== 'false';
         } catch {
             return true;
@@ -132,9 +134,24 @@ export const useOperatorPanel = () => {
 
     const [volumeLevel, setVolumeLevel] = useState<AudioVolumeLevel>(() => getAudioVolumeLevel());
 
+    useEffect(() => {
+        return subscribeBroadcast((message) => {
+            if (message.type !== 'audio:preferences') return;
+            if (typeof message.soundEnabled === 'boolean') {
+                soundEnabledRef.current = message.soundEnabled;
+                setSoundEnabled(message.soundEnabled);
+            }
+            if (message.volumeLevel) {
+                setVolumeLevel(message.volumeLevel);
+                setAudioVolumeLevel(message.volumeLevel);
+            }
+        });
+    }, []);
+
     const updateVolumeLevel = (level: AudioVolumeLevel) => {
         setVolumeLevel(level);
         setAudioVolumeLevel(level);
+        postBroadcastMessage({type: 'audio:preferences', volumeLevel: level});
         if (soundEnabled) {
             prepareScanAudio();
             void playScanSuccessSound();
@@ -153,10 +170,11 @@ export const useOperatorPanel = () => {
         soundEnabledRef.current = next;
         setSoundEnabled(next);
         try {
-            localStorage.setItem('palletx.scan-sound', String(next));
+            localStorage.setItem(SOUND_ENABLED_STORAGE_KEY, String(next));
         } catch {
             // Optional preference.
         }
+        postBroadcastMessage({type: 'audio:preferences', soundEnabled: next});
         if (next) {
             prepareScanAudio();
             void playScanSuccessSound();
@@ -296,7 +314,7 @@ export const useOperatorPanel = () => {
 
             triggerToast(t('op_fault_reported_with_name', {faultName}));
 
-            await queryClient.invalidateQueries({queryKey: ['pallets']});
+            await refreshPalletData(queryClient);
 
             setActivePallet(null);
             setPendingFault(null);

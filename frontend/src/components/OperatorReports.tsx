@@ -4,6 +4,7 @@ import type {OperatorReport} from '@backend/shared/types';
 import {useAuth} from '../auth/AuthContext';
 import {useTranslation} from '../i18n/LanguageContext';
 import {getErrorMessage} from '../lib/errors';
+import {invalidateAndBroadcast} from '../lib/queryCache';
 import {SelectField, TextareaField} from './FormFields';
 
 export function OperatorReports({palletId}: {palletId: string}) {
@@ -32,7 +33,7 @@ export function OperatorReports({palletId}: {palletId: string}) {
                 acceptLanguage: language,
             });
             setEditing(null);
-            await Promise.all([cache.invalidateQueries({queryKey: ['operator-reports', palletId]}), cache.invalidateQueries({queryKey: ['pallets']}), cache.invalidateQueries({queryKey: ['reports']})]);
+            await invalidateAndBroadcast(cache, [['operator-reports', palletId], ['pallets'], ['reports'], ['public-dashboard']]);
         } catch (e) {
             setError(getErrorMessage(e, t('catalog_error')));
             await cache.invalidateQueries({queryKey: ['operator-reports', palletId]});
