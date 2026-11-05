@@ -20,7 +20,7 @@ The system enforces automated lifecycle workflows, cycle limit tracking, FIS gro
 * **Soft Deletion & Reactivation**: Pallets can be safely deleted (soft-delete). Re-registering an existing deleted pallet ID reactivates it cleanly without unique constraint collisions.
 * **Audit Trail**: Every change (creation, status update, parameter edit, blocking, deletion, reactivation) is logged with localized change descriptions and operator attribution.
 * **Audit Trail Export**: Full export of audit logs to JSON/CSV for compliance and analysis.
-* **Project Model Catalog**: Pallet models are registered once per project. The pallet form first selects a project and then exposes only models assigned to that project.
+* **Project Model Catalog**: Pallet models are registered once per project. The pallet form first selects a project and then exposes only models assigned to that project. ME/IT can change a model’s project in its catalog edit dialog; all linked pallets, including archived ones, move together with IDs, counters and history preserved. Active pallets are queued for FIS synchronization. Duplicate model names in the destination are rejected. Migration 10 enables the atomic move through the existing database relationship. Move requests include `expected_project_id`; a changed source project is rejected, and rename-only saves omit the project. Migration 11 expands employee-name fields to 256 characters, matching APACS sessions.
 * **Copy Pallet Data**: An inventory action pre-fills a new-pallet form from an existing pallet while requiring a new pallet ID.
 * **Numbered Range Registration**: The add dialog can atomically create a complete pallet range when IDs share a prefix and use the final two digits as the sequence number (for example `PROJECT-01` through `PROJECT-12`).
 
@@ -30,12 +30,16 @@ The FIS MySQL host must be reachable from the backend container. Grant the confi
 * **IT (`fisadmin_group` or `admin_group`)**: Full access to all panels, pallet management, audit exports, maintenance and the LDAP Directory User Lookup tool (`/directory`).
 * **UR (`FIS_UR_GROUP`, default `Maintenance`)**: Access to the Maintenance Panel to repair damaged pallets, service pallets requiring washing, log service notes, and reset cycle counters.
 * **ME (`FIS_ME_GROUP`, default `proceng`)**: Access to pallet management and maintenance panels, excluding the LDAP directory.
-* **Operator Session**: Fast-access barcode scanner interface for line operators to scan pallets and report quick defects.
+* **Operator Card Login**: Operators enter or scan an active APACS card number to access the scanner and report defects. LDAP remains available for staff. Card login never grants IT/UR/ME privileges.
+
+Configure `APACS_DB_SERVER`, `APACS_DB_USER` and `APACS_DB_PASSWORD` (Encore secret `APACSDBPassword`) using `.env.example`. The backend needs SQL Server connectivity and read-only `SELECT` on `dbo.TCARDISSUE` and `dbo.TCARDHOLDERS`. TLS encryption is enabled and certificate verification required by default. Missing configuration or an APACS outage disables card login without disabling LDAP. APACS connection/query failures log only the failure stage and an allowed driver code, never card numbers, passwords or raw error messages. Nginx limits card login to 5 requests/minute per IP with a burst of 5; keep the backend behind this ingress.
+
+Only numeric card numbers (1–30 digits) are supported, including leading zeros. UID pairing is not supported. Card ownership must be unambiguous and the assignment active with valid dates, unless APACS overrides the dates. Employee names from APACS identify operations in history. Card validity is checked at login; sessions retain `AUTH_SESSION_TTL_MINUTES` (default 720). Knowing a valid number is sufficient to sign in: this does not prove physical card possession. Migration 9 removes old manual operator sessions; LDAP sessions and operation history are retained. The old `/auth/operator-session` endpoint is removed.
 
 ### 3. Industrial FIS Integration & Transactional Outbox
 * **Dual FIS Support**: Full compatibility with both **FIS 1** and **FIS 2** routers.
 * **Transactional Outbox Pattern**: Pallet updates enqueue durable FIS sync events inside the same PostgreSQL transaction.
-* **Resilient Worker & Reconciler**: Dedicated background containers (`fis-outbox-worker` and `fis-reconciler`) consume jobs with lease locking, exponential backoff retries, and daily consistency audits. A temporary FIS router outage never rolls back pallet operations.
+* **Resilient Worker & Reconciler**: Dedicated background containers (`fis-outbox-worker` and `fis-reconciler`) consume jobs with lease locking, exponential backoff retries, and daily consistency audits. Jobs are claimed individually just before execution, with a unique lease token guarding completion and failure updates (migration 12). Reconciliation locks pallet snapshots before enqueueing, preserving order with deletion and edits. A temporary FIS router outage never rolls back pallet operations.
 * **Bounded Outbox Retention**: Completed jobs are removed in batches after the configured retention period; pending, processing, and dead jobs are preserved.
 * **Dedicated Machine Ingress Port**: Separate network port (`FIS_INGRESS_PORT`, default `4000`) for soldering machines calling `/fis/*`, isolating factory equipment from management UI endpoints.
 
@@ -52,13 +56,13 @@ The FIS MySQL host must be reachable from the backend container. Grant the confi
 4. To create a similar pallet, use the **Copy** action in the inventory table. Project, model, cycle limit, nests, and FIS are copied, while the new pallet ID remains empty and must be unique.
 
 The current fresh-install schema creates the project/model catalog in migration
-`1_project_model_catalog.up.sql`. The complete eight-migration set is described in
+`1_project_model_catalog.up.sql`. The complete twelve-migration set is described in
 [the migration guide](backend/pallet/migrations/README.md). Before upgrading an
 older installation, compare its schema and migration history and back up the database.
 
 ### 6. Public Live Dashboard
 * **No sign-in required**: both the original project monitor at `/live` and the operational dashboard at `/dashboard` can be opened directly or embedded in another dashboard.
-* **Station-aware project detection**: `/dashboard?station=SOLDER-01` and `/live?station=SOLDER-01` show the project assigned to that soldering station. Without the query parameter, both pages present station-selection tiles from the current database assignments.
+* **Station-aware project detection**: `/dashboard?station=SOLDER-01` and `/live?station=SOLDER-01` show the project assigned to that soldering station. The latest scanned pallet dynamically determines the station machine type (WSM/SSM/COAT); station pallets and service statistics are restricted to that type. Without the query parameter, both pages present station-selection tiles from the current database assignments.
 * **Full fleet mode**: choose **All projects** on either selection screen, or open `/dashboard?station=ALL` and `/live?station=ALL`, to retain the original unfiltered overview.
 * **Automatic refresh**: operational data updates every 30 seconds without user interaction.
 * **Washing forecast**: pallets at 80% or more of their cycle limit are shown together with pallets already waiting for washing.
@@ -356,7 +360,7 @@ trusted production networks at the firewall or reverse proxy.
 
 ## PalletX improvements
 
-- Maintenance manages the shared defect catalog (add, rename, delete). Scanner defects set `Damaged`; “Other” requires a description. Washing remains a separate action with its own editable report.
+- Maintenance manages the shared defect catalog (add, rename, delete). Scanner defects set `Damaged`; “Other” requires a description. Washing remains a separate action with its own editable report. Its comment is optional both when creating and editing; Other defects still require a description.
 - UR/ME/IT can edit open reports. The original report and its linked history entry are overwritten atomically: no previous text or correction event is retained. Original operator and reporting time remain; the report exposes its last editor and edit time. Returning a pallet to production closes its reports.
 - Unblocking requires a comment; blocked pallets show their reason in the scanner.
 - Pallets have a required machine (`WSM`, `SSM`, `COAT`), independent of FIS. Migration 7 assigns WSM to existing pallets. No old damage reports are imported.
@@ -376,3 +380,11 @@ The UR after-washing scanner (`/maintenance/washing`) confirms completed washing
 The Maintenance hub uses four tiles in a 2×2 desktop layout. `/maintenance/history` accepts a scanned or typed pallet ID and opens the existing history viewer at `/maintenance/pallets/:palletId/history`. Individual history is available to UR/ME/IT; bulk audit remains ME/IT only. The operator scanner displays Damaged and Blocked pallets as read-only reason cards. The defect description field appears only for Other and is cleared when switching to a catalog defect; washing reports need no operator comment.
 
 Frontend area bundles (operator, maintenance, dashboards and admin) load on first entry through a shared Suspense resource per area. Once resolved, all views in that area read the module synchronously, avoiding a loading flash on their first visit. All screens within an area share its module; documentation is loaded separately. The authenticated shell remains visible during loading or module errors; reload is manual and keeps the current URL. Full inventory queries run only for admin and maintenance service, with router catalog queries only for admin. Production build emits a Vite manifest and verifies that area modules are absent from the shell static dependency graph and do not eagerly import each other; XLSX stays deferred until export.
+
+### HTTPS deployment prerequisites
+
+The supplied web ingress is HTTP. To enable HTTPS, provide a DNS name pointing to the application server, a matching server certificate with its intermediate chain and private key, and an available HTTPS listener (normally port 443) or an existing company reverse proxy. Company-issued certificates must be trusted by employee browsers.
+
+Terminate TLS at that reverse proxy or in the existing Nginx container. Redirect browser HTTP traffic to HTTPS and prevent clients from bypassing the proxy through the old HTTP application port. Keep `VITE_PROD_API_BASE_URL` empty for same-origin API requests; rebuild the frontend if it previously embedded an HTTP API URL. Keep the machine ingress on its separate restricted network. Certificate renewal and key permissions must be assigned to the deployment owner. Reference: https://nginx.org/en/docs/http/configuring_https_servers.html
+
+Service charts group days in Europe/Warsaw. Station service statistics use the current project and the current machine type, while the live monitor retains the last three projects. Current-state reports match the actor to the current status entry rather than an earlier service cycle.

@@ -1,10 +1,10 @@
 import type {Pallet} from '@backend/shared/types';
 export const ADMIN_SORT_STORAGE_KEY = 'palletx.admin.sort';
 export const ADMIN_COLUMNS_STORAGE_KEY = 'palletx.admin.columns';
-export const SORT_KEYS = ['pallet_id', 'project', 'model', 'fis', 'current_cycles', 'status', 'created_by', 'created_at'] as const;
+export const SORT_KEYS = ['pallet_id', 'project', 'model', 'fis', 'nests', 'current_cycles', 'status', 'created_by', 'created_at'] as const;
 export type SortKey = typeof SORT_KEYS[number];
 export type TableSort = {key: SortKey; direction: 'asc' | 'desc'};
-export const OPTIONAL_COLUMNS = ['project', 'model', 'fis', 'current_cycles', 'status', 'created_by', 'created_at'] as const;
+export const OPTIONAL_COLUMNS = ['project', 'model', 'fis', 'nests', 'current_cycles', 'status', 'created_by', 'created_at'] as const;
 export type OptionalColumn = typeof OPTIONAL_COLUMNS[number];
 export function parseTableSort(raw: string | null): TableSort {
     try {

@@ -9,7 +9,7 @@ import {useCatalogView} from '../hooks/useCatalogView';
 
 export function CatalogView() {
     const {
-        getAdminUrl, t, tab, search, setSearch, selected, name, setName, projectName, setProjectName,
+        getAdminUrl, t, tab, search, setSearch, selected, name, setName, projectName, setProjectName, modelProjectId, setModelProjectId,
         dialogRef, busy, error, success, close, projects, models, entries, save, select,
         add, modalTitle, projectModels, changeTab, showProjectModels, filteredProject,
         clearProjectFilter, handleDialogKeyDown, refresh,
@@ -75,13 +75,21 @@ export function CatalogView() {
                             <option value="">{t('placeholder_select_project')}</option>
                             {(projects.data?.projects ?? []).map(project => <option key={project.id} value={project.name}>{project.name}</option>)}
                         </SelectField>}
+                        {!selected.create && !selected.remove && selected.entry.kind === 'model' && <>
+                            <SelectField label={t('label_model_project')} value={modelProjectId ?? ''}
+                                onChange={event => setModelProjectId(Number(event.target.value))} required disabled={busy || projects.isPending}>
+                                <option value="">{t('placeholder_select_project')}</option>
+                                {(projects.data?.projects ?? []).map(project => <option key={project.id} value={project.id}>{project.name}</option>)}
+                            </SelectField>
+                            {modelProjectId !== selected.entry.projectId && <p className="text-xs text-brand-text-muted">{t('catalog_move_hint')}</p>}
+                        </>}
                         {selected.remove ? <p>{t('catalog_confirm')}</p> : <InputField
                             label={t(selected.entry.kind === 'project' ? 'label_project_name' : 'label_model_name')}
                             value={name} onChange={event => setName(event.target.value)} maxLength={50} required disabled={busy}/>}
                         {error && <p role="alert" className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">{error}</p>}
                         <ModalFormActions onCancel={close} submitLabel={t(selected.remove ? 'catalog_delete' : 'btn_save')}
                             isSubmitting={busy} variant={selected.remove ? 'danger' : 'primary'}
-                            submitDisabled={!selected.remove && (!name.trim() || Boolean(selected.create && selected.entry.kind === 'model' && !projectName))}/>
+                            submitDisabled={!selected.remove && (!name.trim() || Boolean(selected.create && selected.entry.kind === 'model' && !projectName) || Boolean(!selected.create && selected.entry.kind === 'model' && !modelProjectId))}/>
                     </form>
                 </div>
             </ModalTransition>}

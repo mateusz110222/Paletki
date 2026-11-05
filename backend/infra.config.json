@@ -8,6 +8,9 @@
     "LDAPLookupBindPassword": {
       "$env": "LDAP_LOOKUP_BIND_PASSWORD"
     },
+    "APACSDBPassword": {
+      "$env": "APACS_DB_PASSWORD"
+    },
     "FISDBPassword": {
       "$env": "FIS_DB_PASSWORD"
     }

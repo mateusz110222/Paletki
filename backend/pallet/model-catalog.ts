@@ -21,6 +21,8 @@ export interface AddModelParams extends LocalizedRequest {
 
 export interface UpdateModelParams extends LocalizedRequest {
     id: number;
+    project_id?: number;
+    expected_project_id?: number;
     name: ShortText;
 }
 
@@ -79,7 +81,7 @@ export const AddModel = api(
 export const UpdateModel = api(
     {method: "PUT", path: "/models/:id", expose: true, auth: true},
     async (params: UpdateModelParams): Promise<void> => {
-        await updateCatalogItem("model", params.id, params.name, params.acceptLanguage);
+        await updateCatalogItem("model", params.id, params.name, params.acceptLanguage, params.project_id, params.expected_project_id);
     },
 );
 

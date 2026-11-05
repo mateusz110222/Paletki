@@ -76,7 +76,7 @@ function hasDuplicateRootValue(currentInput, value) {
 }
 
 const PHP_API_URL = "/custom/jj00sp/php/soldering-encore.php";
-const PALETKI_API_URL = "//10.142.11.66:4000";
+const PALETKI_API_URL = "http://10.142.11.66:4000";
 const ROUTER_ENDPOINT = AppConfig.api.phpBBRouter;
 
 function classifyRouterFailure(payload, error = null) {
@@ -350,7 +350,13 @@ function routerReason(result) {
 function isExpectedUnitNotFound(result) {
     const reason = routerReason(result);
     const message = String(result?.message || "");
-    return (["UNIT_NOT_FOUND", "NOT_FOUND", "UNKNOWN_UNIT"].includes(reason) || /(unit|sztuk).*(not found|nie znalezion|nie istnieje|unknown)|nieznan.*(unit|sztuk)/i.test(message,));
+    return (
+        ["UNIT_NOT_FOUND", "NOT_FOUND", "UNKNOWN_UNIT"].includes(reason) ||
+        /(unit|sztuk).*(not found|nie znalezion|nie istnieje|unknown|doesn.t exist|does not exist)/i.test(
+            message,
+        ) ||
+        /nieznan.*(unit|sztuk)/i.test(message)
+    );
 }
 
 function isExpectedMissingParent(result) {
@@ -377,7 +383,7 @@ function showMessage(msg, colorClass, timeout = 3000, callback = null) {
         return;
     }
     const heading = document.createElement("h1");
-    heading.className = "text-xl text-center m-10";
+    heading.className = "text-xl text-center m-0 px-4 py-3";
     String(msg || "Brak szczegółów błędu")
         .split(/<br\s*\/?\s*>/i)
         .forEach((line, index) => {
@@ -385,6 +391,7 @@ function showMessage(msg, colorClass, timeout = 3000, callback = null) {
             heading.appendChild(document.createTextNode(line));
         });
     messageBox.replaceChildren(heading);
+    messageBox.scrollTop = 0;
     messageBox.classList.remove(...UI_COLORS);
     messageBox.classList.add(colorClass);
 
@@ -529,7 +536,7 @@ document.addEventListener("DOMContentLoaded", function () {
         ?.addEventListener("submit", formHandler);
     if (palletSerialNumAuto !== undefined) {
         palletSerialNumber.value = palletSerialNumAuto;
-        void formHandler();
+        formHandler();
     } else {
         palletSerialNumber.focus();
     }
@@ -1401,7 +1408,7 @@ async function unitHandler(event) {
                         let bad = 0;
                         let duplicate;
                         let msg = "";
-                        const inputReview = await unitReview(input.value);
+                        const inputReview = input.name === "sensorSn" ? { status: true, data: scannedInputValue } : await unitReview(input.value);
                         if (!inputReview.status) {
                             resetScannedInput(input);
                             return;
@@ -1764,7 +1771,7 @@ async function unitHandler2(form, event) {
                     let bad = 0;
                     let duplicate = false;
                     let msg = "";
-                    const inputReview = await unitReview(input.value);
+                    const inputReview = input.name === "sensorSn" ? { status: true, data: scannedInputValue } : await unitReview(input.value);
                     console.log("manual input review:", inputReview);
                     if (!inputReview?.status) {
                         resetScannedInput(input);

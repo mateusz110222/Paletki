@@ -143,7 +143,7 @@ export const EditOperatorReport = api({method: "PUT", path: "/operator-reports/:
         // A deleted catalog entry may retain its saved name until UR chooses another defect.
         const name = old.kind === "washing" ? "Washing" : defect?.name ?? (old.defect_id === null && old.defect_name !== "Other" && params.defect_id === undefined
             ? old.defect_name : "Other");
-        if ((name === "Other" || old.kind === "washing") && !description) throw APIError.invalidArgument(t("report_invalid", params.acceptLanguage));
+        if (name === "Other" && !description) throw APIError.invalidArgument(t("report_invalid", params.acceptLanguage));
         if (old.kind === "washing" && params.defect_id != null) throw APIError.invalidArgument(t("report_invalid", params.acceptLanguage));
         const text = reportAuditText(old.kind, name, description);
         const row = await tx.queryRow<ReportRecord>`UPDATE operator_reports SET defect_id = ${defect?.id ?? null},

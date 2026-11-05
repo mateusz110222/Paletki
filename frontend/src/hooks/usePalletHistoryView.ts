@@ -11,6 +11,7 @@ import { asPallet } from '../lib/api.ts';
 import { subscribeBroadcast } from '../lib/broadcastSync.ts';
 
 import { escapeCsvCell } from '../lib/csv.ts';
+import { copyText } from '../lib/clipboard.ts';
 import { getErrorMessage } from '../lib/errors.ts';
 export type SortOrder = 'newest' | 'oldest';
 export type EventType = 'all' | 'status' | 'update';
@@ -149,9 +150,13 @@ export function usePalletHistoryView() {
 
     const handleCopyPalletId = async () => {
         if (!pallet) return;
-        await navigator.clipboard.writeText(pallet.pallet_id);
+        if (!await copyText(pallet.pallet_id)) {
+            setIsCopied(false);
+            notify(t('pallet_id_copy_failed'), 'error');
+            return;
+        }
         setIsCopied(true);
-        notify(language === 'pl' ? 'Skopiowano ID palety.' : 'Pallet ID copied.');
+        notify(t('pallet_id_copied'));
         setTimeout(() => setIsCopied(false), 2000);
     };
 

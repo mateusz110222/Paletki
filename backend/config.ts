@@ -131,6 +131,16 @@ export const config = Object.freeze({
     auth: Object.freeze({
         sessionTtlMinutes: optionalPositiveIntegerEnv("AUTH_SESSION_TTL_MINUTES", 720),
     }),
+    apacs: Object.freeze({
+        server: process.env.APACS_DB_SERVER?.trim() ?? "",
+        port: optionalPositiveIntegerEnv("APACS_DB_PORT", 1433),
+        database: process.env.APACS_DB_NAME?.trim() || "APACS",
+        user: process.env.APACS_DB_USER?.trim() ?? "",
+        encrypt: optionalBooleanEnv("APACS_DB_ENCRYPT", true),
+        trustServerCertificate: optionalBooleanEnv("APACS_DB_TRUST_CERTIFICATE", false),
+        connectionTimeout: optionalPositiveIntegerEnv("APACS_DB_CONNECTION_TIMEOUT_MS", 5000),
+        requestTimeout: optionalPositiveIntegerEnv("APACS_DB_REQUEST_TIMEOUT_MS", 5000),
+    }),
     ldap: Object.freeze({
         url: ldapUrl,
         loginDomain: requiredEnv("LDAP_LOGIN_DOMAIN"),

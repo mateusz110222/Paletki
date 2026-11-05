@@ -19,6 +19,7 @@ interface FisOutboxRecord {
     operation: FisOutboxOperation;
     payload: unknown;
     attempts: number;
+    lease_token: string;
 }
 
 interface WorkerRequest {
@@ -86,16 +87,19 @@ export function enqueueFisDelete(tx: Transaction, fis: FisUnit, palletId: string
     return enqueue(tx, palletId, "DELETE", {fis, pallet_id: palletId});
 }
 
-async function claimBatch(limit: number): Promise<FisOutboxRecord[]> {
+async function claimNext(): Promise<FisOutboxRecord | null> {
+    const leaseToken = randomUUID();
+    // Cover one complete FIS operation, including failed-create cleanup.
+    const leaseSeconds = Math.max(900, Math.ceil(config.fis.requestTimeoutMs / 1000) * 6 + 60);
     await using tx = await db.begin();
     await tx.exec`
         UPDATE fis_outbox
-        SET status = 'pending', locked_at = NULL, available_at = NOW(),
+        SET status = 'pending', locked_at = NULL, lease_token = NULL, available_at = NOW(),
             last_error = COALESCE(last_error, 'Worker lease expired before completion')
         WHERE status = 'processing'
-          AND locked_at < NOW() - INTERVAL '15 minutes'
+          AND locked_at < NOW() - (${leaseSeconds} * INTERVAL '1 second')
     `;
-    const rows = await tx.queryAll<FisOutboxRecord>`
+    const row = await tx.queryRow<FisOutboxRecord>`
         WITH candidates AS (
             SELECT candidate.id
             FROM fis_outbox AS candidate
@@ -110,16 +114,16 @@ async function claimBatch(limit: number): Promise<FisOutboxRecord[]> {
               )
             ORDER BY candidate.id
             FOR UPDATE SKIP LOCKED
-            LIMIT ${limit}
+            LIMIT 1
         )
         UPDATE fis_outbox AS jobs
-        SET status = 'processing', locked_at = NOW(), attempts = attempts + 1
+        SET status = 'processing', locked_at = NOW(), lease_token = ${leaseToken}::uuid, attempts = attempts + 1
         FROM candidates
         WHERE jobs.id = candidates.id
-        RETURNING jobs.id, jobs.operation, jobs.payload, jobs.attempts
+        RETURNING jobs.id, jobs.operation, jobs.payload, jobs.attempts, jobs.lease_token
     `;
     await tx.commit();
-    return rows;
+    return row;
 }
 
 async function executeJob(job: FisOutboxRecord): Promise<void> {
@@ -144,33 +148,28 @@ async function executeJob(job: FisOutboxRecord): Promise<void> {
     }
 }
 
-async function markCompleted(id: number): Promise<void> {
-    await db.exec`
+async function markCompleted(job: FisOutboxRecord): Promise<boolean> {
+    const row = await db.queryRow<{id: number}>`
         UPDATE fis_outbox
-        SET status = 'completed', processed_at = NOW(), locked_at = NULL, last_error = NULL
-        WHERE id = ${id} AND status = 'processing'
+        SET status = 'completed', processed_at = NOW(), locked_at = NULL, lease_token = NULL, last_error = NULL
+        WHERE id = ${job.id} AND status = 'processing' AND lease_token = ${job.lease_token}::uuid
+        RETURNING id
     `;
+    return row !== null;
 }
 
-async function markFailed(job: FisOutboxRecord, error: unknown): Promise<"retried" | "dead"> {
+async function markFailed(job: FisOutboxRecord, error: unknown): Promise<"retried" | "dead" | null> {
     const message = (error instanceof Error ? error.message : String(error)).slice(0, 4000);
-    if (job.attempts >= MAX_ATTEMPTS) {
-        await db.exec`
-            UPDATE fis_outbox
-            SET status = 'dead', locked_at = NULL, last_error = ${message}
-            WHERE id = ${job.id} AND status = 'processing'
-        `;
-        return "dead";
-    }
-
+    const dead = job.attempts >= MAX_ATTEMPTS;
     const delaySeconds = Math.min(3600, 2 ** Math.min(job.attempts, 10) * 5);
-    await db.exec`
+    const row = await db.queryRow<{id: number}>`
         UPDATE fis_outbox
-        SET status = 'pending', locked_at = NULL, last_error = ${message},
+        SET status = ${dead ? "dead" : "pending"}, locked_at = NULL, lease_token = NULL, last_error = ${message},
             available_at = NOW() + (${delaySeconds} * INTERVAL '1 second')
-        WHERE id = ${job.id} AND status = 'processing'
+        WHERE id = ${job.id} AND status = 'processing' AND lease_token = ${job.lease_token}::uuid
+        RETURNING id
     `;
-    return "retried";
+    return row ? (dead ? "dead" : "retried") : null;
 }
 
 async function pruneCompletedJobs(): Promise<number> {
@@ -202,17 +201,19 @@ export const ProcessFisOutbox = api(
         const limit = Number.isSafeInteger(requestedLimit)
             ? Math.max(1, Math.min(requestedLimit, 100))
             : 20;
-        const jobs = await claimBatch(limit);
-        const result: WorkerResponse = {claimed: jobs.length, completed: 0, retried: 0, dead: 0, pruned: 0};
+        const result: WorkerResponse = {claimed: 0, completed: 0, retried: 0, dead: 0, pruned: 0};
 
-        for (const job of jobs) {
+        for (let index = 0; index < limit; index++) {
+            const job = await claimNext();
+            if (!job) break;
+            result.claimed += 1;
             try {
                 await executeJob(job);
-                await markCompleted(job.id);
-                result.completed += 1;
+                if (await markCompleted(job)) result.completed += 1;
+                else console.warn(`FIS outbox job ${job.id} lease was lost`);
             } catch (error) {
                 const disposition = await markFailed(job, error);
-                result[disposition] += 1;
+                if (disposition) result[disposition] += 1;
                 console.error(`FIS outbox job ${job.id} failed`, error);
             }
         }
@@ -244,12 +245,12 @@ export const ReconcileFisOutbox = api(
         }>`
             SELECT id, pallet_id, project, model, fis, deleted_at
             FROM pallet_details WHERE id > ${afterId}
-            ORDER BY id LIMIT 50
+            ORDER BY id LIMIT 50 FOR UPDATE
         `;
         if (rows.length === 0 && afterId > 0) {
             rows = await tx.queryAll`
                 SELECT id, pallet_id, project, model, fis, deleted_at
-                FROM pallet_details ORDER BY id LIMIT 50
+                FROM pallet_details ORDER BY id LIMIT 50 FOR UPDATE
             `;
         }
 

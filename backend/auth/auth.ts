@@ -15,6 +15,8 @@ import type {LdapUserProfile} from "./ldap";
 import {createSessionToken, extractBearerToken, hashSessionToken} from "./session-token";
 import {fisGroupAccess} from "./permissions";
 import {getFisGroups} from "./fis-groups";
+import {apacsDbPassword} from "./secrets";
+import {findActiveCardOperator} from "./apacs";
 import {createLdapClient} from "./ldap-client";
 import type {AuthData} from "../shared/auth-data";
 import {palletsDatabase as db} from "../shared/persistence";
@@ -29,7 +31,7 @@ interface LocalizedRequest {
     acceptLanguage?: Header<"Accept-Language">;
 }
 
-interface OperatorSessionRequest extends LocalizedRequest {
+interface CardLoginRequest extends LocalizedRequest {
     identifier: string;
 }
 
@@ -90,10 +92,10 @@ export const authentication = authHandler<AuthParams, AuthData>(async (params) =
           AND expires_at > NOW()
     `;
 
-    if (!session) throw APIError.unauthenticated(t("auth_session_invalid", params.acceptLanguage));
+    if (!session || session.username.startsWith("operator:")) throw APIError.unauthenticated(t("auth_session_invalid", params.acceptLanguage));
 
     let access = fisGroupAccess([], config.fisGroups.itGroups, config.fisGroups.urGroup, config.fisGroups.meGroup);
-    if (!session.username.startsWith("operator:")) {
+    if (!session.username.startsWith("apacs:")) {
         try {
             access = fisGroupAccess(await getFisGroups(session.username), config.fisGroups.itGroups, config.fisGroups.urGroup, config.fisGroups.meGroup);
         } catch {
@@ -189,34 +191,36 @@ export const Login = api(
     },
 );
 
-export const OperatorSessionLogin = api(
-    {method: "POST", path: "/auth/operator-session", expose: true, sensitive: true},
-    async (params: OperatorSessionRequest): Promise<LoginResponse> => {
+export const CardLogin = api(
+    {method: "POST", path: "/auth/card-login", expose: true, sensitive: true},
+    async (params: CardLoginRequest): Promise<LoginResponse> => {
+        const lang = params.acceptLanguage;
         const identifier = params.identifier?.trim();
-        if (!identifier) {
-            throw APIError.invalidArgument(t("auth_operator_identifier_required", params.acceptLanguage));
+        if (!identifier || !/^\d{1,30}$/.test(identifier)) {
+            throw APIError.invalidArgument(t("auth_card_invalid_format", lang));
         }
-        if (!/^[A-Za-z0-9][A-Za-z0-9._-]{1,63}$/.test(identifier)) {
-            throw APIError.invalidArgument(t("auth_operator_identifier_invalid", params.acceptLanguage));
+        if (!config.apacs.server || !config.apacs.user || !apacsDbPassword()) {
+            throw APIError.unavailable(t("auth_card_not_configured", lang));
         }
-
+        let operator;
+        try {
+            operator = await findActiveCardOperator(identifier);
+        } catch {
+            throw APIError.unavailable(t("auth_card_unavailable", lang));
+        }
+        if (!operator) throw APIError.unauthenticated(t("auth_card_rejected", lang));
         const user: UserData = {
-            FullName: identifier,
+            FullName: operator.fullName,
             department: "",
-            title: "Operator / Station",
-            username: `operator:${identifier.toLocaleLowerCase("en-US")}`,
+            title: "Operator",
+            username: `apacs:${operator.externalId}`,
             role: "operator",
             has_it_department_access: false,
             has_ur_department_access: false,
             has_me_department_access: false,
-            is_guest: true,
+            is_guest: false,
         };
-
-        return loginResponse(
-            t("auth_operator_session_success", params.acceptLanguage),
-            user,
-            await createSession(user),
-        );
+        return loginResponse(t("auth_success", lang), user, await createSession(user));
     },
 );
 

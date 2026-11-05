@@ -15,6 +15,7 @@ export const LoginView: React.FC = () => {
         showOperatorSession,
         setShowOperatorSession,
         operatorIdentifier,
+        cardInputRef,
         setOperatorIdentifier,
         loading,
         errorMessage,
@@ -202,6 +203,7 @@ export const LoginView: React.FC = () => {
                                     <User size={17} className="absolute left-3.5 text-brand-text-muted"/>
                                     <input
                                         id="operator-identifier"
+                                        ref={cardInputRef}
                                         type="text"
                                         value={operatorIdentifier}
                                         onChange={(event) => setOperatorIdentifier(event.target.value)}
@@ -211,9 +213,12 @@ export const LoginView: React.FC = () => {
                                                 void handleOperatorLogin();
                                             }
                                         }}
-                                        autoComplete="username"
+                                        autoComplete="off"
+                                        inputMode="numeric"
+                                        pattern="[0-9]{1,30}"
+                                        disabled={loading}
                                         autoFocus
-                                        maxLength={64}
+                                        maxLength={30}
                                         placeholder={t('login_operator_identifier_placeholder')}
                                         className="w-full rounded-xl border border-brand-border bg-brand-bg py-3 pl-10 pr-3 font-mono text-sm text-brand-text outline-none transition-all focus:ring-2 focus:ring-brand-accent/20"
                                     />
@@ -226,7 +231,7 @@ export const LoginView: React.FC = () => {
                             <button
                                 type="button"
                                 onClick={() => void handleOperatorLogin()}
-                                disabled={loading || operatorIdentifier.trim().length < 2}
+                                disabled={loading || !/^\d{1,30}$/.test(operatorIdentifier.trim())}
                                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-accent py-3 text-[11px] font-black uppercase tracking-widest text-brand-bg shadow-[0_8px_20px_rgba(99,102,241,0.25)] transition-all hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:transform-none"
                             >
                                 {loading ? <Loader2 size={16} className="animate-spin"/> : <IdCard size={16}/>}

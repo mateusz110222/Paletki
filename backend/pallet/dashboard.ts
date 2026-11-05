@@ -44,7 +44,7 @@ export const GetPublicDashboard = api(
         const showAll = requestedStation === "ALL";
         const stationRows = await db.queryAll<ProductionStationRecord>`
             SELECT DISTINCT ON (stations.station)
-                   stations.station, stations.pallet_id, pallets.project, pallets.model, stations.updated_at
+                   stations.station, stations.pallet_id, pallets.project, pallets.model, pallets.machine, stations.updated_at
             FROM production_stations stations
             JOIN pallet_details pallets ON pallets.pallet_id = stations.pallet_id AND pallets.deleted_at IS NULL
             ORDER BY stations.station, stations.updated_at DESC, stations.pallet_id DESC
@@ -56,12 +56,15 @@ export const GetPublicDashboard = api(
         const selectedStation = requestedStation && !showAll
             ? stations.find((station) => station.station === requestedStation) ?? null
             : null;
+        const selectedMachine = selectedStation?.machine ?? null;
+        const selectedProject = selectedStation?.project ?? null;
         const stationHistoryRows = requestedStation && !showAll
             ? await db.queryAll<ProductionStationRecord>`
-                SELECT stations.station, stations.pallet_id, pallets.project, pallets.model, stations.updated_at
+                SELECT stations.station, stations.pallet_id, pallets.project, pallets.model, pallets.machine, stations.updated_at
                 FROM production_stations stations
                 JOIN pallet_details pallets ON pallets.pallet_id = stations.pallet_id AND pallets.deleted_at IS NULL
                 WHERE stations.station = ${requestedStation}
+                  AND pallets.machine = ${selectedMachine}::text
                 ORDER BY stations.updated_at DESC, stations.pallet_id DESC
                 LIMIT 3
             `
@@ -83,6 +86,7 @@ export const GetPublicDashboard = api(
                 p.status_changed_at
             FROM pallet_details p
             WHERE p.deleted_at IS NULL
+              AND (${showAll}::boolean OR p.machine = ${selectedMachine}::text)
               AND (
                   ${showAll}::boolean
                   OR p.project = ANY(${selectedProjects}::text[])
@@ -98,17 +102,15 @@ export const GetPublicDashboard = api(
                 FROM (SELECT pallet_id, started_at, finished_at AS timestamp FROM pallet_service_periods WHERE completed) finished
                 JOIN pallet_details serviced_pallet ON serviced_pallet.pallet_id = finished.pallet_id
                 CROSS JOIN LATERAL (SELECT finished.started_at AS timestamp) started
-                WHERE finished.timestamp >= CURRENT_DATE - INTERVAL '13 days'
+                WHERE finished.timestamp >= (((NOW() AT TIME ZONE 'Europe/Warsaw')::date - 13)::timestamp AT TIME ZONE 'Europe/Warsaw')
+                  AND (${showAll}::boolean OR serviced_pallet.machine = ${selectedMachine}::text)
                   AND (
                       ${showAll}::boolean
-                      OR serviced_pallet.project = ANY(${selectedProjects}::text[])
+                      OR serviced_pallet.project = ${selectedProject}::text
                   )
             ), days AS (
-                SELECT generate_series(
-                    CURRENT_DATE - INTERVAL '13 days',
-                    CURRENT_DATE,
-                    INTERVAL '1 day'
-                )::date AS day
+                SELECT (NOW() AT TIME ZONE 'Europe/Warsaw')::date - day_offset AS day
+                FROM generate_series(0, 13) AS offsets(day_offset)
             )
             SELECT
                 TO_CHAR(days.day, 'YYYY-MM-DD') AS day,
@@ -116,7 +118,7 @@ export const GetPublicDashboard = api(
                 COALESCE(ROUND(AVG(completed_service.duration_minutes))::int, 0) AS average_minutes
             FROM days
             LEFT JOIN completed_service
-              ON completed_service.finished_at::date = days.day
+              ON (completed_service.finished_at AT TIME ZONE 'Europe/Warsaw')::date = days.day
             GROUP BY days.day
             ORDER BY days.day
         `;
@@ -131,9 +133,10 @@ export const GetPublicDashboard = api(
                 JOIN pallet_details serviced_pallet ON serviced_pallet.pallet_id = finished.pallet_id
                 CROSS JOIN LATERAL (SELECT finished.started_at AS timestamp) started
                 WHERE finished.timestamp >= NOW() - INTERVAL '30 days'
+                  AND (${showAll}::boolean OR serviced_pallet.machine = ${selectedMachine}::text)
                   AND (
                       ${showAll}::boolean
-                      OR serviced_pallet.project = ANY(${selectedProjects}::text[])
+                      OR serviced_pallet.project = ${selectedProject}::text
                   )
             ) durations
         `;

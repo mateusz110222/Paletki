@@ -52,6 +52,7 @@ export const GetReports = api({method: "GET", path: "/pallets/reports", expose: 
                 FROM pallet_details p
                 LEFT JOIN LATERAL (SELECT timestamp, operator_id FROM pallet_audit_logs
                     WHERE pallet_id = p.pallet_id AND new_status = p.status AND previous_status <> new_status
+                      AND timestamp = p.status_changed_at
                     ORDER BY id DESC LIMIT 1) a ON true
                 LEFT JOIN LATERAL (SELECT defect_name, kind FROM operator_reports
                     WHERE pallet_id = p.pallet_id AND closed_at IS NULL ORDER BY id DESC LIMIT 1) r ON true

@@ -283,7 +283,8 @@ test('storage events act as fallback for cross-window logout, language, audio, a
         emitStorage(SOUND_ENABLED_STORAGE_KEY, 'false');
         emitStorage(VOLUME_STORAGE_KEY, 'loud');
         emitStorage(ADMIN_SORT_STORAGE_KEY, JSON.stringify({key: 'status', direction: 'desc'}));
-        emitStorage(ADMIN_COLUMNS_STORAGE_KEY, JSON.stringify(['project', 'fis']));
+        emitStorage(ADMIN_SORT_STORAGE_KEY, JSON.stringify({key: 'nests', direction: 'asc'}));
+        emitStorage(ADMIN_COLUMNS_STORAGE_KEY, JSON.stringify(['project', 'fis', 'nests']));
         postBroadcastMessage({type: 'lang:change', language: 'pl'}, {senderId: 'window-storage'});
 
         assert.deepEqual(received, [
@@ -292,7 +293,8 @@ test('storage events act as fallback for cross-window logout, language, audio, a
             {type: 'audio:preferences', soundEnabled: false},
             {type: 'audio:preferences', volumeLevel: 'loud'},
             {type: 'table:preferences', sort: {key: 'status', direction: 'desc'}},
-            {type: 'table:preferences', hiddenColumns: ['project', 'fis']},
+            {type: 'table:preferences', sort: {key: 'nests', direction: 'asc'}},
+            {type: 'table:preferences', hiddenColumns: ['project', 'fis', 'nests']},
         ]);
     } finally {
         unsubscribe();

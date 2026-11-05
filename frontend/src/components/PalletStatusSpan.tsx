@@ -36,7 +36,7 @@ const STATUS_CONFIG: Record<string, { className: string; labelKey: TranslationKe
     },
 };
 
-const BASE_STYLES = "px-2 py-1 text-[10px] font-bold rounded-full border uppercase inline-block";
+const BASE_STYLES = "px-2 py-1 text-[10px] font-bold rounded-full border uppercase inline-block text-center align-middle";
 const FALLBACK_STYLES = "bg-brand-surface-high text-brand-text-muted border-brand-border";
 
 export function PalletStatusSpan({ status, block_reason, emphasis = false }: PalletStatusSpanProps): React.JSX.Element {

@@ -17,6 +17,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/mssql": "^12.3.0",
     "@types/node": "24.13.6",
     "@types/pg": "^8.23.1",
     "eslint": "^10.11.0",
@@ -29,6 +30,7 @@
     "dotenv": "^18.0.4",
     "encore.dev": "^1.58.6",
     "ldapts": "^9.2.0",
+    "mssql": "^12.7.13",
     "mysql2": "^3.24.4"
   }
 }

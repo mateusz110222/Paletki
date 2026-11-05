@@ -29,7 +29,7 @@ interface AuthContextType {
     canAccessMaintenance: boolean;
     defaultPath: string;
     login: (username: string, password: string) => Promise<LoginResult>;
-    loginAsOperator: (identifier: string) => Promise<LoginResult>;
+    loginWithCard: (identifier: string) => Promise<LoginResult>;
     logout: () => Promise<void>;
     apiClient: Client;
 }
@@ -130,9 +130,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     }, [applyLoginResponse, language, t]);
 
-    const loginAsOperator = useCallback(async (identifier: string): Promise<LoginResult> => {
+    const loginWithCard = useCallback(async (identifier: string): Promise<LoginResult> => {
         try {
-            const responseData = asLoginResponse(await publicApi.auth.OperatorSessionLogin({
+            const responseData = asLoginResponse(await publicApi.auth.CardLogin({
                 identifier,
                 acceptLanguage: language,
             }));
@@ -173,7 +173,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             isGuest: user?.is_guest === true,
             ...getViewAccess(user),
             login,
-            loginAsOperator,
+            loginWithCard,
             logout,
             apiClient,
         }}>

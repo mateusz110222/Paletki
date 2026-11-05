@@ -15,3 +15,9 @@ export function fisDbPassword(): string {
     const encoreValue = encoreFisDbPassword();
     return encoreValue || process.env.FIS_DB_PASSWORD || "";
 }
+
+const encoreApacsDbPassword = secret("APACSDBPassword");
+
+export function apacsDbPassword(): string {
+    return encoreApacsDbPassword() || process.env.APACS_DB_PASSWORD || "";
+}

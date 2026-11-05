@@ -37,6 +37,8 @@ export function useAdminPanelView(props: Parameters<typeof useAdminPanel>[0], pa
     const selectedProjectFromUrl = searchParams.get('project') || 'ALL';
     const selectedModelFromUrl = searchParams.get('model') || 'ALL';
     const selectedStatusFromUrl = searchParams.get('status') || 'ALL';
+    const fisFromUrl = searchParams.get('fis');
+    const selectedFisFromUrl = fisFromUrl === '1' || fisFromUrl === '2' ? fisFromUrl : 'ALL';
     const machineFromUrl = searchParams.get('machine');
     const selectedMachineFromUrl = machineFromUrl && ['WSM', 'SSM', 'COAT'].includes(machineFromUrl) ? machineFromUrl : 'ALL';
     const searchTermFromURL = searchParams.get('searchTerm') || '';
@@ -46,9 +48,10 @@ export function useAdminPanelView(props: Parameters<typeof useAdminPanel>[0], pa
         setSelectedProject,
         setSelectedStatus,
         setSelectedMachine,
+        setSelectedFis,
     } = actions;
     const hasActiveFilters = selectedProjectFromUrl !== 'ALL' || selectedModelFromUrl !== 'ALL' ||
-        selectedStatusFromUrl !== 'ALL' || selectedMachineFromUrl !== 'ALL' || Boolean(searchTermFromURL);
+        selectedStatusFromUrl !== 'ALL' || selectedMachineFromUrl !== 'ALL' || selectedFisFromUrl !== 'ALL' || Boolean(searchTermFromURL);
     const cycleStepEvery = Number(data.cycleStepEvery);
     const cycleStepAmount = Number(data.cycleStepAmount);
     const rangeCycleStepValid = data.addMode !== 'range' || !data.cycleSteppingEnabled || Boolean(
@@ -72,14 +75,17 @@ export function useAdminPanelView(props: Parameters<typeof useAdminPanel>[0], pa
 
     useEffect(() => {setSelectedMachine(selectedMachineFromUrl);}, [selectedMachineFromUrl, setSelectedMachine]);
 
+    useEffect(() => {setSelectedFis(selectedFisFromUrl);}, [selectedFisFromUrl, setSelectedFis]);
+
     const clearFilters = () => {
         const nextParams = new URLSearchParams(searchParams);
-        ['project', 'model', 'status', 'machine', 'searchTerm'].forEach((key) => nextParams.delete(key));
+        ['project', 'model', 'status', 'machine', 'fis', 'searchTerm'].forEach((key) => nextParams.delete(key));
         setSearchParams(nextParams);
         actions.setSelectedProject('ALL');
         actions.setSelectedModel('ALL');
         actions.setSelectedStatus('ALL');
         actions.setSelectedMachine('ALL');
+        actions.setSelectedFis('ALL');
         actions.setSearchTerm('');
     };
 
@@ -118,12 +124,14 @@ export function useAdminPanelView(props: Parameters<typeof useAdminPanel>[0], pa
         selectedModelFromUrl,
         selectedStatusFromUrl,
         selectedMachineFromUrl,
+        selectedFisFromUrl,
         searchTermFromURL,
         setSearchTerm,
         setSelectedModel,
         setSelectedProject,
         setSelectedStatus,
         setSelectedMachine,
+        setSelectedFis,
         hasActiveFilters,
         cycleStepEvery,
         cycleStepAmount,

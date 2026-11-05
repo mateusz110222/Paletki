@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type {Pallet} from '@backend/shared/types';
-import {parseTableSort, sortPallets} from '../src/lib/tablePreferences';
+import {parseHiddenColumns, parseTableSort, sortPallets} from '../src/lib/tablePreferences';
 
 test('date sorting compares timestamps across time zones and keeps missing dates last', () => {
     const pallets = [
@@ -25,4 +25,12 @@ test('sorting compares numeric cycles and natural IDs without mutating cached pa
     assert.deepEqual(sortPallets(pallets, {key:'current_cycles',direction:'desc'}, 'pl').map(p=>p.pallet_id), ['P10','P1','P2']);
     assert.deepEqual(sortPallets(pallets, {key:'pallet_id',direction:'asc'}, 'pl').map(p=>p.pallet_id), ['P1','P2','P10']);
     assert.deepEqual(pallets.map(p=>p.pallet_id), ['P10','P2','P1']);
+});
+
+test('nest count sorts numerically and can be saved as a hidden column', () => {
+    const pallets = [{pallet_id: 'A', nests: 12}, {pallet_id: 'B', nests: 2}] as Pallet[];
+    assert.deepEqual(sortPallets(pallets, {key: 'nests', direction: 'asc'}, 'pl').map(p => p.pallet_id), ['B', 'A']);
+    assert.deepEqual(sortPallets(pallets, {key: 'nests', direction: 'desc'}, 'pl').map(p => p.pallet_id), ['A', 'B']);
+    assert.deepEqual(parseTableSort('{"key":"nests","direction":"asc"}'), {key: 'nests', direction: 'asc'});
+    assert.deepEqual(parseHiddenColumns('["nests","unknown"]'), ['nests']);
 });

@@ -3,8 +3,10 @@ export type SupportedLanguage = "pl" | "en";
 export const defaultLanguage: SupportedLanguage = "pl";
 
 const pl = {
+    audit_model_moved: 'Przeniesiono model między projektami: {{from}} → {{to}}.',
     audit_catalog_renamed: 'Zmiana nazwy w katalogu: {{from}} → {{to}}.',
     catalog_invalid_name: 'Podaj nazwę (1–50 znaków), bez separatora | i znaków sterujących.',
+    catalog_conflict: 'Dane modelu zmieniły się lub formularz jest nieaktualny. Odśwież katalog i ponów edycję.',
     catalog_not_found: 'Wpis już nie istnieje. Odśwież katalog.',
     catalog_in_use: 'Nie można usunąć wpisu: jest powiązany z paletami (także archiwalnymi) lub modelami.',
     catalog_has_models: 'Najpierw usuń modele należące do projektu.',
@@ -78,6 +80,10 @@ const pl = {
 
     login_password_required: "Login i hasło są wymagane.",
     auth_success: "Zalogowano pomyślnie.",
+    auth_card_invalid_format: "Podaj numer karty: od 1 do 30 cyfr.",
+    auth_card_not_configured: "Logowanie kartą nie zostało skonfigurowane.",
+    auth_card_unavailable: "System kontroli dostępu jest chwilowo niedostępny.",
+    auth_card_rejected: "Karta jest nieznana, nieaktywna, nieważna lub przypisana niejednoznacznie.",
     auth_invalid_credentials: "Nieprawidłowy login lub hasło Active Directory.",
     auth_timeout: "Przekroczono czas oczekiwania na odpowiedź serwera LDAP.",
     auth_error: "Błąd uwierzytelniania w sieci firmowej LDAP.",
@@ -85,9 +91,6 @@ const pl = {
     auth_unavailable: "Serwer LDAP jest obecnie niedostępny.",
     auth_profile_error: "Nie udało się jednoznacznie odczytać profilu użytkownika z LDAP.",
     auth_session_invalid: "Sesja wygasła lub token uwierzytelniający jest nieprawidłowy.",
-    auth_operator_session_success: "Uruchomiono sesję operatora.",
-    auth_operator_identifier_required: "Podaj NetID operatora lub nazwę stacji.",
-    auth_operator_identifier_invalid: "Identyfikator może zawierać od 2 do 64 znaków: litery, cyfry, kropkę, myślnik lub podkreślenie.",
     auth_logout_success: "Wylogowano pomyślnie.",
     auth_staff_required: "Ta operacja wymaga grupy fisadmin_group lub admin_group w FIS.",
     fis_groups_unavailable: "Nie udało się sprawdzić grup użytkownika w FIS.",
@@ -96,8 +99,10 @@ const pl = {
 export type TranslationKey = keyof typeof pl;
 
 const en: Record<TranslationKey, string> = {
+    audit_model_moved: 'Model moved between projects: {{from}} → {{to}}.',
     audit_catalog_renamed: 'Catalogue renamed: {{from}} → {{to}}.',
     catalog_invalid_name: 'Enter a name (1–50 characters), without | or control characters.',
+    catalog_conflict: 'The model changed or the form is outdated. Refresh the catalogue and edit it again.',
     catalog_not_found: 'This entry no longer exists. Refresh the catalogue.',
     catalog_in_use: 'Cannot delete this entry: it is referenced by pallets (including archived pallets) or models.',
     catalog_has_models: 'Delete the models belonging to this project first.',
@@ -171,6 +176,10 @@ const en: Record<TranslationKey, string> = {
 
     login_password_required: "Login and password are required.",
     auth_success: "Login successful.",
+    auth_card_invalid_format: "Enter a card number containing 1 to 30 digits.",
+    auth_card_not_configured: "Card login has not been configured.",
+    auth_card_unavailable: "The access control system is temporarily unavailable.",
+    auth_card_rejected: "The card is unknown, inactive, invalid or has ambiguous ownership.",
     auth_invalid_credentials: "Invalid Active Directory username or password.",
     auth_timeout: "The LDAP server timed out.",
     auth_invalid_login_format: "The Active Directory login format is invalid.",
@@ -178,9 +187,6 @@ const en: Record<TranslationKey, string> = {
     auth_profile_error: "The LDAP user profile could not be resolved unambiguously.",
     auth_error: "Authentication failed on the corporate LDAP network.",
     auth_session_invalid: "The session expired or the authentication token is invalid.",
-    auth_operator_session_success: "The operator session was started.",
-    auth_operator_identifier_required: "Enter the operator NetID or station name.",
-    auth_operator_identifier_invalid: "The identifier must contain 2 to 64 characters: letters, digits, dot, hyphen, or underscore.",
     auth_logout_success: "Logout successful.",
     auth_staff_required: "This operation requires the FIS fisadmin_group or admin_group.",
     fis_groups_unavailable: "Could not verify the user's FIS groups.",

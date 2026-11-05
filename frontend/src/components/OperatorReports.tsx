@@ -57,10 +57,10 @@ export function OperatorReports({palletId}: {palletId: string}) {
                 {defects.data?.defects.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                 <option value="other">{t('op_other_fault_type')}</option>
             </SelectField>}
-            <TextareaField label={t('report_description')} value={description} maxLength={2000} required={selected === 'other' || selected === 'washing'} disabled={busy} onChange={e => setDescription(e.target.value)}/>
+            <TextareaField label={t('report_description')} value={description} maxLength={2000} required={selected === 'other'} disabled={busy} onChange={e => setDescription(e.target.value)}/>
             {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
             <div className="flex gap-3">
-                <button type="button" disabled={busy || ((selected === 'other' || selected === 'washing') && !description.trim())} className="min-h-10 rounded-lg bg-brand-accent px-3 text-xs font-bold text-brand-bg disabled:opacity-50" onClick={() => void save()}>{t(busy ? 'saving' : 'report_save')}</button>
+                <button type="button" disabled={busy || (selected === 'other' && !description.trim())} className="min-h-10 rounded-lg bg-brand-accent px-3 text-xs font-bold text-brand-bg disabled:opacity-50" onClick={() => void save()}>{t(busy ? 'saving' : 'report_save')}</button>
                 <button type="button" disabled={busy} className="min-h-10 px-3 text-xs text-brand-text-muted" onClick={() => setEditing(null)}>{t('btn_cancel')}</button>
             </div>
         </div>}

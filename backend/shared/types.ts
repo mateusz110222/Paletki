@@ -84,6 +84,7 @@ export interface PublicDashboardServiceDay {
 
 export interface ProductionStation {
     station: string;
+    machine: PalletMachine;
     pallet_id: string;
     project: string;
     model: string;

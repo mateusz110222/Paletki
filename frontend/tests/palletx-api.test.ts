@@ -2,6 +2,30 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import Client from '../src/lib/client';
 
+test('model editing sends the destination project ID while preserving rename-only calls', async () => {
+    const bodies: unknown[] = [];
+    const client = new Client('http://qa.test', {fetcher: async (_input, init) => {
+        bodies.push(JSON.parse(String(init?.body)));
+        return new Response(null, {status: 200});
+    }});
+    await client.pallet.UpdateModel(7, {name: 'Model', project_id: 2, expected_project_id: 1, acceptLanguage: 'pl'});
+    await client.pallet.UpdateModel(7, {name: 'Renamed'});
+    assert.deepEqual(bodies, [{name: 'Model', project_id: 2, expected_project_id: 1}, {name: 'Renamed'}]);
+});
+
+test('card login preserves leading zeros and sends language only in the header', async () => {
+    let request: {url: string; init?: RequestInit} | undefined;
+    const client = new Client('http://qa.test', {fetcher: async (input, init) => {
+        request = {url: String(input), init};
+        return new Response(JSON.stringify({status: true}));
+    }});
+    await client.auth.CardLogin({identifier: '00123', acceptLanguage: 'pl'});
+    assert.equal(new URL(request!.url).pathname, '/auth/card-login');
+    assert.deepEqual(JSON.parse(String(request!.init?.body)), {identifier: '00123'});
+    assert.equal(new Headers(request!.init?.headers).get('accept-language'), 'pl');
+    assert.equal('OperatorSessionLogin' in client.auth, false);
+});
+
 test('API transport sends machine on single, range and edit and requires unblock comment in its payload', async () => {
     const requests: {url: string; body: Record<string, unknown>}[] = [];
     const client = new Client('http://qa.test', {fetcher: async (input, init) => {

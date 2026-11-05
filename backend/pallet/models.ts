@@ -1,5 +1,5 @@
 import {localizeAuditDescription} from "./audit-description";
-import type {AuditLog, Pallet, PalletStatus} from "../shared/types";
+import type {Pallet, PalletStatus} from "../shared/types";
 
 export interface PalletRecord {
     id: number;
@@ -50,12 +50,5 @@ export function toPalletDTO(row: PalletRecord, lang?: string): Pallet {
         created_at: row.created_at.toISOString(),
         created_by: row.created_by,
         updated_at: row.updated_at.toISOString(),
-    };
-}
-
-export function toAuditLogDTO(row: AuditLogRecord): AuditLog {
-    return {
-        ...row,
-        timestamp: row.timestamp.toISOString(),
     };
 }

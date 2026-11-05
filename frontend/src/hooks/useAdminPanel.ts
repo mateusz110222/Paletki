@@ -1,4 +1,5 @@
-import {matchesPalletSearch} from '../lib/palletSearch';
+import {expandPalletRange} from '@backend/shared/validation';
+import {filterPallets} from '../lib/palletSearch';
 import {ADMIN_SORT_STORAGE_KEY, parseTableSort, readPreference, savePreference, sortPallets, type TableSort} from '../lib/tablePreferences';
 import {postBroadcastMessage, subscribeBroadcast} from '../lib/broadcastSync';
 import {refreshPalletData} from '../lib/queryCache';
@@ -20,18 +21,6 @@ interface UseAdminPanelProps {
 
 type AddMode = 'single' | 'range';
 
-const expandRange = (first: string, last: string): string[] | null => {
-    const firstMatch = /^(.*?)(\d{2})$/.exec(first);
-    const lastMatch = /^(.*?)(\d{2})$/.exec(last);
-    if (!firstMatch || !lastMatch || !firstMatch[1] || firstMatch[1] !== lastMatch[1]) return null;
-    const start = Number(firstMatch[2]);
-    const end = Number(lastMatch[2]);
-    if (start > end) return null;
-    return Array.from({length: end - start + 1}, (_, index) =>
-        `${firstMatch[1]}${String(start + index).padStart(2, '0')}`,
-    );
-};
-
 export const useAdminPanel = ({
                                   pallets,
                                   projects,
@@ -48,6 +37,7 @@ export const useAdminPanel = ({
     const [selectedModel, setSelectedModel] = useState('ALL');
     const [selectedStatus, setSelectedStatus] = useState('ALL');
     const [selectedMachine, setSelectedMachine] = useState('ALL');
+    const [selectedFis, setSelectedFis] = useState('ALL');
 
     // Modals state
     const [isAddOpen, setIsAddOpen] = useState(false);
@@ -129,21 +119,19 @@ export const useAdminPanel = ({
         setSelectedMachine(machine);
         setCurrentPage(1);
     }, []);
+    const updateSelectedFis = useCallback((fis: string) => {
+        setSelectedFis(fis);
+        setCurrentPage(1);
+    }, []);
     const updatePageSize = useCallback((size: number) => {
         setPageSize(size);
         setCurrentPage(1);
     }, []);
 
-    const filteredPallets = useMemo(() => (pallets || []).filter((p) => {
-        const project = p.project || '';
-
-        const matchesSearch = matchesPalletSearch(p, searchTerm);
-        const matchesProject = selectedProject === 'ALL' || project === selectedProject;
-        const matchesModel = selectedModel === 'ALL' || p.model === selectedModel;
-        const matchesStatus = selectedStatus === 'ALL' || p.status === selectedStatus;
-
-        return matchesSearch && matchesProject && matchesModel && matchesStatus && (selectedMachine === 'ALL' || p.machine === selectedMachine);
-    }), [pallets, searchTerm, selectedModel, selectedProject, selectedStatus, selectedMachine]);
+    const filteredPallets = useMemo(() => filterPallets(pallets, {
+        search: searchTerm, project: selectedProject, model: selectedModel,
+        status: selectedStatus, machine: selectedMachine, fis: selectedFis,
+    }), [pallets, searchTerm, selectedModel, selectedProject, selectedStatus, selectedMachine, selectedFis]);
 
     const sortedPallets = useMemo(() => sortPallets(filteredPallets, sort, language), [filteredPallets, sort, language]);
     const totalPages = Math.max(1, Math.ceil(filteredPallets.length / pageSize));
@@ -170,7 +158,7 @@ export const useAdminPanel = ({
 
     const rangeCyclePreview = useMemo(() => {
         if (addMode !== 'range' || !cycleSteppingEnabled) return null;
-        const ids = expandRange(newId.trim().toUpperCase(), newLastId.trim().toUpperCase());
+        const ids = expandPalletRange(newId.trim().toUpperCase(), newLastId.trim().toUpperCase());
         const base = Number(newMaxCycles);
         const every = Number(cycleStepEvery);
         const amount = Number(cycleStepAmount);
@@ -248,7 +236,7 @@ export const useAdminPanel = ({
 
         const palletId = newId.trim().toUpperCase();
         const lastPalletId = newLastId.trim().toUpperCase();
-        const rangeIds = addMode === 'range' ? expandRange(palletId, lastPalletId) : [palletId];
+        const rangeIds = addMode === 'range' ? expandPalletRange(palletId, lastPalletId) : [palletId];
 
         if (!palletId) {
             setValidationError(t('validation_error_pallet_id'));
@@ -582,6 +570,7 @@ export const useAdminPanel = ({
             setSelectedModel: updateSelectedModel,
             setSelectedStatus: updateSelectedStatus,
             setSelectedMachine: updateSelectedMachine,
+            setSelectedFis: updateSelectedFis,
             setCurrentPage,
             setSort: updateSort,
             setIsAddOpen: (open: boolean) => {

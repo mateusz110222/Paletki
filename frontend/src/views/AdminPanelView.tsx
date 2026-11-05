@@ -80,6 +80,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
         selectedModelFromUrl,
         selectedStatusFromUrl,
         selectedMachineFromUrl,
+        selectedFisFromUrl,
         searchTermFromURL,
         hasActiveFilters,
         cycleStepEvery,
@@ -274,6 +275,21 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                         </select>
                     </div>
 
+                    <div className="flex flex-col gap-1">
+                        <label htmlFor="admin-filter-fis" className="text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted">{t('filter_by_fis')}</label>
+                        <select id="admin-filter-fis" value={selectedFisFromUrl} onChange={event => {
+                            const value = event.target.value;
+                            const params = new URLSearchParams(searchParams);
+                            if (value === 'ALL') params.delete('fis'); else params.set('fis', value);
+                            setSearchParams(params);
+                            actions.setSelectedFis(value);
+                        }} className="bg-brand-bg border border-brand-border text-xs rounded p-2 text-brand-text font-medium focus:ring-1 focus:ring-brand-accent">
+                            <option value="ALL">{t('all_fis')}</option>
+                            <option value="1">FIS 1</option>
+                            <option value="2">FIS 2</option>
+                        </select>
+                    </div>
+
                     {/* PAGINACJA: ILOŚĆ NA STRONĘ */}
                     <div className="flex flex-col gap-1">
                         <label htmlFor="admin-page-size" className="text-[0.625rem] uppercase font-bold text-brand-text-muted">
@@ -325,7 +341,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                 </div>
                 <div className="space-y-4 border-b border-brand-border p-4">
                     <details className="text-sm"><summary className="w-fit cursor-pointer rounded-lg border border-brand-border px-3 py-2">{language === 'pl' ? 'Widoczne kolumny' : 'Visible columns'}</summary><div className="mt-3 flex flex-wrap gap-4">{([
-                        ['project', 'col_project'], ['model', 'col_model'], ['fis', 'col_fis'], ['current_cycles', 'col_cycles'], ['status', 'col_status'], ['created_by', 'col_operator'], ['created_at', 'col_created_at'],
+                        ['project', 'col_project'], ['model', 'col_model'], ['fis', 'col_fis'], ['nests', 'col_nests'], ['current_cycles', 'col_cycles'], ['status', 'col_status'], ['created_by', 'col_operator'], ['created_at', 'col_created_at'],
                     ] as const).map(([key, label]) => <label key={key} className="flex items-center gap-2"><input type="checkbox" checked={!hiddenColumns.includes(key)} onChange={() => toggleColumn(key)}/>{t(label)}</label>)}</div></details>
                     <BulkPalletActions pallets={selectedPallets} onClear={() => setSelectedIds([])} onCompleted={ids => setSelectedIds(current => current.filter(id => !ids.includes(id)))}/>
                 </div>
@@ -338,6 +354,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                             <th hidden={hiddenColumns.includes('project')} aria-sort={data.sort.key === 'project' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('project')} className="flex items-center gap-2 whitespace-nowrap">{t('col_project')}<span aria-hidden="true">{data.sort.key === 'project' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
                             <th hidden={hiddenColumns.includes('model')} aria-sort={data.sort.key === 'model' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('model')} className="flex items-center gap-2 whitespace-nowrap">{t('col_model')}<span aria-hidden="true">{data.sort.key === 'model' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
                             <th hidden={hiddenColumns.includes('fis')} aria-sort={data.sort.key === 'fis' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('fis')} className="flex items-center gap-2 whitespace-nowrap">{t('col_fis')}<span aria-hidden="true">{data.sort.key === 'fis' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
+                            <th hidden={hiddenColumns.includes('nests')} aria-sort={data.sort.key === 'nests' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('nests')} className="flex items-center gap-2 whitespace-nowrap">{t('col_nests')}<span aria-hidden="true">{data.sort.key === 'nests' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
                             <th hidden={hiddenColumns.includes('current_cycles')} aria-sort={data.sort.key === 'current_cycles' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('current_cycles')} className="flex items-center gap-2 whitespace-nowrap">{t('col_cycles')}<span aria-hidden="true">{data.sort.key === 'current_cycles' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
                             <th hidden={hiddenColumns.includes('status')} aria-sort={data.sort.key === 'status' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('status')} className="flex items-center gap-2 whitespace-nowrap">{t('col_status')}<span aria-hidden="true">{data.sort.key === 'status' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
                             <th hidden={hiddenColumns.includes('created_by')} aria-sort={data.sort.key === 'created_by' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('created_by')} className="flex items-center gap-2 whitespace-nowrap">{t('col_operator')}<span aria-hidden="true">{data.sort.key === 'created_by' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
@@ -348,7 +365,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                         <tbody className="divide-y divide-brand-border">
                         {data.paginatedPallets.length === 0 ? (
                             <tr>
-                                <td colSpan={10 - hiddenColumns.length} className="px-6 py-10 text-center text-brand-text-muted">
+                                <td colSpan={11 - hiddenColumns.length} className="px-6 py-10 text-center text-brand-text-muted">
                                     {t('no_pallets_found')}
                                 </td>
                             </tr>
@@ -374,14 +391,8 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                         </td>
                                         <td hidden={hiddenColumns.includes('project')} className="px-6 py-4 text-xs font-medium text-brand-text">{p.project}</td>
                                         <td hidden={hiddenColumns.includes('model')} className="px-6 py-4 text-xs font-medium text-brand-text">{p.model}</td>
-                                        <td hidden={hiddenColumns.includes('fis')} className="px-6 py-4">
-                                            <div className="flex flex-wrap gap-1">
-                                                    <span
-                                                        className="bg-brand-surface-high text-[0.5625rem] px-2 py-0.5 rounded border border-brand-border font-mono text-brand-text">
-                                                        FIS: {p.fis ?? t('value_not_available')}
-                                                    </span>
-                                            </div>
-                                        </td>
+                                        <td hidden={hiddenColumns.includes('fis')} className="px-6 py-4 text-xs font-medium text-brand-text">{p.fis}</td>
+                                        <td hidden={hiddenColumns.includes('nests')} className="px-6 py-4 text-xs font-medium text-brand-text">{p.nests}</td>
                                         <td hidden={hiddenColumns.includes('current_cycles')} className="px-6 py-4">
                                             <div className="w-32 flex flex-col gap-1">
                                                 <div className="flex justify-between text-[0.625rem] font-mono">

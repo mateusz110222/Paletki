@@ -1,7 +1,7 @@
 import {AUTH_STORAGE_KEY, parseStoredSession, type StoredSession} from '../auth/session.ts';
 import type {Language} from '../i18n/LanguageContext.tsx';
 import type {AudioVolumeLevel} from './audio.ts';
-import type {OptionalColumn, SortKey, TableSort} from './tablePreferences.ts';
+import {OPTIONAL_COLUMNS, SORT_KEYS, type OptionalColumn, type SortKey, type TableSort} from './tablePreferences.ts';
 
 export const BROADCAST_CHANNEL_NAME = 'palletx_sync';
 export const LANGUAGE_STORAGE_KEY = 'palletx.language';
@@ -11,27 +11,6 @@ export const ADMIN_SORT_STORAGE_KEY = 'palletx.admin.sort';
 export const ADMIN_COLUMNS_STORAGE_KEY = 'palletx.admin.columns';
 
 export {AUTH_STORAGE_KEY};
-
-const VALID_SORT_KEYS: readonly SortKey[] = [
-    'pallet_id',
-    'project',
-    'model',
-    'fis',
-    'current_cycles',
-    'status',
-    'created_by',
-    'created_at',
-];
-
-const VALID_OPTIONAL_COLUMNS: readonly OptionalColumn[] = [
-    'project',
-    'model',
-    'fis',
-    'current_cycles',
-    'status',
-    'created_by',
-    'created_at',
-];
 
 export type BroadcastSyncPayload =
     | {type: 'auth:logout'}
@@ -66,7 +45,7 @@ function isValidTableSort(value: unknown): value is TableSort {
     return (
         isRecord(value) &&
         typeof value.key === 'string' &&
-        VALID_SORT_KEYS.includes(value.key as SortKey) &&
+        SORT_KEYS.includes(value.key as SortKey) &&
         (value.direction === 'asc' || value.direction === 'desc')
     );
 }
@@ -74,7 +53,7 @@ function isValidTableSort(value: unknown): value is TableSort {
 function isValidHiddenColumns(value: unknown): value is OptionalColumn[] {
     return (
         Array.isArray(value) &&
-        value.every(col => typeof col === 'string' && VALID_OPTIONAL_COLUMNS.includes(col as OptionalColumn))
+        value.every(col => typeof col === 'string' && OPTIONAL_COLUMNS.includes(col as OptionalColumn))
     );
 }
 
@@ -203,7 +182,7 @@ export function subscribeBroadcast(
             try {
                 const parsed: unknown = JSON.parse(event.newValue ?? '[]');
                 if (Array.isArray(parsed)) {
-                    const filtered = VALID_OPTIONAL_COLUMNS.filter(col => parsed.includes(col));
+                    const filtered = OPTIONAL_COLUMNS.filter(col => parsed.includes(col));
                     listener({type: 'table:preferences', hiddenColumns: filtered});
                 }
             } catch {

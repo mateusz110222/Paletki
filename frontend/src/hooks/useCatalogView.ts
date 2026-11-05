@@ -18,6 +18,7 @@ export function useCatalogView() {
     const [selected, setSelected] = useState<{entry: Entry; remove: boolean; create?: boolean} | null>(null);
     const [name, setName] = useState('');
     const [projectName, setProjectName] = useState('');
+    const [modelProjectId, setModelProjectId] = useState<number | null>(null);
     const dialogRef = useRef<HTMLDivElement>(null);
     const runningRef = useRef(false);
     const [busy, setBusy] = useState(false);
@@ -67,11 +68,11 @@ export function useCatalogView() {
                 else await apiClient.pallet.DeleteModel(selected.entry.id, {acceptLanguage: language});
             } else {
                 if (selected.entry.kind === 'project') await apiClient.pallet.UpdateProject(selected.entry.id, {name: name.trim(), acceptLanguage: language});
-                else await apiClient.pallet.UpdateModel(selected.entry.id, {name: name.trim(), acceptLanguage: language});
+                else await apiClient.pallet.UpdateModel(selected.entry.id, {name: name.trim(), ...(modelProjectId !== selected.entry.projectId ? {project_id: modelProjectId ?? undefined, expected_project_id: selected.entry.projectId} : {}), acceptLanguage: language});
             }
             setSelected(null);
             setSuccess(true);
-            await invalidateAndBroadcast(cache, [['projects'], ['models'], ['pallets'], ['public-projects'], ['public-dashboard']]);
+            await invalidateAndBroadcast(cache, [['projects'], ['models'], ['pallets'], ['reports'], ['public-projects'], ['public-dashboard']]);
         } catch (err) {
             setError(getErrorMessage(err, t('catalog_error')));
         } finally {
@@ -83,6 +84,7 @@ export function useCatalogView() {
     function select(entry: Entry, remove: boolean) {
         setSelected({entry, remove});
         setName(entry.name);
+        setModelProjectId(entry.projectId ?? null);
         setError('');
         setSuccess(false);
     }
@@ -91,6 +93,7 @@ export function useCatalogView() {
         setSelected({entry: {id: 0, kind, name: ''}, remove: false, create: true});
         setName('');
         setProjectName('');
+        setModelProjectId(null);
         setError('');
         setSuccess(false);
     }
@@ -110,7 +113,7 @@ export function useCatalogView() {
     }
 
     return {
-        getAdminUrl: getCatalogAdminUrl, t, tab, search, setSearch, selected, name, setName, projectName, setProjectName,
+        getAdminUrl: getCatalogAdminUrl, t, tab, search, setSearch, selected, name, setName, projectName, setProjectName, modelProjectId, setModelProjectId,
         dialogRef, busy, error, success, close, projects, models, entries, save, select,
         add, modalTitle, projectModels, changeTab, showProjectModels, filteredProject,
         clearProjectFilter: () => setProjectId(null), handleDialogKeyDown,

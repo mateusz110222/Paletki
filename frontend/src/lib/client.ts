@@ -108,7 +108,7 @@ export namespace auth {
         acceptLanguage?: string
     }
 
-    export interface OperatorSessionRequest {
+    export interface CardLoginRequest {
         identifier: string
         acceptLanguage?: string
     }
@@ -121,7 +121,7 @@ export namespace auth {
             this.Login = this.Login.bind(this)
             this.Logout = this.Logout.bind(this)
             this.LookupDirectoryUser = this.LookupDirectoryUser.bind(this)
-            this.OperatorSessionLogin = this.OperatorSessionLogin.bind(this)
+            this.CardLogin = this.CardLogin.bind(this)
         }
 
         public async Login(params: LoginRequest): Promise<shared.LoginResponse> {
@@ -172,7 +172,7 @@ export namespace auth {
             return await resp.json() as shared.DirectoryUser
         }
 
-        public async OperatorSessionLogin(params: OperatorSessionRequest): Promise<shared.LoginResponse> {
+        public async CardLogin(params: CardLoginRequest): Promise<shared.LoginResponse> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
                 "accept-language": params.acceptLanguage,
@@ -184,7 +184,7 @@ export namespace auth {
             }
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/auth/operator-session`, JSON.stringify(body), {headers})
+            const resp = await this.baseClient.callTypedAPI("POST", `/auth/card-login`, JSON.stringify(body), {headers})
             return await resp.json() as shared.LoginResponse
         }
     }
@@ -252,6 +252,8 @@ export namespace pallet {
     }
 
     export interface UpdateModelParams {
+        expected_project_id?: number
+        project_id?: number
         name: shared.ShortText
         acceptLanguage?: string
     }
@@ -461,6 +463,8 @@ export namespace pallet {
             })
             const body = {
                 name: params.name,
+                project_id: params.project_id,
+                expected_project_id: params.expected_project_id,
             }
             await this.baseClient.callTypedAPI("PUT", `/models/${encodeURIComponent(id)}`, JSON.stringify(body), {headers})
         }
