@@ -89,8 +89,9 @@ jobs:
         run: |
           pnpm build
           (cd backend && encore build docker --config infra.config.json --base=node:24-bookworm-slim "$IMAGE_PREFIX/backend:$RELEASE_SHA")
-          docker build -f deploy/frontend.Dockerfile -t "$IMAGE_PREFIX/frontend:$RELEASE_SHA" .
-          docker build -f deploy/migrations.Dockerfile -t "$IMAGE_PREFIX/migrations:$RELEASE_SHA" .
+          source_label="org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          docker build --label "$source_label" -f deploy/frontend.Dockerfile -t "$IMAGE_PREFIX/frontend:$RELEASE_SHA" .
+          docker build --label "$source_label" -f deploy/migrations.Dockerfile -t "$IMAGE_PREFIX/migrations:$RELEASE_SHA" .
           for service in backend frontend migrations; do
             docker push "$IMAGE_PREFIX/$service:$RELEASE_SHA"
           done
