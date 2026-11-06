@@ -1,0 +1,121 @@
+name: ${COMPOSE_PROJECT_NAME:?Set the existing stack project name}
+
+services:
+  postgres-db:
+    image: postgres:18.6-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: encoredb_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set the existing database password}
+      POSTGRES_DB: pallets
+    expose:
+      - "5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  db-migrations:
+    image: ${MIGRATIONS_IMAGE:?Set the migrations image for this release}
+    command:
+      - -path=/migrations
+      - -database=postgres://encoredb_user:${POSTGRES_PASSWORD}@postgres-db:5432/pallets?sslmode=disable
+      - up
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+
+  backend:
+    image: ${BACKEND_IMAGE:?Set the backend image for this release}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/public/dashboard').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 20s
+    expose:
+      - "8080"
+    depends_on:
+      db-migrations:
+        condition: service_completed_successfully
+    volumes:
+      - type: bind
+        source: ${LDAP_CA_CERT_HOST_PATH:?Set the absolute CA certificate path}
+        target: /etc/ssl/certs/borgwarner-enterprise-root.pem
+        read_only: true
+        bind:
+          create_host_path: false
+    environment:
+      PORT: 8080
+      PALLETS_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      LDAP_URL: ${LDAP_URL:?Set LDAP_URL}
+      LDAP_LOGIN_DOMAIN: ${LDAP_LOGIN_DOMAIN:?Set LDAP_LOGIN_DOMAIN}
+      LDAP_SEARCH_BASE: ${LDAP_SEARCH_BASE:?Set LDAP_SEARCH_BASE}
+      LDAP_LOOKUP_BIND_USER: ${LDAP_LOOKUP_BIND_USER:-}
+      LDAP_LOOKUP_BIND_PASSWORD: ${LDAP_LOOKUP_BIND_PASSWORD:-}
+      LDAP_TIMEOUT_MS: ${LDAP_TIMEOUT_MS:?Set LDAP_TIMEOUT_MS}
+      LDAP_CONNECT_TIMEOUT_MS: ${LDAP_CONNECT_TIMEOUT_MS:?Set LDAP_CONNECT_TIMEOUT_MS}
+      LDAP_TLS_REJECT_UNAUTHORIZED: ${LDAP_TLS_REJECT_UNAUTHORIZED:?Set LDAP_TLS_REJECT_UNAUTHORIZED}
+      LDAP_TLS_ALLOW_LEGACY_SERVER_CERT: ${LDAP_TLS_ALLOW_LEGACY_SERVER_CERT:-false}
+      LDAP_TLS_SKIP_HOSTNAME_VERIFICATION: ${LDAP_TLS_SKIP_HOSTNAME_VERIFICATION:-true}
+      LDAP_CA_CERT_PATH: /etc/ssl/certs/borgwarner-enterprise-root.pem
+      APACS_DB_SERVER: ${APACS_DB_SERVER:-}
+      APACS_DB_PORT: ${APACS_DB_PORT:-1433}
+      APACS_DB_NAME: ${APACS_DB_NAME:-APACS}
+      APACS_DB_USER: ${APACS_DB_USER:-}
+      APACS_DB_PASSWORD: ${APACS_DB_PASSWORD:-}
+      APACS_DB_ENCRYPT: ${APACS_DB_ENCRYPT:-true}
+      APACS_DB_TRUST_CERTIFICATE: ${APACS_DB_TRUST_CERTIFICATE:-false}
+      APACS_DB_CONNECTION_TIMEOUT_MS: ${APACS_DB_CONNECTION_TIMEOUT_MS:-5000}
+      APACS_DB_REQUEST_TIMEOUT_MS: ${APACS_DB_REQUEST_TIMEOUT_MS:-5000}
+      AUTH_SESSION_TTL_MINUTES: ${AUTH_SESSION_TTL_MINUTES:-720}
+      FIS_DB_HOST: ${FIS_DB_HOST:?Set FIS_DB_HOST}
+      FIS_DB_PORT: ${FIS_DB_PORT:-3306}
+      FIS_DB_USER: ${FIS_DB_USER:?Set FIS_DB_USER}
+      FIS_DB_PASSWORD: ${FIS_DB_PASSWORD:?Set FIS_DB_PASSWORD}
+      FIS_UR_GROUP: ${FIS_UR_GROUP:-Maintenance}
+      FIS_ME_GROUP: ${FIS_ME_GROUP:-proceng}
+      FIS1_ROUTER_URL: ${FIS1_ROUTER_URL:?Set FIS1_ROUTER_URL}
+      FIS2_ROUTER_URL: ${FIS2_ROUTER_URL:?Set FIS2_ROUTER_URL}
+      FIS_REQUEST_TIMEOUT_MS: ${FIS_REQUEST_TIMEOUT_MS:-10000}
+      FIS_OUTBOX_COMPLETED_RETENTION_DAYS: ${FIS_OUTBOX_COMPLETED_RETENTION_DAYS:-30}
+      ENCORE_ENV: production
+
+  frontend:
+    image: ${FRONTEND_IMAGE:?Set the frontend image for this release}
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_HTTP_PORT:-8082}:80"
+      - "${FIS_INGRESS_PORT:-4000}:4000"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  fis-outbox-worker:
+    image: curlimages/curl:8.12.1
+    restart: unless-stopped
+    depends_on:
+      - backend
+    entrypoint: ["sh", "-c"]
+    command:
+      - >-
+        while true; do curl --fail --silent --show-error --retry 5 --retry-connrefused -X POST -H 'Content-Type: application/json' -d '{"limit":20}' http://backend:8080/internal/fis-outbox/process || true; sleep 5; done
+
+  fis-reconciler:
+    image: curlimages/curl:8.12.1
+    restart: unless-stopped
+    depends_on:
+      - backend
+    entrypoint: ["sh", "-c"]
+    command:
+      - >-
+        while true; do curl --fail --silent --show-error --retry 5 --retry-connrefused -X POST -H 'Content-Type: application/json' -d '{}' http://backend:8080/internal/fis-outbox/reconcile || true; sleep 900; done
+
+volumes:
+  pgdata:
+    external: true
+    name: ${POSTGRES_VOLUME:?Set the existing PostgreSQL volume name}

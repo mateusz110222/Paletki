@@ -213,7 +213,7 @@ pnpm install
 Copy `.env.example` to `.env` and fill in the required parameters:
 ```bash
 # Linux / macOS
-cp .env.example .env
+cp .env.development.example .env.development
 
 # Windows PowerShell
 Copy-Item .env.example .env
@@ -280,7 +280,27 @@ pnpm check
 
 ---
 
-## Production Deployment (Docker Compose)
+## Automated Production Deployment (GitHub Actions)
+
+The recommended setup builds and tests on GitHub-hosted runners, publishes
+backend/frontend/migration images to GHCR with the commit SHA, and deploys through
+a dedicated Linux runner on the production server. Production secrets stay in
+`/opt/paletki/.env.production`. SQL migrations, Nginx configuration, and the frontend
+bundle are packaged into images, so Portainer no longer needs these host paths.
+
+See [the setup and recovery guide](deploy/README.md) before enabling deployment.
+It includes the one-time handover from the existing Portainer stack and preserves
+the existing PostgreSQL volume. The workflow runs checks on pull requests and
+publishes on `master`; deployment starts after `ENABLE_PRODUCTION_DEPLOY=true`
+is configured in GitHub repository variables.
+
+For development, copy `.env.development.example` to `.env.development` and run
+`pnpm dev`. Vite selects development/production environment files by mode. The
+backend reads `.env.development` before the legacy `.env` fallback during local
+development; with `ENCORE_ENV=production` it reads only injected environment
+variables. Never put production credentials in local development files.
+
+## Manual Deployment (legacy Docker Compose / Portainer)
 
 ### 1. Build Docker Images & Frontend Bundle
 ```bash

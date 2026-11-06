@@ -6,6 +6,11 @@ import * as tls from "node:tls";
 const workingDirectory = process.cwd();
 const initialDirectory = process.env.INIT_CWD;
 const envPaths = [
+    resolve(workingDirectory, ".env.development"),
+    resolve(workingDirectory, "../.env.development"),
+    ...(initialDirectory
+        ? [resolve(initialDirectory, ".env.development"), resolve(initialDirectory, "../.env.development")]
+        : []),
     resolve(workingDirectory, ".env"),
     resolve(workingDirectory, "../.env"),
     ...(initialDirectory
@@ -13,10 +18,10 @@ const envPaths = [
         : []),
 ];
 
-dotenv.config({
-    path: envPaths,
-    quiet: true,
-});
+// Production receives its environment from Compose, never from development files.
+if (process.env.ENCORE_ENV !== "production") {
+    dotenv.config({path: envPaths, quiet: true});
+}
 
 function requiredEnv(name: string): string {
     const value = process.env[name]?.trim();
