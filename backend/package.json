@@ -28,7 +28,7 @@
   },
   "dependencies": {
     "dotenv": "^18.0.4",
-    "encore.dev": "^1.58.6",
+    "encore.dev": "^1.58.8",
     "ldapts": "^9.2.0",
     "mssql": "^12.7.13",
     "mysql2": "^3.24.4"

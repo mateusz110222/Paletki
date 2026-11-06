@@ -172,8 +172,8 @@ importers:
         specifier: ^18.0.4
         version: 18.0.4
       encore.dev:
-        specifier: ^1.58.6
-        version: 1.58.6
+        specifier: ^1.58.8
+        version: 1.58.8
       ldapts:
         specifier: ^9.2.0
         version: 9.2.0
@@ -1455,8 +1455,8 @@ packages:
   electron-to-chromium@1.5.439:
     resolution: {integrity: sha512-qu6QIPXhsb+CRcAiTMNjR4A1y/7tCYKkKjr5CZXRVih6qkDf79peZ2BpEU3qoDBNCRrcy3Mra3X9nG5oruuA7Q==}
 
-  encore.dev@1.58.6:
-    resolution: {integrity: sha512-KUf9ot7peFuNWJYt/GcvRAns2zThCQ4qx33snDHwO4BODkCq7hOSlHY2LbmJ+z/tvq/j7+z2yTlO4i/LEij6/Q==}
+  encore.dev@1.58.8:
+    resolution: {integrity: sha512-tay5Hh+26vbZI1NXnIPzWErMnvspBUiFIro2LUHuiEvlQK+S9GhBV6qHWbX0A5mQhmXw3GijDplsxF7HX9hWLA==}
     engines: {node: '>=18.0.0'}
 
   end-of-stream@1.4.5:
@@ -4006,7 +4006,7 @@ snapshots:
 
   electron-to-chromium@1.5.439: {}
 
-  encore.dev@1.58.6: {}
+  encore.dev@1.58.8: {}
 
   end-of-stream@1.4.5:
     dependencies:
