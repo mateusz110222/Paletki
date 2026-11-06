@@ -25,11 +25,12 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Generate Encore wrappers
-        working-directory: backend
         run: |
           curl --fail --silent --show-error --location https://encore.dev/install.sh -o "$RUNNER_TEMP/install-encore.sh"
-          bash "$RUNNER_TEMP/install-encore.sh"
-          "$HOME/.encore/bin/encore" gen wrappers
+          bash "$RUNNER_TEMP/install-encore.sh" "$(node -p "require('./node_modules/encore.dev/package.json').version")"
+          # pnpm hoists dependencies to the workspace root. Encore checks the app directory.
+          mkdir -p backend/node_modules
+          (cd backend && "$HOME/.encore/bin/encore" gen wrappers)
       - run: pnpm check
       - run: pnpm test:postgres
       - name: Check deployment configuration
@@ -57,7 +58,8 @@ jobs:
       - name: Install Encore CLI
         run: |
           curl --fail --silent --show-error --location https://encore.dev/install.sh -o /tmp/install-encore.sh
-          bash /tmp/install-encore.sh
+          bash /tmp/install-encore.sh "$(node -p "require('./node_modules/encore.dev/package.json').version")"
+          mkdir -p backend/node_modules
           echo "$HOME/.encore/bin" >> "$GITHUB_PATH"
       - name: Authenticate Encore (linked applications only)
         env:
