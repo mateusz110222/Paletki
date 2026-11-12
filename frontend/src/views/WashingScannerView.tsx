@@ -47,7 +47,7 @@ export function WashingScannerView() {
         return () => {mounted.current = false; abort.current?.abort();};
     }, []);
     const allowed = pallet?.status === 'Active' || pallet?.status === 'Washing_Required';
-    const alreadyZero = pallet?.status === 'Active' && pallet.current_cycles === 0;
+    const confirmed = feedback?.error === false;
     const palletId = pallet?.pallet_id;
     const recentHistory = useQuery({
         queryKey: ['pallets', 'washing-history', palletId, language],
@@ -81,13 +81,13 @@ export function WashingScannerView() {
         }
     }
     async function confirm() {
-        if (!confirmOpen || !pallet || !allowed || alreadyZero || savingRef.current || scanning) return;
+        if (!confirmOpen || !pallet || !allowed || confirmed || savingRef.current || scanning) return;
         savingRef.current = true; setSaving(true); setFeedback(null); setConfirmError('');
         try {
             const response = await apiClient.pallet.ConfirmPalletWashing({pallet_id: pallet.pallet_id,
                 expected_cycles: pallet.current_cycles, expected_updated_at: pallet.updated_at, comment: comment.trim(), acceptLanguage: language});
             if (mounted.current) {
-                setFeedback({error: false, text: response.reset ? t('washing_success', {palletId: pallet.pallet_id}) : t('washing_already_zero')});
+                setFeedback({error: false, text: t('washing_success', {palletId: pallet.pallet_id})});
                 setPallet(asPallet(response.pallet));
                 setComment('');
                 setConfirmOpen(false);
@@ -127,8 +127,7 @@ export function WashingScannerView() {
                     <div className="flex items-start justify-between gap-3"><div className="min-w-0"><h2 className="break-all font-mono text-2xl font-black text-brand-text">{pallet.pallet_id}</h2><p className="mt-1 break-words text-xs text-brand-text-muted">{pallet.project} · {pallet.model} · {pallet.machine}</p></div><div className="flex shrink-0 items-center gap-2"><PalletStatusSpan status={pallet.status} block_reason={pallet.block_reason}/><button type="button" onClick={clear} disabled={saving} aria-label={t('washing_new_scan')} className="rounded-lg border border-brand-border p-2 text-brand-text-muted"><X size={16}/></button></div></div>
                     <div className="grid grid-cols-2 gap-3"><div className="rounded-xl border border-brand-border bg-brand-bg p-4"><p className="text-[10px] font-bold uppercase text-brand-text-muted">{t('washing_before')}</p><p className="mt-2 font-mono text-xl font-black sm:text-3xl text-brand-text">{pallet.current_cycles}<span className="ml-2 text-xs font-semibold text-brand-text-muted">/ {pallet.max_cycles}</span></p></div><div className="rounded-xl border border-brand-border bg-brand-bg p-4"><p className="text-[10px] font-bold uppercase text-brand-text-muted">{t('washing_total')}</p><p className="mt-2 font-mono text-xl font-black sm:text-3xl text-brand-text">{pallet.total_cycles}</p></div></div>
                     {!allowed && <div role="alert" className="space-y-2 rounded-xl border border-rose-400/30 bg-rose-400/5 p-4 text-sm text-rose-200"><p>{t('washing_unavailable')}</p>{pallet.block_reason && <p className="whitespace-pre-wrap break-words">{pallet.block_reason}</p>}<Link to={`/maintenance/service?searchTerm=${encodeURIComponent(pallet.pallet_id)}`} className="inline-flex min-h-9 items-center gap-2 text-xs font-bold text-brand-accent">{t('maintenance_service_title')}<ArrowRight size={14}/></Link></div>}
-                    {alreadyZero && <p role="status" className="text-sm font-semibold text-emerald-300">{t('washing_already_zero')}</p>}
-                    {allowed && !alreadyZero && <button ref={confirmButton} type="button" disabled={saving || scanning} onClick={() => {setConfirmError(''); setConfirmOpen(true);}} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 text-sm font-bold text-brand-bg hover:bg-emerald-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300 disabled:opacity-50"><CheckCircle2 size={18}/>{t('washing_open_confirmation')}</button>}
+                    {allowed && !confirmed && <button ref={confirmButton} type="button" disabled={saving || scanning} onClick={() => {setConfirmError(''); setConfirmOpen(true);}} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 text-sm font-bold text-brand-bg hover:bg-emerald-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300 disabled:opacity-50"><CheckCircle2 size={18}/>{t('washing_open_confirmation')}</button>}
                 </div>}
                 </div>
                 {pallet && <section aria-labelledby="washing-history-title" className="min-w-0 rounded-xl bg-brand-bg p-4">
@@ -174,7 +173,7 @@ export function WashingScannerView() {
                 </div>
                 <footer className="flex flex-wrap justify-end gap-3 border-t border-brand-border/60 bg-brand-bg/40 px-5 py-4 sm:px-6">
                     <button type="button" onClick={closeConfirmation} disabled={saving} className="min-h-11 rounded-lg border border-brand-border px-5 text-sm font-medium leading-6 hover:bg-brand-surface-high disabled:opacity-50">{t('btn_cancel')}</button>
-                    <button type="submit" disabled={saving || !allowed || alreadyZero} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-emerald-400 px-5 text-sm font-semibold leading-6 text-brand-bg hover:bg-emerald-300 disabled:opacity-50"><CheckCircle2 size={18}/>{t(saving ? 'saving' : 'washing_save')}</button>
+                    <button type="submit" disabled={saving || !allowed || confirmed} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-emerald-400 px-5 text-sm font-semibold leading-6 text-brand-bg hover:bg-emerald-300 disabled:opacity-50"><CheckCircle2 size={18}/>{t(saving ? 'saving' : 'washing_save')}</button>
                 </footer>
             </form>
         </dialog>

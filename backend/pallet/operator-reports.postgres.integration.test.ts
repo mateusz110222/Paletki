@@ -506,8 +506,21 @@ suite('operator reports and reporting against isolated PostgreSQL', () => {
         expect(logs[1].operator_id).toBe('UR A');
         expect(logs[1].description).toContain('Washed early');
         expect(logs[1].description).toContain('audit_washing_confirmed');
-        expect((await confirmWashing({pallet_id: 'PAL-01', expected_cycles: 0})).reset).toBe(false);
-        expect((await state.pool!.query("SELECT count(*)::int AS count FROM pallet_audit_logs WHERE pallet_id='PAL-01'")).rows[0].count).toBe(2);
+    });
+    it('records a confirmed wash for an active pallet with zero cycles', async () => {
+        state.auth = ur;
+        await state.pool!.query("UPDATE pallets SET current_cycles=0,total_cycles=400,updated_at=NOW()-interval '1 second' WHERE pallet_id='PAL-01'");
+        const scan = (await state.pool!.query("SELECT updated_at FROM pallets WHERE pallet_id='PAL-01'")).rows[0].updated_at.toISOString();
+        const params = {pallet_id: 'PAL-01', expected_cycles: 0, expected_updated_at: scan, comment: 'Washed at zero'};
+        const result = await confirmWashing(params);
+        expect(result.reset).toBe(false);
+        expect(result.pallet).toMatchObject({status: 'Active', current_cycles: 0, total_cycles: 400});
+        await expect(confirmWashing(params)).rejects.toThrow(/changed|zmienił/);
+        const logs = (await state.pool!.query("SELECT * FROM pallet_audit_logs WHERE pallet_id='PAL-01' ORDER BY id")).rows;
+        expect(logs).toHaveLength(2);
+        expect(logs[1]).toMatchObject({operator_id: 'UR A', previous_status: 'Active', new_status: 'Active'});
+        expect(logs[1].description).toContain('audit_washing_confirmed');
+        expect(logs[1].description).toContain('Washed at zero');
     });
     it('confirms queued washing and closes its operator reports atomically', async () => {
         state.auth = operator;

@@ -36,17 +36,14 @@ export const ConfirmPalletWashing = api(
             throw APIError.aborted(t("washing_conflict", params.acceptLanguage));
         }
         const reset = before.status !== "Active" || before.current_cycles !== 0;
-        if (reset) {
-            const description = encodeAuditDescription("audit_washing_confirmed", {cycles: before.current_cycles}, comment);
-            // Counter-only production updates are intentionally not audited by the trigger.
-            // This manual confirmation gets exactly one event, including early washing.
-            await tx.exec`SELECT set_config('palletx.report_edit', 'on', true)`;
-            await tx.exec`UPDATE pallets SET current_cycles = 0, status = 'Active', block_reason = NULL,
-                updated_by = ${auth.fullName}, updated_at = NOW(), last_operation_description = ${description}
-                WHERE pallet_id = ${id}`;
-            await tx.exec`INSERT INTO pallet_audit_logs (pallet_id, operator_id, previous_status, new_status, description)
-                VALUES (${id}, ${auth.fullName}, ${before.status}, 'Active', ${description})`;
-        }
+        const description = encodeAuditDescription("audit_washing_confirmed", {cycles: before.current_cycles}, comment);
+        // Write one manual audit event even when status and cycles are unchanged.
+        await tx.exec`SELECT set_config('palletx.report_edit', 'on', true)`;
+        await tx.exec`UPDATE pallets SET current_cycles = 0, status = 'Active', block_reason = NULL,
+            updated_by = ${auth.fullName}, updated_at = NOW(), last_operation_description = ${description}
+            WHERE pallet_id = ${id}`;
+        await tx.exec`INSERT INTO pallet_audit_logs (pallet_id, operator_id, previous_status, new_status, description)
+            VALUES (${id}, ${auth.fullName}, ${before.status}, 'Active', ${description})`;
         const row = await tx.queryRow<PalletRecord>`SELECT * FROM pallet_details WHERE pallet_id = ${id}`;
         await tx.commit();
         return {pallet: toPalletDTO(row!, params.acceptLanguage), reset};

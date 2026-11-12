@@ -9,5 +9,5 @@ test('washing confirmation displays the pallet ID instead of an untranslated pla
         return <p>{t('washing_success', {palletId: 'PAL-QA-01'})}</p>;
     }
     const html = renderToStaticMarkup(<LanguageProvider><Confirmation/></LanguageProvider>);
-    assert.equal(html, '<p>Paletka PAL-QA-01: potwierdzono mycie, cykle wyzerowane.</p>');
+    assert.equal(html, '<p>Potwierdzono mycie paletki PAL-QA-01.</p>');
 });
