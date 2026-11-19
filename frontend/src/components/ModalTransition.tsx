@@ -49,10 +49,11 @@ export function ModalTransition({
     backdropClassName = 'bg-brand-bg/80 backdrop-blur-sm',
 }: ModalTransitionProps) {
     const {isExiting, onExitComplete} = use(ModalPresenceContext);
+    const alignClass = /\bitems-(start|end|baseline|stretch)\b/.test(className) ? '' : 'items-center';
 
     return createPortal(
         <div
-            className={`modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 ${className}`}
+            className={`modal-overlay fixed inset-0 z-50 flex justify-center p-4 ${alignClass} ${className}`.trim()}
             data-state={isExiting ? 'closing' : 'open'}
             inert={isExiting}
             onAnimationEnd={(event) => {

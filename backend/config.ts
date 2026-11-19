@@ -162,12 +162,10 @@ export const config = Object.freeze({
         router1Url: requiredEnv("FIS1_ROUTER_URL"),
         router2Url: requiredEnv("FIS2_ROUTER_URL"),
         requestTimeoutMs: optionalPositiveIntegerEnv("FIS_REQUEST_TIMEOUT_MS", 10_000),
+        strainBlocking: optionalBooleanEnv("FIS_STRAIN_BLOCKING", false),
         outboxCompletedRetentionDays: optionalPositiveIntegerEnv("FIS_OUTBOX_COMPLETED_RETENTION_DAYS", 30),
     }),
     fisGroups: Object.freeze({
-        host: requiredEnv("FIS_DB_HOST"),
-        port: optionalPositiveIntegerEnv("FIS_DB_PORT", 3306),
-        user: requiredEnv("FIS_DB_USER"),
         itGroups: Object.freeze(["fisadmin_group", "admin_group"]),
         urGroup: process.env.FIS_UR_GROUP?.trim() || "Maintenance",
         meGroup: process.env.FIS_ME_GROUP?.trim() || "proceng",

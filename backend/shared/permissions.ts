@@ -28,5 +28,6 @@ export function fisGroupAccess(groups: readonly string[], itGroups: readonly str
         has_it_department_access: hasITAccess,
         has_ur_department_access: hasITAccess || groups.includes(urGroup),
         has_me_department_access: groups.includes(meGroup),
+        has_lab_access: hasITAccess || groups.includes("cpe"),
     };
 }

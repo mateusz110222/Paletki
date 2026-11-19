@@ -150,7 +150,7 @@ export const UnblockPallet = api(
             palletId,
             "Active",
             operator,
-            params.comment?.trim() || null,
+            params.comment.trim(),
             encodeAuditDescription("audit_unblocked", {}, params.comment),
             false,
             params.acceptLanguage,

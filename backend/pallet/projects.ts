@@ -3,7 +3,7 @@ import {db} from "./db";
 import {Project} from "../shared/types";
 import {t} from "../shared/i18n";
 import {requirePalletManagementUser} from "../shared/authorization";
-import type {ShortText} from "../shared/validation";
+import {isFisSafeText, type ShortText} from "../shared/validation";
 import {updateCatalogItem, deleteCatalogItem} from "./catalog-management";
 
 interface LocalizedRequest {
@@ -40,6 +40,9 @@ export const AddProject = api(
         requirePalletManagementUser();
         const projectName = params.name?.trim();
         if (!projectName) throw APIError.invalidArgument(t("project_name_empty", params.acceptLanguage));
+        if (!isFisSafeText(projectName)) {
+            throw APIError.invalidArgument(t("fis_text_invalid", params.acceptLanguage));
+        }
 
         try {
             await db.exec`INSERT INTO projects (name) VALUES (${projectName})`;

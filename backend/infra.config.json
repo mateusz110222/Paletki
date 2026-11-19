@@ -10,9 +10,6 @@
     },
     "APACSDBPassword": {
       "$env": "APACS_DB_PASSWORD"
-    },
-    "FISDBPassword": {
-      "$env": "FIS_DB_PASSWORD"
     }
   },
   "sql_servers": [

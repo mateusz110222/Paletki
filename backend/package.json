@@ -20,17 +20,16 @@
     "@types/mssql": "^12.3.0",
     "@types/node": "24.13.6",
     "@types/pg": "^8.23.1",
-    "eslint": "^10.11.0",
-    "globals": "^17.12.0",
+    "eslint": "^10.14.0",
+    "globals": "^17.14.0",
     "pg": "^8.23.1",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.2"
+    "vitest": "^5.1.0"
   },
   "dependencies": {
-    "dotenv": "^18.0.4",
-    "encore.dev": "^1.58.8",
+    "dotenv": "^18.0.9",
+    "encore.dev": "^1.58.9",
     "ldapts": "^9.2.0",
-    "mssql": "^12.7.13",
-    "mysql2": "^3.24.4"
+    "mssql": "^12.7.14"
   }
 }

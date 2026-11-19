@@ -76,6 +76,9 @@ export const usePublicDashboard = (station?: string) => {
     const chart = service.daily;
     const maxChartValue = Math.max(1, ...chart.map((point) => point.average_minutes));
     const completedInChart = chart.reduce((sum, point) => sum + point.completed, 0);
+    const averageInChart = completedInChart
+        ? Math.round(chart.reduce((sum, point) => sum + point.average_minutes * point.completed, 0) / completedInChart)
+        : 0;
     const stationPallet = selectedStation
         ? query.data?.pallets.find((pallet) => pallet.pallet_id === selectedStation.pallet_id)
         : undefined;
@@ -95,6 +98,7 @@ export const usePublicDashboard = (station?: string) => {
         chart,
         maxChartValue,
         completedInChart,
+        averageInChart,
         stationPallet,
         stationProgress,
         stationCyclesRemaining,

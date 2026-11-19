@@ -27,6 +27,7 @@ interface AuthContextType {
     canManagePallets: boolean;
     isMaintenanceOnly: boolean;
     canAccessMaintenance: boolean;
+    canAccessLab: boolean;
     defaultPath: string;
     login: (username: string, password: string) => Promise<LoginResult>;
     loginWithCard: (identifier: string) => Promise<LoginResult>;

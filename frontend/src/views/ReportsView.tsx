@@ -34,12 +34,28 @@ export function ReportsView() {
         setExporting(true); setExportError('');
         try {
             const rows: ReportRow[] = [];
-            let next: number | undefined = 0;
+            let beforeTimestamp: string | undefined;
+            let beforeId: number | undefined;
+            let nextOffset: number | undefined = 0;
             do {
-                const page = await apiClient.pallet.GetReports({...filters, limit: 200, offset: next});
+                const page = await apiClient.pallet.GetReports({
+                    ...filters,
+                    limit: 200,
+                    ...(beforeTimestamp && beforeId !== undefined
+                        ? {before_timestamp: beforeTimestamp, before_id: beforeId}
+                        : {offset: nextOffset}),
+                });
                 rows.push(...page.rows);
-                next = page.next_offset;
-            } while (next !== undefined);
+                if (page.next_before_timestamp && page.next_before_id !== undefined) {
+                    beforeTimestamp = page.next_before_timestamp;
+                    beforeId = page.next_before_id;
+                    nextOffset = undefined;
+                } else {
+                    beforeTimestamp = undefined;
+                    beforeId = undefined;
+                    nextOffset = page.next_offset;
+                }
+            } while ((beforeTimestamp && beforeId !== undefined) || nextOffset !== undefined);
             const {createReportWorkbook} = await import('../lib/reportWorkbook');
             const blob = await createReportWorkbook(rows, {sheet: t(mode === 'history' ? 'reports_history' : 'reports_current'),
                 headers, status: statusLabel, other: t('op_other_fault_type')});

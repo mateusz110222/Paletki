@@ -32,3 +32,9 @@ export function requireMaintenanceUser(): AuthData {
     }
     return auth;
 }
+
+export function requireLabUser(lang?: string): AuthData {
+    const auth = requireAuthenticatedUser();
+    if (!auth.hasITDepartmentAccess && !auth.hasLabAccess) throw APIError.permissionDenied(t("auth_lab_required", lang));
+    return auth;
+}

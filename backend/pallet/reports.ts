@@ -10,9 +10,10 @@ interface ReportParams {
     mode: Query<"history" | "current">;
     from?: Query<string>; to?: Query<string>; statuses?: Query<string>;
     limit?: Query<number>; offset?: Query<number>;
+    before_timestamp?: Query<string>; before_id?: Query<number>;
     acceptLanguage?: Header<"Accept-Language">;
 }
-type RowRecord = Omit<ReportRow, "timestamp"> & {timestamp: Date};
+
 
 export function validReportDate(value: string): boolean {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -21,32 +22,39 @@ export function validReportDate(value: string): boolean {
 }
 
 export const GetReports = api({method: "GET", path: "/pallets/reports", expose: true, auth: true},
-    async (params: ReportParams): Promise<{rows: ReportRow[]; next_offset?: number}> => {
+    async (params: ReportParams): Promise<{rows: ReportRow[]; next_offset?: number; next_before_timestamp?: string; next_before_id?: number}> => {
         requireMaintenanceUser();
         const from = params.from || null;
         const to = params.to || null;
         const statuses = params.statuses?.split(",").filter(Boolean) ?? [];
         const limit = params.limit ?? 50;
         const offset = params.offset ?? 0;
+        const beforeTimestamp = params.before_timestamp || null;
+        const beforeId = params.before_id ?? null;
+        const hasCursor = beforeTimestamp !== null || beforeId !== null;
         if (!['history', 'current'].includes(params.mode) || (from && !validReportDate(from)) ||
             (to && !validReportDate(to)) || (from && to && from > to) ||
             statuses.some(status => !PALLET_STATUSES.includes(status as typeof PALLET_STATUSES[number])) ||
-            !Number.isSafeInteger(limit) || limit < 1 || limit > 200 || !Number.isSafeInteger(offset) || offset < 0) {
+            !Number.isSafeInteger(limit) || limit < 1 || limit > 200 || !Number.isSafeInteger(offset) || offset < 0 ||
+            (hasCursor && (!beforeTimestamp || !Number.isFinite(Date.parse(beforeTimestamp)) || beforeId === null || !Number.isSafeInteger(beforeId) || beforeId < 1))) {
             throw APIError.invalidArgument(t("report_dates_invalid", params.acceptLanguage));
         }
+        const effectiveOffset = hasCursor ? 0 : offset;
         const statusFilter = statuses.join(",");
         const rows = params.mode === "history"
-            ? await db.queryAll<RowRecord>`SELECT a.id, a.pallet_id, p.project, p.model, p.machine,
-                a.previous_status, a.new_status AS status, a.timestamp, CASE WHEN r.kind = 'defect' THEN r.defect_name END AS defect,
+            ? await db.queryAll<ReportRow>`SELECT a.id, a.pallet_id, p.project, p.model, p.machine,
+                a.previous_status, a.new_status AS status, to_char(a.timestamp AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS timestamp,
+                CASE WHEN r.kind = 'defect' THEN r.defect_name END AS defect,
                 a.description, a.operator_id AS operator
                 FROM pallet_audit_logs a JOIN pallet_details p ON p.pallet_id = a.pallet_id
                 LEFT JOIN operator_reports r ON r.audit_log_id = a.id
                 WHERE (${from}::date IS NULL OR a.timestamp >= (${from}::date::timestamp AT TIME ZONE 'Europe/Warsaw'))
                   AND (${to}::date IS NULL OR a.timestamp < ((${to}::date + 1)::timestamp AT TIME ZONE 'Europe/Warsaw'))
                   AND (${statusFilter} = '' OR a.new_status = ANY(string_to_array(${statusFilter}, ',')))
-                ORDER BY a.timestamp DESC, a.id DESC LIMIT ${limit + 1} OFFSET ${offset}`
-            : await db.queryAll<RowRecord>`SELECT p.id, p.pallet_id, p.project, p.model, p.machine,
-                NULL::text AS previous_status, p.status, p.status_changed_at AS timestamp,
+                  AND (${beforeTimestamp}::timestamptz IS NULL OR (a.timestamp, a.id) < (${beforeTimestamp}::timestamptz, ${beforeId}::int))
+                ORDER BY a.timestamp DESC, a.id DESC LIMIT ${limit + 1} OFFSET ${effectiveOffset}`
+            : await db.queryAll<ReportRow>`SELECT p.id, p.pallet_id, p.project, p.model, p.machine,
+                NULL::text AS previous_status, p.status, to_char(p.status_changed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS timestamp,
                 CASE WHEN r.kind = 'defect' THEN r.defect_name END AS defect, COALESCE(p.block_reason, '') AS description,
                 CASE WHEN p.status='Washing_Required' AND a.timestamp IS NULL THEN 'System' ELSE COALESCE(a.operator_id,p.created_by) END AS operator
                 FROM pallet_details p
@@ -60,10 +68,16 @@ export const GetReports = api({method: "GET", path: "/pallets/reports", expose: 
                   AND (${from}::date IS NULL OR p.status_changed_at >= (${from}::date::timestamp AT TIME ZONE 'Europe/Warsaw'))
                   AND (${to}::date IS NULL OR p.status_changed_at < ((${to}::date + 1)::timestamp AT TIME ZONE 'Europe/Warsaw'))
                   AND (${statusFilter} = '' OR p.status = ANY(string_to_array(${statusFilter}, ',')))
-                ORDER BY timestamp DESC, p.id DESC LIMIT ${limit + 1} OFFSET ${offset}`;
+                  AND (${beforeTimestamp}::timestamptz IS NULL OR (p.status_changed_at, p.id) < (${beforeTimestamp}::timestamptz, ${beforeId}::int))
+                ORDER BY p.status_changed_at DESC, p.id DESC LIMIT ${limit + 1} OFFSET ${effectiveOffset}`;
+        const hasMore = rows.length > limit;
+        const pageRows = rows.slice(0, limit);
+        const lastRow = pageRows.at(-1);
         return {
-            rows: rows.slice(0, limit).map(row => ({...row, timestamp: row.timestamp.toISOString(),
+            rows: pageRows.map(row => ({...row, timestamp: new Date(row.timestamp).toISOString(),
                 description: localizeAuditDescription(row.description, params.acceptLanguage)})),
-            next_offset: rows.length > limit ? offset + limit : undefined,
+            next_offset: hasMore ? effectiveOffset + limit : undefined,
+            next_before_timestamp: hasMore && lastRow ? lastRow.timestamp : undefined,
+            next_before_id: hasMore && lastRow ? lastRow.id : undefined,
         };
     });

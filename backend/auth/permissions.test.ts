@@ -19,7 +19,11 @@ describe("pallet authorization policy", () => {
 
     it('maps exact FIS groups to IT, UR and ME access', () => {
         const itGroups = ['fisadmin_group', 'admin_group'];
-        const access = (groups: string[]) => fisGroupAccess(groups, itGroups, 'Maintenance', 'proceng');
+        const access = (groups: string[]) => {
+            const {has_lab_access, ...departmentAccess} = fisGroupAccess(groups, itGroups, 'Maintenance', 'proceng');
+            expect(has_lab_access).toBe(groups.includes('cpe') || itGroups.some(g => groups.includes(g)));
+            return departmentAccess;
+        };
         for (const group of itGroups) {
             expect(access([group])).toEqual({has_it_department_access: true, has_ur_department_access: true, has_me_department_access: false});
         }
@@ -27,6 +31,7 @@ describe("pallet authorization policy", () => {
         expect(access(['proceng'])).toEqual({has_it_department_access: false, has_ur_department_access: false, has_me_department_access: true});
         expect(access(['Maintenance', 'proceng'])).toEqual({has_it_department_access: false, has_ur_department_access: true, has_me_department_access: true});
         expect(access(['maintenance', 'admin_group_extra', 'support_group'])).toEqual({has_it_department_access: false, has_ur_department_access: false, has_me_department_access: false});
+        expect(access(['cpe'])).toEqual(access(['CPE']));
     });
 
     it('keeps legacy ME transition behavior available for existing callers', () => {

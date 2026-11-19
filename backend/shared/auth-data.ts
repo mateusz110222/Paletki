@@ -6,5 +6,6 @@ export interface AuthData {
     hasITDepartmentAccess: boolean;
     hasURDepartmentAccess: boolean;
     hasMEDepartmentAccess: boolean;
+    hasLabAccess?: boolean;
     sessionHash: string;
 }

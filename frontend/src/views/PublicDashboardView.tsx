@@ -215,6 +215,7 @@ export const PublicDashboardView: React.FC = () => {
         chart,
         maxChartValue,
         completedInChart,
+        averageInChart,
         stationPallet,
         stationProgress,
         stationCyclesRemaining,
@@ -330,7 +331,7 @@ export const PublicDashboardView: React.FC = () => {
                         </div>
                         <LanguageSwitcher/>
                         <Link to="/dashboards" className="inline-flex min-h-10 items-center rounded-lg border border-brand-border px-3 text-[10px] font-bold text-brand-text-muted hover:text-brand-text">{t('dashboard_hub_title')}</Link>
-                        <Link to="/" className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/10 bg-white/4 px-3 text-[0.625rem] font-bold text-slate-200 hover:border-indigo-400/35 hover:bg-indigo-400/10 hover:text-white">
+                        <Link to="/" aria-label={labels.staffPanel} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/10 bg-white/4 px-3 text-[0.625rem] font-bold text-slate-200 hover:border-indigo-400/35 hover:bg-indigo-400/10 hover:text-white">
                             <LogIn size="0.875rem"/><span className="hidden sm:inline">{labels.staffPanel}</span>
                         </Link>
                     </div>
@@ -527,7 +528,7 @@ export const PublicDashboardView: React.FC = () => {
                             <div className="mb-5 flex items-end justify-between gap-4">
                                 <div>
                                     <p className="text-[0.5625rem] font-bold uppercase tracking-[0.15em] text-slate-500">{labels.average}</p>
-                                    <p className="mt-1 text-2xl font-black text-white">{formatDuration(service.average_minutes_30d, language)}</p>
+                                    <p className="mt-1 text-2xl font-black text-white">{formatDuration(averageInChart, language)}</p>
                                 </div>
                                 <div className="text-right">
                                     <p className="text-[0.5625rem] font-bold uppercase tracking-[0.15em] text-slate-500">{labels.completed}</p>

@@ -57,7 +57,12 @@ async function createSession(user: UserData): Promise<CreatedSession> {
     const tokenHash = hashSessionToken(token);
     const expiresAt = new Date(Date.now() + config.auth.sessionTtlMinutes * 60_000);
 
-    await db.exec`DELETE FROM auth_sessions WHERE expires_at <= NOW()`;
+    await db.exec`
+        DELETE FROM auth_sessions
+        WHERE token_hash IN (
+            SELECT token_hash FROM auth_sessions WHERE expires_at <= NOW() LIMIT 100
+        )
+    `;
     await db.exec`
         INSERT INTO auth_sessions (
             token_hash, username, full_name, department, title, role, expires_at
@@ -111,6 +116,7 @@ export const authentication = authHandler<AuthParams, AuthData>(async (params) =
         hasITDepartmentAccess: access.has_it_department_access,
         hasURDepartmentAccess: access.has_ur_department_access,
         hasMEDepartmentAccess: access.has_me_department_access,
+        hasLabAccess: access.has_lab_access,
         sessionHash,
     };
 });
@@ -182,7 +188,7 @@ export const Login = api(
             department: userData.department,
             title: userData.title,
             username: userData.username,
-            role: access.has_it_department_access || access.has_ur_department_access || access.has_me_department_access ? "staff" : "operator",
+            role: access.has_it_department_access || access.has_ur_department_access || access.has_me_department_access || access.has_lab_access ? "staff" : "operator",
             ...access,
             is_guest: false,
         };
@@ -218,6 +224,7 @@ export const CardLogin = api(
             has_it_department_access: false,
             has_ur_department_access: false,
             has_me_department_access: false,
+            has_lab_access: false,
             is_guest: false,
         };
         return loginResponse(t("auth_success", lang), user, await createSession(user));

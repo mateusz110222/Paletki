@@ -93,6 +93,9 @@ const pl = {
     auth_session_invalid: "Sesja wygasła lub token uwierzytelniający jest nieprawidłowy.",
     auth_logout_success: "Wylogowano pomyślnie.",
     auth_staff_required: "Ta operacja wymaga grupy fisadmin_group lub admin_group w FIS.",
+    auth_lab_required: "Dostęp do modułu LAB wymaga członkostwa w grupie cpe w FIS.",
+    strain_date_invalid: "Podaj prawidłową datę pomiaru.",
+    strain_date_future: "Data pomiaru nie może być w przyszłości.",
     fis_groups_unavailable: "Nie udało się sprawdzić grup użytkownika w FIS.",
 } as const;
 
@@ -189,6 +192,9 @@ const en: Record<TranslationKey, string> = {
     auth_session_invalid: "The session expired or the authentication token is invalid.",
     auth_logout_success: "Logout successful.",
     auth_staff_required: "This operation requires the FIS fisadmin_group or admin_group.",
+    auth_lab_required: "LAB access requires membership in the FIS cpe group.",
+    strain_date_invalid: "Provide a valid measurement date.",
+    strain_date_future: "The measurement date cannot be in the future.",
     fis_groups_unavailable: "Could not verify the user's FIS groups.",
 };
 

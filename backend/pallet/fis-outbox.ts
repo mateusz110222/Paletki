@@ -173,6 +173,7 @@ async function markFailed(job: FisOutboxRecord, error: unknown): Promise<"retrie
 }
 
 async function pruneCompletedJobs(): Promise<number> {
+    await db.exec`DELETE FROM auth_sessions WHERE expires_at <= NOW()`;
     const result = await db.queryRow<{deleted_count: number}>`
         WITH candidates AS (
             SELECT id

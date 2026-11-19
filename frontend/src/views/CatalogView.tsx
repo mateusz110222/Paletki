@@ -97,12 +97,12 @@ export function CatalogView() {
         {projects.isPending || models.isPending ? <p role="status">{t('catalog_loading')}</p>
             : projects.isError || models.isError ? <div role="alert" className="space-y-3 text-red-400">
                 <p>{t('fetch_error_banner')}</p><button className={buttonClass} onClick={refresh}>{t('btn_refresh_pallets')}</button>
-            </div> : <section className="overflow-hidden rounded-2xl border border-brand-border/70 bg-brand-surface">
+            </div> : <section className="@container overflow-hidden rounded-2xl border border-brand-border/70 bg-brand-surface">
                 <table className="w-full text-sm text-left">
                     <thead className="border-b border-brand-border/60 bg-brand-bg/30 text-[10px] uppercase tracking-widest text-brand-text-muted/70"><tr>
                         <th scope="col" className="px-5 py-4 sm:px-6">{t(tab === 'project' ? 'col_project' : 'col_model')}</th>
                         <th scope="col" className="hidden px-5 py-4 sm:table-cell">{t(tab === 'project' ? 'catalog_linked_models' : 'col_project')}</th>
-                        <th scope="col" className="px-5 py-4 text-right sm:px-6">{t('col_actions')}</th>
+                        <th scope="col" className="px-3 py-4 text-right sm:px-6">{t('col_actions')}</th>
                     </tr></thead>
                     <tbody className="divide-y divide-brand-border/50">{entries.map(entry => {
                         const children = entry.kind === 'project' ? projectModels(entry.id) : [];
@@ -113,8 +113,8 @@ export function CatalogView() {
                                         {entry.kind === 'project' ? <Folder size={18}/> : <Layers3 size={18}/>}
                                     </div>
                                     <div className="min-w-0">
-                                        <span className="font-bold break-all">{entry.name}</span>
-                                        <p className="mt-1 text-[11px] text-brand-text-muted/60">{entry.kind === 'project' ? t('catalog_project_record') : entry.project}</p>
+                                        <span className="font-bold wrap-anywhere">{entry.name}</span>
+                                        <p className="mt-1 text-[11px] wrap-anywhere text-brand-text-muted/60">{entry.kind === 'project' ? t('catalog_project_record') : entry.project}</p>
                                     </div>
                                 </div>
                             </td>
@@ -125,21 +125,21 @@ export function CatalogView() {
                                     <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-brand-border/60 bg-brand-bg/40 font-mono text-indigo-200">{children.length}</span>
                                     <span className="flex max-w-lg flex-wrap gap-1.5 text-left">
                                         {children.length ? children.map(model => (
-                                            <span key={model.id} className="rounded-md border border-brand-border/70 bg-brand-bg/50 px-2.5 py-1.5 text-xs leading-relaxed text-brand-text break-words">
+                                            <span key={model.id} className="max-w-full rounded-md border border-brand-border/70 bg-brand-bg/50 px-2.5 py-1.5 text-xs leading-relaxed text-brand-text wrap-anywhere">
                                                 {model.name}
                                             </span>
                                         )) : t('catalog_no_models')}
                                     </span>
-                                    <ArrowRight size={14} className="text-brand-text-muted/50 transition-transform group-hover/models:translate-x-1"/>
-                                </button> : <span className="inline-flex items-center gap-2 rounded-md border border-brand-border/60 bg-brand-bg/30 px-2.5 py-1.5 text-xs text-brand-text-muted"><Folder size={13}/>{entry.project}</span>}
+                                    <ArrowRight size={14} className="shrink-0 text-brand-text-muted/50 transition-transform group-hover/models:translate-x-1"/>
+                                </button> : <span className="inline-flex items-center gap-2 rounded-md border border-brand-border/60 bg-brand-bg/30 px-2.5 py-1.5 text-xs wrap-anywhere text-brand-text-muted"><Folder size={13} className="shrink-0"/>{entry.project}</span>}
                             </td>
-                            <td className="px-5 py-5 sm:px-6"><div className="flex flex-wrap justify-end gap-2">
+                            <td className="w-px px-3 py-3 sm:px-6"><div className="flex justify-end gap-1 whitespace-nowrap @min-[52rem]:gap-2">
                                 <Link to={getAdminUrl(entry)} className={buttonClass + ' min-h-10 text-indigo-200'}
                                     aria-label={t('catalog_view_pallets') + ': ' + (entry.project ? entry.project + ' / ' : '') + entry.name}
                                     title={t('catalog_view_pallets')}>
-                                    <ExternalLink size={14}/><span className="hidden md:inline">{t('catalog_view_pallets')}</span>
+                                    <ExternalLink size={14}/><span className="hidden @min-[52rem]:inline">{t('catalog_view_pallets')}</span>
                                 </Link>
-                                <button className={buttonClass + ' min-h-10'} disabled={busy} onClick={() => select(entry, false)} aria-label={t('catalog_edit') + ': ' + (entry.project ?? '') + ' ' + entry.name} title={t('catalog_edit')}><Pencil size={14}/><span className="hidden md:inline">{t('catalog_edit')}</span></button>
+                                <button className={buttonClass + ' min-h-10'} disabled={busy} onClick={() => select(entry, false)} aria-label={t('catalog_edit') + ': ' + (entry.project ?? '') + ' ' + entry.name} title={t('catalog_edit')}><Pencil size={14}/><span className="hidden @min-[52rem]:inline">{t('catalog_edit')}</span></button>
                                 <button className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-brand-text-muted/60 transition-colors hover:bg-red-500/10 hover:text-red-400 disabled:opacity-40" disabled={busy} onClick={() => select(entry, true)} aria-label={t('catalog_delete') + ': ' + (entry.project ?? '') + ' ' + entry.name} title={t('catalog_delete')}><Trash2 size={15}/></button>
                             </div></td>
                         </tr>;

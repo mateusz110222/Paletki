@@ -1,7 +1,8 @@
+import {ModalFormActions} from '../components/ModalFormActions';
 import {useEffect, useRef, useState, type FormEvent} from 'react';
 import {Link} from 'react-router';
 import {useQuery, useQueryClient} from '@tanstack/react-query';
-import {ArrowLeft, ArrowRight, CheckCircle2, Scan, WashingMachine, X} from 'lucide-react';
+import {ArrowRight, CheckCircle2, WashingMachine, X} from 'lucide-react';
 import type {Pallet} from '@backend/shared/types';
 import {useAuth} from '../auth/AuthContext';
 import {useTranslation} from '../i18n/LanguageContext';
@@ -10,6 +11,7 @@ import {getErrorMessage} from '../lib/errors';
 import {refreshPalletData} from '../lib/queryCache';
 import {PalletStatusSpan} from '../components/PalletStatusSpan';
 import {TextareaField} from '../components/FormFields';
+import {PalletScannerForm} from '../components/PalletScannerForm';
 
 export function WashingScannerView() {
     const {apiClient} = useAuth();
@@ -102,7 +104,6 @@ export function WashingScannerView() {
         }
     }
     return <div className="mx-auto w-full max-w-6xl space-y-3">
-        <Link to="/maintenance" className="inline-flex min-h-10 items-center gap-2 text-xs font-bold text-brand-text-muted hover:text-brand-accent"><ArrowLeft size={15}/>{t('maintenance_back')}</Link>
         <section className="overflow-hidden rounded-2xl border border-brand-border bg-brand-surface">
             <div className="h-1 bg-emerald-400/70"/>
             <header className="flex items-start gap-3 border-b border-brand-border px-4 py-4 sm:px-5">
@@ -112,14 +113,8 @@ export function WashingScannerView() {
             {/* Two equal columns share the available width with one 20px gap. */}
             <div className={`grid items-start gap-5 p-4 sm:p-5 ${pallet ? 'lg:grid-cols-2' : ''}`}>
                 <div className="min-w-0 space-y-4">
-                <form onSubmit={event => void scan(event)}>
-                    <label htmlFor="washing-scanner-input" className="mb-2 block text-xs font-semibold text-brand-text-muted">{t('washing_scan_label')}</label>
-                    <div className="flex gap-2 rounded-xl border border-brand-border bg-brand-bg px-4 focus-within:border-brand-accent focus-within:ring-2 focus-within:ring-brand-accent/10">
-                        <Scan size={21} className="my-auto shrink-0 text-brand-accent"/>
-                        <input id="washing-scanner-input" ref={input} value={id} onChange={e => setId(e.target.value.toUpperCase())} disabled={saving || scanning} autoComplete="off" placeholder={t('op_scan_placeholder')} className="min-w-0 flex-1 bg-transparent py-3 font-mono text-base font-bold uppercase text-brand-text outline-none"/>
-                        <button type="submit" disabled={!id.trim() || saving || scanning} aria-label={t('washing_scan_button')} className="my-2 rounded-lg px-3 text-brand-accent hover:bg-brand-accent/10 disabled:opacity-30"><ArrowRight size={20}/></button>
-                    </div>
-                </form>
+                <PalletScannerForm id="washing-scanner-input" label={t('washing_scan_label')} inputRef={input}
+                    value={id} onChange={setId} onSubmit={scan} busy={saving || scanning}/>
                 {scanning && <p role="status" className="text-xs text-brand-text-muted">{t('op_scanning')}</p>}
                 {feedback && <p role={feedback.error ? 'alert' : 'status'} className={`rounded-xl border px-4 py-3 text-sm font-semibold ${feedback.error ? 'border-rose-400/30 bg-rose-400/10 text-rose-200' : 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200'}`}>{feedback.text}</p>}
                 {!pallet && !scanning && !feedback && <p className="py-5 text-center text-xs text-brand-text-muted">{t('washing_ready')}</p>}
@@ -171,9 +166,9 @@ export function WashingScannerView() {
                     </div>
                     {confirmError && <p role="alert" className="text-sm leading-6 text-rose-200">{confirmError}</p>}
                 </div>
-                <footer className="flex flex-wrap justify-end gap-3 border-t border-brand-border/60 bg-brand-bg/40 px-5 py-4 sm:px-6">
-                    <button type="button" onClick={closeConfirmation} disabled={saving} className="min-h-11 rounded-lg border border-brand-border px-5 text-sm font-medium leading-6 hover:bg-brand-surface-high disabled:opacity-50">{t('btn_cancel')}</button>
-                    <button type="submit" disabled={saving || !allowed || confirmed} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-emerald-400 px-5 text-sm font-semibold leading-6 text-brand-bg hover:bg-emerald-300 disabled:opacity-50"><CheckCircle2 size={18}/>{t(saving ? 'saving' : 'washing_save')}</button>
+                <footer className="bg-brand-bg/40 px-5 pb-4 sm:px-6">
+                    <ModalFormActions onCancel={closeConfirmation} submitLabel={t('washing_save')} submitIcon={<CheckCircle2 size={18}/>}
+                        isSubmitting={saving} submitDisabled={!allowed || confirmed}/>
                 </footer>
             </form>
         </dialog>

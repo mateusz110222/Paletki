@@ -25,8 +25,7 @@ The system enforces automated lifecycle workflows, cycle limit tracking, FIS gro
 * **Numbered Range Registration**: The add dialog can atomically create a complete pallet range when IDs share a prefix and use the final two digits as the sequence number (for example `PROJECT-01` through `PROJECT-12`).
 
 ### 2. Role-Based Access Control (FIS Groups)
-Users authenticate with Active Directory / LDAP. The backend checks group membership in the FIS `users` and `groups` MySQL databases at login and on authenticated requests, following the lookup used by MasterSamples. If FIS group lookup fails, privileged access is unavailable.
-The FIS MySQL host must be reachable from the backend container. Grant the configured account `SELECT` on `users.tbl_users`, `groups.groupList`, and the membership tables named by `groupList`.
+Users authenticate with Active Directory / LDAP. The backend checks group membership via the FIS router (`FIS1_ROUTER_URL?job=GetUserGroup`) at login and on authenticated requests (cached for 60 seconds per user). If FIS group lookup fails, privileged access is unavailable.
 * **IT (`fisadmin_group` or `admin_group`)**: Full access to all panels, pallet management, audit exports, maintenance and the LDAP Directory User Lookup tool (`/directory`).
 * **UR (`FIS_UR_GROUP`, default `Maintenance`)**: Access to the Maintenance Panel to repair damaged pallets, service pallets requiring washing, log service notes, and reset cycle counters.
 * **ME (`FIS_ME_GROUP`, default `proceng`)**: Access to pallet management and maintenance panels, excluding the LDAP directory.
@@ -225,10 +224,6 @@ Key configuration variables:
 |---------------------------------------|------------------------------------------------------------------|----------------------------------------------------------------|
 | `VITE_DEV_API_BASE_URL`               | Backend URL for frontend Vite dev mode                           | `http://localhost:4000`                                        |
 | `LDAP_URL`                            | LDAPS server connection string                                   | `ldaps://ldap.example.com:636`                                 |
-| `FIS_DB_HOST`                         | Host of the FIS MySQL server with `users` and `groups` databases | `fis-db.local`                                                 |
-| `FIS_DB_PORT`                         | FIS MySQL port                                                   | `3306`                                                         |
-| `FIS_DB_USER`                         | Read-only account for FIS group lookup                           | `paletki_readonly`                                             |
-| `FIS_DB_PASSWORD`                     | Password for the FIS read-only account                           | Set as the `FISDBPassword` Encore secret for local development |
 | `FIS_UR_GROUP`                        | FIS group for maintenance access                                 | `Maintenance`                                                  |
 | `FIS_ME_GROUP`                        | FIS group for ME access                                          | `proceng`                                                      |
 | `LDAP_LOOKUP_BIND_USER`               | Directory service account for user lookup                        | `svc_lookup@example.com`                                       |
@@ -358,7 +353,7 @@ Content-Type: application/json
 {"pallet_id":"PROJECT-01"}
 ```
 
-The assignment is an upsert: another call for the same station immediately switches its dashboard to the project belonging to the newly supplied pallet.
+The assignment is an upsert: another call for the same station immediately switches its dashboard to the project belonging to the newly supplied pallet. The station can display a strain warning after scanning a pallet using `strain_status` from `GET /fis/soldering/pallets/:pallet_id`. Possible values are `missing`, `expired`, `due_soon` and `current`. With blocking enabled, the lookup rejects `missing` and `expired` with `details.reason` set to `STRAIN_MISSING` or `STRAIN_EXPIRED`.
 
 After all FIS unit operations complete, a station records the pallet cycle:
 
@@ -400,6 +395,12 @@ The UR after-washing scanner (`/maintenance/washing`) confirms completed washing
 The Maintenance hub uses four tiles in a 2×2 desktop layout. `/maintenance/history` accepts a scanned or typed pallet ID and opens the existing history viewer at `/maintenance/pallets/:palletId/history`. Individual history is available to UR/ME/IT; bulk audit remains ME/IT only. The operator scanner displays Damaged and Blocked pallets as read-only reason cards. The defect description field appears only for Other and is cleared when switching to a catalog defect; washing reports need no operator comment.
 
 Frontend area bundles (operator, maintenance, dashboards and admin) load on first entry through a shared Suspense resource per area. Once resolved, all views in that area read the module synchronously, avoiding a loading flash on their first visit. All screens within an area share its module; documentation is loaded separately. The authenticated shell remains visible during loading or module errors; reload is manual and keeps the current URL. Full inventory queries run only for admin and maintenance service, with router catalog queries only for admin. Production build emits a Vite manifest and verifies that area modules are absent from the shell static dependency graph and do not eagerly import each other; XLSX stays deferred until export.
+
+### LAB and strain measurements
+
+LAB (`/lab`) is available to members of the FIS `cpe` group. Sign in again after gaining access. LAB records the date of approved strain measurements and keeps the login and timestamp of each entry. The queue flags missing and overdue measurements and shows deadlines within 30 days. A measurement is valid through the measurement date plus 365 days in Europe/Warsaw.
+
+Migration 13 creates the measurement history. Existing pallets start with no recorded measurement. Both Compose stacks default to `FIS_STRAIN_BLOCKING=false`. After entering current measurements and verifying that production stations use the Encore pallet check, set `FIS_STRAIN_BLOCKING=true` on the backend to reject missing or overdue measurements at pallet lookup and station assignment. Deploy the updated Encore station scripts on FIS 1 and FIS 2 for the Polish operator messages. The legacy PHP flow bypasses these Encore checks.
 
 ### HTTPS deployment prerequisites
 

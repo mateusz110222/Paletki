@@ -38,6 +38,7 @@ const DirectoryView = adminBundle.view('DirectoryView');
 const PublicDashboardView = dashboardsBundle.view('PublicDashboardView');
 const LiveMonitorView = dashboardsBundle.view('LiveMonitorView');
 const DocumentationView = lazy(() => import('../views/DocumentationView.tsx').then(module => ({default: module.DocumentationView})));
+const LabView = lazy(() => import('../views/LabView.tsx').then(module => ({default: module.LabView})));
 
 export const AppRoutes: React.FC = () => {
     const {isAuthenticated, apiClient} = useAuth();
@@ -76,7 +77,7 @@ export const AppRoutes: React.FC = () => {
 };
 
 const AuthenticatedRoutes: React.FC = () => {
-    const {apiClient, hasITDepartmentAccess, canManagePallets, isMaintenanceOnly, canAccessMaintenance, defaultPath} = useAuth();
+    const {apiClient, hasITDepartmentAccess, canManagePallets, isMaintenanceOnly, canAccessMaintenance, canAccessLab, defaultPath} = useAuth();
     const {language, t} = useTranslation();
     const pathname = useLocation().pathname;
     const needsPallets = (pathname === '/admin' && canManagePallets) || (pathname === '/maintenance/service' && canAccessMaintenance);
@@ -168,6 +169,11 @@ const AuthenticatedRoutes: React.FC = () => {
                 {!isMaintenanceOnly && <Route path="/operator" element={<OperatorPanel/>}/>}
 
                 {canAccessMaintenance && <Route path="/reports" element={<ReportsView/>}/>}
+                {canAccessLab && <>
+                    <Route path="/lab" element={<LabView/>}/>
+                    <Route path="/lab/table" element={<LabView mode="table"/>}/>
+                    <Route path="/lab/scan" element={<LabView mode="scan"/>}/>
+                </>}
                 {canAccessMaintenance && (
                     <>
                         <Route path="/maintenance" element={<MaintenanceHubView/>}/>

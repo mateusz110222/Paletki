@@ -302,6 +302,21 @@ export namespace pallet {
         "next_cursor"?: number
     }
 
+    export interface StrainPallet {
+        "pallet_id": string
+        project: string
+        model: string
+        "measured_on": string | null
+        "due_on": string | null
+        "strain_status": "missing" | "expired" | "due_soon" | "current"
+    }
+
+    export interface StrainMeasurement {
+        "measured_on": string
+        "recorded_at": string
+        "recorded_by": string
+    }
+
     export interface GetAllModelsResponse {
         models: shared.PalletModel[]
     }
@@ -401,6 +416,10 @@ export namespace pallet {
             this.GetAllPalletHistory = this.GetAllPalletHistory.bind(this)
             this.GetAllModels = this.GetAllModels.bind(this)
             this.GetAllPallets = this.GetAllPallets.bind(this)
+            this.GetStrainPallets = this.GetStrainPallets.bind(this)
+            this.GetStrainHistory = this.GetStrainHistory.bind(this)
+            this.RecordStrainMeasurements = this.RecordStrainMeasurements.bind(this)
+            this.RecordStrainMeasurement = this.RecordStrainMeasurement.bind(this)
             this.GetAllProjects = this.GetAllProjects.bind(this)
             this.GetPallet = this.GetPallet.bind(this)
             this.GetPalletHistory = this.GetPalletHistory.bind(this)
@@ -436,9 +455,9 @@ export namespace pallet {
             const {acceptLanguage, ...body} = params;
             const resp = await this.baseClient.callTypedAPI('PUT', `/operator-reports/${encodeURIComponent(id)}`, JSON.stringify(body), {headers: makeRecord({'accept-language': acceptLanguage})}); return await resp.json();
         }
-        public async GetReports(params: {mode: 'history' | 'current'; from?: string; to?: string; statuses?: string; limit?: number; offset?: number; acceptLanguage?: string}): Promise<{rows: import('@backend/shared/types').ReportRow[]; next_offset?: number}> {
+        public async GetReports(params: {mode: 'history' | 'current'; from?: string; to?: string; statuses?: string; limit?: number; offset?: number; before_timestamp?: string; before_id?: number; acceptLanguage?: string}): Promise<{rows: import('@backend/shared/types').ReportRow[]; next_offset?: number; next_before_timestamp?: string; next_before_id?: number}> {
             const {acceptLanguage, ...query} = params;
-            const resp = await this.baseClient.callTypedAPI('GET', '/pallets/reports', undefined, {query: makeRecord({mode: query.mode, from: query.from, to: query.to, statuses: query.statuses, limit: query.limit?.toString(), offset: query.offset?.toString()}), headers: makeRecord({'accept-language': acceptLanguage})}); return await resp.json();
+            const resp = await this.baseClient.callTypedAPI('GET', '/pallets/reports', undefined, {query: makeRecord({mode: query.mode, from: query.from, to: query.to, statuses: query.statuses, limit: query.limit?.toString(), offset: query.offset?.toString(), before_timestamp: query.before_timestamp, before_id: query.before_id?.toString()}), headers: makeRecord({'accept-language': acceptLanguage})}); return await resp.json();
         }
         public async UpdateProject(id: number, params: UpdateProjectParams): Promise<void> {
             const headers = makeRecord<string, string>({
@@ -610,6 +629,31 @@ export namespace pallet {
             return await resp.json() as AuditHistoryResponse
         }
 
+        public async GetStrainPallets(params: {acceptLanguage?: string} = {}): Promise<{pallets: StrainPallet[]; today: string; blocking: boolean}> {
+            const headers = makeRecord<string, string>({"accept-language": params.acceptLanguage})
+            const resp = await this.baseClient.callTypedAPI("GET", "/pallets/strain/measurements", undefined, {headers})
+            return await resp.json()
+        }
+
+        public async GetStrainHistory({pallet_id, acceptLanguage}: {"pallet_id": shared.PalletID; acceptLanguage?: string}): Promise<{measurements: StrainMeasurement[]}> {
+            const headers = makeRecord<string, string>({"accept-language": acceptLanguage})
+            const resp = await this.baseClient.callTypedAPI("GET", `/pallets/strain/measurements/${encodeURIComponent(pallet_id)}`, undefined, {headers})
+            return await resp.json()
+        }
+
+        public async RecordStrainMeasurements(params: {pallet_ids: string[]; measured_on: string; acceptLanguage?: string}): Promise<{status: true}> {
+            const {acceptLanguage, ...body} = params
+            const headers = makeRecord<string, string>({"accept-language": acceptLanguage})
+            const resp = await this.baseClient.callTypedAPI("POST", "/pallets/strain/measurements", JSON.stringify(body), {headers})
+            return await resp.json()
+        }
+
+        public async RecordStrainMeasurement({pallet_id, measured_on, acceptLanguage}: {"pallet_id": shared.PalletID; "measured_on": string; acceptLanguage?: string}): Promise<{status: true}> {
+            const headers = makeRecord<string, string>({"accept-language": acceptLanguage})
+            const resp = await this.baseClient.callTypedAPI("POST", `/pallets/strain/measurements/${encodeURIComponent(pallet_id)}`, JSON.stringify({measured_on}), {headers})
+            return await resp.json()
+        }
+
         public async GetAllPallets(params: PalletPageParams): Promise<GetAllPalletsResponse> {
             // Convert our params into the objects we need for the request
             const headers = makeRecord<string, string>({
@@ -730,6 +774,7 @@ export namespace shared {
         "has_it_department_access": boolean
         "has_ur_department_access": boolean
         "has_me_department_access": boolean
+        "has_lab_access"?: boolean
     }
 
     export type FisUnit = 1 | 2
@@ -783,6 +828,7 @@ export namespace shared {
     export type ShortText = string
 
     export interface UserData {
+        "has_lab_access"?: boolean
         FullName: string
         department: string
         title: string

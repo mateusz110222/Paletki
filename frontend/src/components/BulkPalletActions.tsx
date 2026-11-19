@@ -1,3 +1,6 @@
+import {ModalFormActions} from './ModalFormActions';
+import {PalletStatusSpan} from './PalletStatusSpan';
+import {SelectedPalletList} from './SelectedPalletList';
 import {useEffect, useRef, useState} from 'react';
 import type {Pallet, PalletStatus} from '@backend/shared/types';
 import {PALLET_STATUSES} from '@backend/shared/types';
@@ -38,7 +41,7 @@ export function BulkPalletActions({pallets, onClear, onCompleted}: {pallets: Pal
     }, [isOpen]);
     const close = () => { if (!runningRef.current) setSnapshot(null); };
     useEscapeKey(Boolean(snapshot), close);
-    const statusLabel = (status: PalletStatus) => ({Active: t('status_active'), Washing_Required: t('status_washing_required'), Damaged: t('damaged_status'), Blocked: t('status_blocked')})[status];
+    const statusLabel = (status: PalletStatus) => ({Active: t('status_active'), Washing_Required: t('status_washing_required'), Damaged: t('status_damaged'), Blocked: t('status_blocked')})[status];
     const exportSelected = () => {
         const rows = [['ID', 'Project', 'Model', 'Status', 'Cycles', 'Max cycles'], ...pallets.map(p => [p.pallet_id, p.project, p.model, p.status, p.current_cycles, p.max_cycles])];
         const blob = new Blob(['\uFEFF' + rows.map(row => row.map(escapeCsvCell).join(';')).join('\r\n')], {type: 'text/csv;charset=utf-8'});
@@ -76,7 +79,7 @@ export function BulkPalletActions({pallets, onClear, onCompleted}: {pallets: Pal
         <ModalPresence>{snapshot && <ModalTransition onBackdropClick={close} className="overflow-y-auto">
             <section role="dialog" aria-modal="true" aria-labelledby="bulk-title" onKeyDown={event => {
                 if (event.key !== 'Tab') return;
-                const controls = [...event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), select:not(:disabled), textarea:not(:disabled)')];
+                const controls = [...event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]')];
                 const first = controls[0], last = controls[controls.length - 1];
                 if (!first) {event.preventDefault(); return;}
                 if (event.shiftKey && document.activeElement === first) {event.preventDefault(); last.focus();}
@@ -84,12 +87,14 @@ export function BulkPalletActions({pallets, onClear, onCompleted}: {pallets: Pal
             }} className="max-h-[85dvh] w-full max-w-xl space-y-4 overflow-y-auto rounded-2xl border border-brand-border bg-brand-surface p-6">
                 <h2 id="bulk-title" className="text-xl font-bold">{pl ? 'Zmiana statusu palet' : 'Change pallet status'} · {snapshot.length}</h2>
                 <p className="text-sm text-brand-text-muted">{pl ? 'Zmiana obejmie wyłącznie poniższe ID. Liczniki cykli pozostaną bez zmian.' : 'Only the IDs below will be updated. Cycle counters will remain unchanged.'}</p>
-                <div className="max-h-32 overflow-y-auto rounded-lg bg-brand-bg p-3 font-mono text-xs">{snapshot.map(p => <div key={p.pallet_id}>{p.pallet_id} · {statusLabel(p.status)}</div>)}</div>
+                <SelectedPalletList pallets={snapshot} statusLabel={t('col_status')} renderStatus={pallet => <PalletStatusSpan status={pallet.status}/>}/>
                 <label className="block text-sm">{pl ? 'Nowy status' : 'New status'}<select autoFocus disabled={busy || failures.length > 0} value={target} onChange={e => setTarget(e.target.value as PalletStatus)} className="mt-2 w-full rounded-lg border border-brand-border bg-brand-bg p-3">{PALLET_STATUSES.map(status => <option key={status} value={status}>{statusLabel(status)}</option>)}</select></label>
                 <label className="block text-sm">{pl ? 'Powód zmiany (historia audytu)' : 'Reason (audit history)'}<textarea disabled={busy || failures.length > 0} value={reason} onChange={e => setReason(e.target.value)} maxLength={1000} className="mt-2 w-full rounded-lg border border-brand-border bg-brand-bg p-3"/></label>
                 {busy && <p role="status">{progress} / {snapshot.length}</p>}
                 {failures.length > 0 && <div role="alert" className="space-y-2 text-sm text-rose-300"><p>{pl ? 'Nieudane palety pozostały zaznaczone. Zamknij okno, sprawdź błędy i ponów wybrane zmiany.' : 'Failed pallets remain selected. Close this dialog, review the errors and retry selected changes.'}</p>{failures.map(f => <p key={f.id}>{f.id}: {f.message}</p>)}</div>}
-                <div className="flex flex-wrap justify-end gap-3"><button type="button" disabled={busy} onClick={close} className="rounded-lg border border-brand-border px-4 py-3">{pl ? 'Zamknij' : 'Close'}</button><button type="button" disabled={busy || !reason.trim() || failures.length > 0} onClick={() => void submit()} className="rounded-lg bg-brand-accent px-4 py-3 font-bold disabled:opacity-40">{pl ? 'Potwierdź zmianę' : 'Confirm change'}</button></div>
+                <ModalFormActions onCancel={close} cancelLabel={t('btn_close')} submitType="button"
+                    onSubmit={submit} submitLabel={pl ? 'Potwierdź zmianę' : 'Confirm change'}
+                    isSubmitting={busy} submitDisabled={!reason.trim() || failures.length > 0}/>
             </section>
         </ModalTransition>}</ModalPresence>
     </>;

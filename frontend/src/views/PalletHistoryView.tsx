@@ -75,27 +75,27 @@ export const PalletHistoryView: React.FC<{backPath?: string}> = ({backPath = '/a
                 <History className="mx-auto mb-3 text-red-400" size={32}/>
                 <h3 className="font-bold text-brand-text">{t('history_load_error')}</h3>
                 <p className="mt-2 text-sm text-red-300">{error}</p>
-                <button
+                {backPath === '/admin' && <button
                     type="button"
                     onClick={() => navigate(backPath)}
                     className="mt-6 inline-flex items-center gap-2 rounded-lg border border-brand-border bg-brand-surface px-4 py-2 text-xs font-bold uppercase text-brand-text transition-colors hover:border-brand-accent hover:text-brand-accent"
                 >
-                    <ArrowLeft size={15}/> {t(backPath === '/admin' ? 'history_back_to_admin' : 'history_back_to_lookup')}
-                </button>
+                    <ArrowLeft size={15}/> {t('history_back_to_admin')}
+                </button>}
             </div>
         );
     }
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300" id="pallet-history-container">
-            <div className="flex items-center justify-between">
-                <button
+            <div className="flex items-center justify-end gap-3">
+                {backPath === '/admin' && <button
                     type="button"
                     onClick={() => navigate(backPath)}
-                    className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-brand-text-muted transition-colors hover:text-brand-accent"
+                    className="mr-auto inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-brand-text-muted transition-colors hover:text-brand-accent"
                 >
-                    <ArrowLeft size={16}/> {t(backPath === '/admin' ? 'history_back_to_admin' : 'history_back_to_lookup')}
-                </button>
+                    <ArrowLeft size={16}/> {t('history_back_to_admin')}
+                </button>}
 
                 <button
                     type="button"

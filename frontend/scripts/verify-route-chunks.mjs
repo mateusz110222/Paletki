@@ -26,7 +26,8 @@ for (const area of areas) {
     }
 }
 const viewEntries = Object.keys(manifest).filter(key => manifest[key].isDynamicEntry && /views\//.test(key));
-assert.deepEqual(viewEntries.map(key => manifest[key].name), ['DocumentationView'], 'Area screens must not be separate lazy entries');
+assert.deepEqual(viewEntries.map(key => manifest[key].name).sort(), ['DocumentationView', 'LabView'], 'Area screens must not be separate lazy entries');
+assert.ok(viewEntries.every(key => !eager.has(key)), 'Standalone views must not load with the application shell');
 const workbook = Object.keys(manifest).find(key => manifest[key].name === 'reportWorkbook');
 const reports = keys.maintenance;
 assert.ok(workbook && manifest[workbook].isDynamicEntry && !eager.has(workbook));

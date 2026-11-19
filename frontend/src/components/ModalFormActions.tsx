@@ -4,6 +4,9 @@ import {useTranslation} from '../i18n/LanguageContext.tsx';
 
 interface ModalFormActionsProps {
     onCancel: () => void;
+    cancelLabel?: ReactNode;
+    autoFocusCancel?: boolean;
+    submitFirst?: boolean;
     submitLabel: string;
     submittingLabel?: string;
     isSubmitting?: boolean;
@@ -19,6 +22,9 @@ interface ModalFormActionsProps {
 
 export function ModalFormActions({
     onCancel,
+    cancelLabel,
+    autoFocusCancel,
+    submitFirst = false,
     submitLabel,
     submittingLabel,
     isSubmitting = false,
@@ -37,19 +43,24 @@ export function ModalFormActions({
         ? 'bg-red-600 text-white hover:bg-red-500 hover:shadow-[0_12px_28px_rgba(220,38,38,0.35)]'
         : 'bg-brand-accent text-brand-bg hover:brightness-110 hover:shadow-[0_12px_28px_rgba(59,130,246,0.35)]';
 
+    const cancelButton = (
+        <button
+            type="button"
+            autoFocus={autoFocusCancel}
+            onClick={onCancel}
+            disabled={isSubmitting}
+            className="inline-flex items-center justify-center gap-2 flex-1 min-h-12 px-4 bg-brand-bg border border-brand-border text-brand-text font-bold text-xs uppercase tracking-wider rounded-xl transition-all duration-200 hover:bg-brand-surface-high hover:border-brand-accent/50 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none motion-reduce:transform-none motion-reduce:transition-none"
+        >
+            {cancelLabel ?? t('btn_cancel')}
+        </button>
+    );
+
     return (
         <div className={`${hasAdditionalAction
             ? 'grid grid-cols-1 sm:grid-cols-[0.72fr_1fr_1.35fr]'
             : 'flex flex-col sm:flex-row'
         } gap-3 pt-4 border-t border-brand-border/60`}>
-            <button
-                type="button"
-                onClick={onCancel}
-                disabled={isSubmitting}
-                className="flex-1 min-h-12 px-4 bg-brand-bg border border-brand-border text-brand-text font-bold text-xs uppercase tracking-wider rounded-xl transition-all duration-200 hover:bg-brand-surface-high hover:border-brand-accent/50 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none motion-reduce:transform-none motion-reduce:transition-none"
-            >
-                {t('btn_cancel')}
-            </button>
+            {!submitFirst && cancelButton}
             {additionalActionLabel && onAdditionalAction && (
                 <button
                     type="button"
@@ -82,6 +93,7 @@ export function ModalFormActions({
                     </>
                 )}
             </button>
+            {submitFirst && cancelButton}
         </div>
     );
 }

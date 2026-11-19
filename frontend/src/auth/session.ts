@@ -23,6 +23,7 @@ export function isSameSession(a: StoredSession | null, b: StoredSession | null):
         a.user.has_it_department_access === b.user.has_it_department_access &&
         a.user.has_ur_department_access === b.user.has_ur_department_access &&
         a.user.has_me_department_access === b.user.has_me_department_access &&
+        a.user.has_lab_access === b.user.has_lab_access &&
         a.user.is_guest === b.user.is_guest
     );
 }
@@ -65,6 +66,7 @@ export function parseStoredSession(value: string | null, now = Date.now()): Stor
             typeof parsed.user.has_ur_department_access !== 'boolean' ||
             !('has_me_department_access' in parsed.user) ||
             typeof parsed.user.has_me_department_access !== 'boolean' ||
+            ('has_lab_access' in parsed.user && typeof parsed.user.has_lab_access !== 'boolean') ||
             !('is_guest' in parsed.user) ||
             typeof parsed.user.is_guest !== 'boolean' ||
             !('token' in parsed) ||

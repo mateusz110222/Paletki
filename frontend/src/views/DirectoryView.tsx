@@ -55,7 +55,7 @@ export function DirectoryView() {
                             </dl>
                             <div className="rounded-xl bg-brand-bg p-4 space-y-2">
                                 <h4 className="text-xs text-brand-text-muted">{t('directory_access')}</h4>
-                                <p className="text-sm font-bold text-brand-accent">{t(result.has_it_department_access ? 'directory_it' : result.has_me_department_access ? 'directory_me' : result.has_ur_department_access ? 'directory_ur' : 'directory_operator')}</p>
+                                <p className="text-sm font-bold text-brand-accent">{t(result.has_it_department_access ? 'directory_it' : result.has_me_department_access ? 'directory_me' : result.has_ur_department_access ? 'directory_ur' : result.has_lab_access ? 'directory_lab' : 'directory_operator')}</p>
                                 <p className="text-xs text-brand-text-muted">{t('directory_access_hint')}</p>
                             </div>
                             <div>

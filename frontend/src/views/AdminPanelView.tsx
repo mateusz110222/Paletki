@@ -120,7 +120,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                         className="text-xs font-bold uppercase tracking-wider text-brand-text-muted">{t('stats_available_pallets')}</span>
                     <span className="text-4xl font-extrabold text-brand-accent mt-2">{data.availableStock}</span>
                     <div className="flex items-center gap-1 text-[0.625rem] text-green-400 mt-2">
-                        <span>● {data.avaliblePalletes_Percenetege} % {t('availability_ok_suffix')}</span>
+                        <span>● {data.availablePalletsPercentage} % {t('availability_ok_suffix')}</span>
                     </div>
                 </div>
 
@@ -149,7 +149,8 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
 
                         <button
                             onClick={actions.handleExportAuditTrail}
-                            className="flex-1 border border-brand-border text-brand-text font-bold uppercase text-xs min-h-14 px-3 py-3 flex items-center justify-center gap-2 hover:bg-brand-surface-high active:scale-[0.98] transition-all rounded"
+                            disabled={status.isExporting}
+                            className="flex-1 border border-brand-border text-brand-text font-bold uppercase text-xs min-h-14 px-3 py-3 flex items-center justify-center gap-2 hover:bg-brand-surface-high active:scale-[0.98] transition-all rounded disabled:opacity-50"
                         >
                             <Download size={18}/>
                             {t('btn_export_audit')}
@@ -163,8 +164,8 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
 
             {/* Advanced Filters */}
             <div
-                className="bg-brand-surface p-4 rounded-xl border border-brand-border flex flex-wrap gap-4 items-center justify-between">
-                <div className="flex flex-wrap items-start gap-4">
+                className="admin-filters space-y-3 rounded-xl border border-brand-border bg-brand-surface p-[clamp(0.75rem,1.5vw,1rem)]">
+                <div className="admin-filter-grid grid items-start">
                     {/* FILTR: PROJEKT */}
                     <div className="flex flex-col gap-1">
                         <label htmlFor="admin-filter-project" className="text-[0.625rem] uppercase font-bold text-brand-text-muted">
@@ -310,7 +311,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                         type="button"
                         onClick={clearFilters}
                         disabled={!hasActiveFilters}
-                        className="mt-4 inline-flex h-9 items-center justify-center gap-2 rounded border border-brand-border px-3 text-[0.625rem] font-bold uppercase tracking-wider text-brand-text-muted transition-colors hover:border-brand-accent hover:text-brand-accent disabled:cursor-not-allowed disabled:opacity-30"
+                        className="admin-filter-reset inline-flex items-center justify-center gap-2 rounded-lg border border-brand-border px-3 text-[0.625rem] font-bold uppercase tracking-wider text-brand-text-muted transition-colors hover:border-brand-accent hover:text-brand-accent disabled:cursor-not-allowed disabled:opacity-30"
                     >
                         <RotateCcw size={14} aria-hidden="true"/>
                         {t('filter_clear')}
@@ -613,7 +614,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
 
                                 <SelectField
                                     label={t('label_model')}
-                                    fieldClassName={data.addMode === 'range' ? 'add-pallet-range-catalog-field flex flex-col gap-1.5' : 'flex flex-col gap-1.5 col-span-2'}
+                                    fieldClassName={data.addMode === 'range' ? 'add-pallet-range-catalog-field flex flex-col gap-1.5' : 'flex flex-col gap-1.5 col-span-full'}
                                     value={data.newModel}
                                     onChange={(e) => actions.setNewModel(e.target.value)}
                                     disabled={!data.newProject}
@@ -1003,10 +1004,9 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                         </div>
                         <TextareaField label={t('unblock_comment')} value={data.unblockComment} onChange={e => actions.setUnblockComment(e.target.value)} required maxLength={1000} disabled={status.isSubmitting} />
                         {data.unblockError && <p role="alert" className="rounded-lg border border-rose-400/30 bg-rose-400/10 p-3 text-sm text-rose-200">{data.unblockError}</p>}
-                        <div className="flex gap-3 border-t border-brand-border pt-4">
-                            <button autoFocus type="button" disabled={status.isSubmitting} onClick={actions.closeUnblock} className="min-h-12 flex-1 rounded-xl border border-brand-border px-4 text-sm font-bold disabled:opacity-50">{t('btn_cancel')}</button>
-                            <button type="button" disabled={status.isSubmitting || !data.unblockComment.trim()} onClick={() => void actions.handleConfirmUnblock()} className="min-h-12 flex-1 rounded-xl bg-emerald-400 px-4 text-sm font-black text-brand-bg disabled:opacity-50">{status.isSubmitting ? t('saving') : t('btn_unblock')}</button>
-                        </div>
+                        <ModalFormActions onCancel={actions.closeUnblock} autoFocusCancel submitType="button"
+                            onSubmit={actions.handleConfirmUnblock} submitLabel={t('btn_unblock')}
+                            isSubmitting={status.isSubmitting} submitDisabled={!data.unblockComment.trim()}/>
                     </section>
                 </ModalTransition>}
             </ModalPresence>

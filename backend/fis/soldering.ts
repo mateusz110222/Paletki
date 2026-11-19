@@ -1,7 +1,9 @@
 import {api, APIError} from "encore.dev/api";
+import {config} from "../config";
 import {PalletStatus} from "../shared/types";
 import {normalizePalletId, normalizeStation} from "../shared/validation";
 import {palletsDatabase as db} from "../shared/persistence";
+import type {StrainStatus} from "../pallet/strain";
 
 interface PalletPathParams {
     pallet_id: string;
@@ -22,6 +24,7 @@ export interface SolderingPallet {
     project: string;
     model: string;
     fis: 1 | 2;
+    strain_status: StrainStatus;
 }
 
 export interface RegisterCycleResponse {
@@ -33,6 +36,7 @@ export interface RegisterCycleResponse {
 }
 
 interface PalletCycleState {
+    id: number;
     status: PalletStatus;
     current_cycles: number;
     total_cycles: number;
@@ -74,9 +78,17 @@ interface StationPalletRecord {
 }
 
 interface StationPalletSource {
+    id: number;
     project: string;
     model: string;
     status: PalletStatus;
+}
+
+function requireCurrentStrain(palletId: string, strainStatus: string | undefined): void {
+    if (strainStatus === "current" || strainStatus === "due_soon") return;
+    const expired = strainStatus === "expired";
+    throw APIError.failedPrecondition(expired ? "The strain measurement has expired." : "The pallet has no recorded strain measurement.")
+        .withDetails({reason: expired ? "STRAIN_EXPIRED" : "STRAIN_MISSING", pallet_id: palletId});
 }
 
 export const GetSolderingPallet = api(
@@ -86,23 +98,28 @@ export const GetSolderingPallet = api(
 
         try {
             const pallet = await db.queryRow<SolderingPallet>`
-                SELECT pallet_id,
+                SELECT p.pallet_id,
                        max_cycles,
                        current_cycles,
                        total_cycles,
                        nests,
                        status,
                        block_reason,
-                       COALESCE(project, '') AS project,
-                       COALESCE(model, '') AS model,
-                       fis
-                FROM pallet_details
-                WHERE pallet_id = ${palletId} AND deleted_at IS NULL
+                       COALESCE(p.project, '') AS project,
+                       COALESCE(p.model, '') AS model,
+                       fis,
+                       strain.strain_status
+                FROM pallet_details p
+                JOIN pallet_strain_status strain ON strain.id = p.id
+                WHERE p.pallet_id = ${palletId} AND p.deleted_at IS NULL
             `;
 
             if (!pallet) {
                 throw APIError.notFound(`Pallet ${palletId} was not found.`)
                     .withDetails({reason: "PALLET_NOT_FOUND", pallet_id: palletId});
+            }
+            if (config.fis.strainBlocking) {
+                requireCurrentStrain(palletId, pallet.strain_status);
             }
             return pallet;
         } catch (error) {
@@ -127,7 +144,7 @@ export const SetSolderingStationPallet = api(
             await using tx = await db.begin();
             await tx.exec`SELECT pg_advisory_xact_lock(hashtext(${station}))`;
             const pallet = await tx.queryRow<StationPalletSource>`
-                SELECT project, model, status
+                SELECT id, project, model, status
                 FROM pallet_details
                 WHERE pallet_id = ${palletId} AND deleted_at IS NULL
                 FOR UPDATE
@@ -139,6 +156,10 @@ export const SetSolderingStationPallet = api(
             if (pallet.status !== "Active") {
                 throw APIError.failedPrecondition(`Pallet ${palletId} is not active (${pallet.status}).`)
                     .withDetails({reason: "PALLET_NOT_ACTIVE", pallet_id: palletId, pallet_status: pallet.status});
+            }
+            if (config.fis.strainBlocking) {
+                const strain = await tx.queryRow<{strain_status: string}>`SELECT strain_status FROM pallet_strain_status WHERE id = ${pallet.id}`;
+                requireCurrentStrain(palletId, strain?.strain_status);
             }
             await tx.exec`
                 DELETE FROM production_stations existing
@@ -204,7 +225,7 @@ export const RegisterSolderingCycle = api(
             await using tx = await db.begin();
             await tx.exec`SELECT pg_advisory_xact_lock(hashtext(${station}))`;
             const pallet = await tx.queryRow<PalletCycleState>`
-                SELECT status, current_cycles, total_cycles, max_cycles, project
+                SELECT id, status, current_cycles, total_cycles, max_cycles, project
                 FROM pallet_details
                 WHERE pallet_id = ${palletId} AND deleted_at IS NULL
                 FOR UPDATE
@@ -220,6 +241,10 @@ export const RegisterSolderingCycle = api(
             if (pallet.current_cycles >= pallet.max_cycles) {
                 throw APIError.failedPrecondition(`Pallet ${palletId} reached its cycle limit (${pallet.max_cycles}).`)
                     .withDetails({reason: "CYCLE_LIMIT_REACHED", pallet_id: palletId, max_cycles: pallet.max_cycles});
+            }
+            if (config.fis.strainBlocking) {
+                const strain = await tx.queryRow<{strain_status: string}>`SELECT strain_status FROM pallet_strain_status WHERE id = ${pallet.id}`;
+                requireCurrentStrain(palletId, strain?.strain_status);
             }
 
             const updated = await tx.queryRow<Omit<PalletCycleState, "max_cycles">>`

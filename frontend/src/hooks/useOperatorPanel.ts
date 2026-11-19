@@ -44,6 +44,7 @@ export const useOperatorPanel = () => {
     const [pendingFault, setPendingFault] = useState<{name: string; status: PalletStatus} | null>(null);
     const isOtherFaultOpen = pendingFault !== null;
     const [customFaultText, setCustomFaultText] = useState('');
+    const [isFaultConfirmOpen, setIsFaultConfirmOpen] = useState(false);
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isScanning, setIsScanning] = useState(false);
@@ -197,6 +198,7 @@ export const useOperatorPanel = () => {
         setScanFeedback(null);
         setUnavailablePallet(null);
         setPendingFault(null);
+        setIsFaultConfirmOpen(false);
         if (soundEnabled) prepareScanAudio();
 
         try {
@@ -285,12 +287,27 @@ export const useOperatorPanel = () => {
 
     const openFaultModal = useCallback((name: string, status: PalletStatus, defect?: number | 'other') => {
         setCustomFaultText('');
+        setIsFaultConfirmOpen(false);
         setPendingFault({name, status});
         setSelectedDefect(status === 'Damaged' ? defect === undefined ? '' : String(defect) : 'washing');
     }, []);
 
     const closeFaultModal = useCallback(() => {
-        if (!isSubmitting) setPendingFault(null);
+        if (!isSubmitting) {
+            setIsFaultConfirmOpen(false);
+            setPendingFault(null);
+        }
+    }, [isSubmitting]);
+
+    const requestFaultConfirmation = useCallback(() => {
+        if (!pendingFault || isSubmitting || (pendingFault.status === 'Damaged' && !selectedDefect) || (selectedDefect === 'other' && !customFaultText.trim())) return;
+        setIsFaultConfirmOpen(true);
+    }, [pendingFault, isSubmitting, selectedDefect, customFaultText]);
+
+    const cancelFaultConfirmation = useCallback(() => {
+        if (!isSubmitting) {
+            setIsFaultConfirmOpen(false);
+        }
     }, [isSubmitting]);
 
     const handleReportFault = useCallback(async () => {
@@ -318,6 +335,7 @@ export const useOperatorPanel = () => {
 
             setActivePallet(null);
             setPendingFault(null);
+            setIsFaultConfirmOpen(false);
             setCustomFaultText('');
             setScannedId('');
         } catch (error: unknown) {
@@ -375,9 +393,13 @@ export const useOperatorPanel = () => {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [activePallet, handleClearActivePallet, openFaultModal, isOtherFaultOpen, isSubmitting, t, defectsQuery.data]);
 
+    const selectedDefectLabel = pendingFault?.status === 'Washing_Required'
+        ? pendingFault.name
+        : defectsQuery.data?.defects.find(d => String(d.id) === selectedDefect)?.name ?? t('op_other_fault_type');
+
     return {
         data: {
-            scannedId, unavailablePallet, selectedDefect, defects: defectsQuery.data?.defects ?? [], defectsLoading: defectsQuery.isPending, defectsError: defectsQuery.isError,
+            scannedId, unavailablePallet, selectedDefect, selectedDefectLabel, defects: defectsQuery.data?.defects ?? [], defectsLoading: defectsQuery.isPending, defectsError: defectsQuery.isError,
             lastScannedId,
             activePallet,
             scanStatus,
@@ -387,6 +409,7 @@ export const useOperatorPanel = () => {
             audioRipple,
             isOnline,
             isOtherFaultOpen,
+            isFaultConfirmOpen,
             pendingFault,
             customFaultText,
             isSubmitting,
@@ -398,8 +421,10 @@ export const useOperatorPanel = () => {
             setVolumeLevel: updateVolumeLevel,
             cycleVolumeLevel,
             setScannedId: (value: string) => setScannedId(value.toUpperCase()),
-            openFaultModal, setSelectedDefect: (value: string) => {setSelectedDefect(value); if (value !== 'other') setCustomFaultText('');},
+            openFaultModal, setSelectedDefect: (value: string) => {setSelectedDefect(value); setIsFaultConfirmOpen(false); if (value !== 'other') setCustomFaultText('');},
             closeFaultModal,
+            requestFaultConfirmation,
+            cancelFaultConfirmation,
             setCustomFaultText,
             handleScanSubmit,
             handleReportFault,

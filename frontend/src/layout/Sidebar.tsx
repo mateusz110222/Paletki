@@ -1,6 +1,6 @@
-import React from 'react';
+import React, {useLayoutEffect, useRef} from 'react';
 import {NavLink} from 'react-router';
-import {BookOpen, FolderTree, BarChart3, LayoutDashboard, LogOut, LucideIcon, Scan, Tv, Wrench, UserSearch, X, Code2} from 'lucide-react';
+import {BookOpen, FlaskConical, FolderTree, BarChart3, LayoutDashboard, LogOut, LucideIcon, Scan, Tv, Wrench, UserSearch, X, Code2} from 'lucide-react';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
 
 interface NavItem {
@@ -14,6 +14,7 @@ interface SidebarProps {
     canManagePallets: boolean;
     isMaintenanceOnly: boolean;
     canAccessMaintenance: boolean;
+    canAccessLab: boolean;
     onLogout: () => void;
     mobileOpen?: boolean;
     onMobileClose?: () => void;
@@ -24,17 +25,44 @@ export const Sidebar: React.FC<SidebarProps> = ({
     canManagePallets,
     isMaintenanceOnly,
     canAccessMaintenance,
+    canAccessLab,
     onLogout,
     mobileOpen = false,
     onMobileClose = () => undefined,
 }) => {
     const {t} = useTranslation();
+    const mobileDialog = useRef<HTMLDialogElement>(null);
+    const closeMobileDialog = () => {
+        mobileDialog.current?.close();
+        onMobileClose();
+    };
+    useLayoutEffect(() => {
+        const dialog = mobileDialog.current;
+        if (!mobileOpen || !dialog) return;
+        const desktop = window.matchMedia('(min-width: 64rem)');
+        const closeOnDesktop = () => {
+            if (!desktop.matches) return;
+            dialog.close();
+            onMobileClose();
+        };
+        if (desktop.matches) {
+            onMobileClose();
+            return;
+        }
+        dialog.showModal();
+        desktop.addEventListener('change', closeOnDesktop);
+        return () => {
+            desktop.removeEventListener('change', closeOnDesktop);
+            dialog.close();
+        };
+    }, [mobileOpen, onMobileClose]);
 
     const navItems: NavItem[] = [
         ...(canManagePallets ? [{path: '/catalog', label: t('nav_catalog'), icon: FolderTree}] : []),
         ...(canManagePallets ? [{path: '/admin', label: t('nav_admin'), icon: LayoutDashboard}] : []),
         ...(!isMaintenanceOnly ? [{path: '/operator', label: t('nav_operator'), icon: Scan}] : []),
         ...(canAccessMaintenance ? [{path: '/maintenance', label: t('nav_maintenance'), icon: Wrench}] : []),
+        ...(canAccessLab ? [{path: '/lab', label: 'LAB', icon: FlaskConical}] : []),
         ...(canAccessMaintenance ? [{path: '/reports', label: t('nav_reports'), icon: BarChart3}] : []),
         {path: '/dashboards', label: t('nav_dashboards'), icon: Tv},
         ...(hasITDepartmentAccess ? [{path: '/directory', label: t('nav_directory'), icon: UserSearch}] : []),
@@ -42,7 +70,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     ];
 
     const navigation = (onNavigate?: () => void) => (
-        <nav className="flex-1 overflow-y-auto p-4 space-y-1">
+        <nav className="flex-1 overflow-y-auto p-3 xl:p-4 space-y-1">
             {navItems.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -51,7 +79,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         to={item.path}
                         onClick={onNavigate}
                         className={({isActive}) =>
-                            `app-nav-link w-full flex items-center gap-3 px-4 py-3 rounded text-xs font-bold uppercase tracking-wider transition-all ${
+                            `app-nav-link w-full flex items-center gap-2.5 xl:gap-3 px-3 xl:px-4 py-2.5 xl:py-3 rounded text-xs font-bold uppercase tracking-wider transition-all ${
                                 isActive
                                     ? 'bg-brand-accent/15 text-brand-accent border-l-4 border-brand-accent'
                                     : 'text-brand-text-muted hover:bg-brand-surface-high hover:text-brand-text'
@@ -100,8 +128,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     );
 
     return <>
-        <aside className="hidden lg:flex flex-col w-64 bg-brand-surface border-r border-brand-border h-dvh sticky top-0 shrink-0">
-            <div className="p-6 border-b border-brand-border">
+        <aside className="hidden lg:flex flex-col w-52 xl:w-64 bg-brand-surface border-r border-brand-border h-dvh sticky top-0 shrink-0">
+            <div className="p-4 xl:p-6 border-b border-brand-border">
                 <span className="text-lg font-black tracking-wider text-brand-accent">{t('app_name')}</span>
             </div>
             {navigation()}
@@ -110,34 +138,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </aside>
 
         {mobileOpen && (
-            <div className="lg:hidden">
-                <button
-                    type="button"
-                    className="fixed inset-0 z-40 bg-black/65 backdrop-blur-sm"
-                    onClick={onMobileClose}
-                    aria-label={t('nav_close')}
-                />
-                <aside
-                    id="mobile-navigation"
-                    className="fixed inset-y-0 left-0 z-50 flex w-[min(20rem,88vw)] flex-col border-r border-brand-border bg-brand-surface shadow-2xl animate-in slide-in-from-left duration-200"
-                    aria-label={t('nav_open')}
-                >
+            <dialog
+                ref={mobileDialog}
+                id="mobile-navigation"
+                aria-label={t('nav_open')}
+                className="fixed inset-0 m-0 h-dvh max-h-none w-full max-w-none overflow-hidden bg-transparent backdrop:bg-black/65 backdrop:backdrop-blur-sm"
+                onCancel={event => { event.preventDefault(); closeMobileDialog(); }}
+                onClick={event => { if (event.target === event.currentTarget) closeMobileDialog(); }}
+            >
+                <div className="flex h-full w-[min(20rem,88vw)] flex-col border-r border-brand-border bg-brand-surface shadow-2xl animate-in slide-in-from-left duration-200">
                     <div className="flex items-center justify-between border-b border-brand-border p-5">
                         <span className="text-lg font-black tracking-wider text-brand-accent">{t('app_name')}</span>
                         <button
                             type="button"
-                            onClick={onMobileClose}
+                            onClick={closeMobileDialog}
                             className="flex size-10 items-center justify-center rounded-lg border border-brand-border text-brand-text-muted hover:bg-brand-surface-high hover:text-brand-text"
                             aria-label={t('nav_close')}
                         >
                             <X size={20}/>
                         </button>
                     </div>
-                    {navigation(onMobileClose)}
+                    {navigation(closeMobileDialog)}
                     {authorFooter}
-                    {logoutButton(onMobileClose)}
-                </aside>
-            </div>
+                    {logoutButton(closeMobileDialog)}
+                </div>
+            </dialog>
         )}
     </>;
 };

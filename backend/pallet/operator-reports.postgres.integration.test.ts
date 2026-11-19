@@ -8,6 +8,7 @@ const state = vi.hoisted(() => ({
     pool: null as Pool | null, auth: null as AuthData | null, cardName: 'Anna Nowak',
     afterRead: null as ((sql: string) => Promise<void>) | null,
     sync: vi.fn(), ensure: vi.fn(), delete: vi.fn(),
+    fis: {strainBlocking: false, requestTimeoutMs: 1000, outboxCompletedRetentionDays: 30, router1Url: 'http://fis-1.test', router2Url: 'http://fis-2.test'},
 }));
 vi.mock('./fis-client', () => ({FisClient: class {
     synchronizeUnit = state.sync;
@@ -18,14 +19,15 @@ vi.mock('~encore/auth', () => ({getAuthData: () => state.auth}));
 vi.mock('encore.dev/auth', () => ({authHandler: (handler: unknown) => handler}));
 vi.mock('../shared/persistence', async () => ({palletsDatabase: (await import('./db')).db}));
 vi.mock('../auth/apacs', () => ({findActiveCardOperator: async () => ({externalId: '17', fullName: state.cardName})}));
-vi.mock('../auth/secrets', () => ({apacsDbPassword: () => 'test', fisDbPassword: () => '', ldapLookupBindPassword: () => ''}));
+vi.mock('../auth/secrets', () => ({apacsDbPassword: () => 'test', ldapLookupBindPassword: () => ''}));
 vi.mock('../config', () => ({config: {
-    fis: {requestTimeoutMs: 1000, outboxCompletedRetentionDays: 30, router1Url: 'http://fis-1.test', router2Url: 'http://fis-2.test'},
+    fis: state.fis,
     auth: {sessionTtlMinutes: 720}, apacs: {server: 'test', user: 'test'},
     fisGroups: {itGroups: [], urGroup: 'UR', meGroup: 'ME'},
 }}));
 vi.mock('encore.dev/api', () => {
     class TestAPIError extends Error {
+        withDetails(details: unknown) {return Object.assign(this, {details});}
         static invalidArgument(message: string) {return new TestAPIError(message);}
         static permissionDenied(message: string) {return new TestAPIError(message);}
         static notFound(message: string) {return new TestAPIError(message);}
@@ -76,6 +78,8 @@ import {authentication, CardLogin} from '../auth/auth';
 import {ProcessFisOutbox, ReconcileFisOutbox, enqueueFisSync} from './fis-outbox';
 import {db} from './db';
 import {localizeAuditLog} from './audit-description';
+import {GetStrainHistory, GetStrainPallets, RecordStrainMeasurement, RecordStrainMeasurements} from './strain';
+import {GetSolderingPallet, RegisterSolderingCycle, SetSolderingStationPallet} from '../fis/soldering';
 
 const operator: AuthData = {fullName: 'Operator A', hasITDepartmentAccess: false, hasURDepartmentAccess: false, hasMEDepartmentAccess: false} as AuthData;
 const ur: AuthData = {...operator, fullName: 'UR A', hasURDepartmentAccess: true};
@@ -112,6 +116,7 @@ suite('operator reports and reporting against isolated PostgreSQL', () => {
     });
     beforeEach(async () => {
         state.auth = ur;
+        state.fis.strainBlocking = false;
         state.afterRead = null;
         state.sync.mockReset().mockResolvedValue(undefined);
         state.ensure.mockReset().mockResolvedValue(undefined);
@@ -121,6 +126,69 @@ suite('operator reports and reporting against isolated PostgreSQL', () => {
         await state.pool!.query("INSERT INTO projects(id,name) VALUES(1,'Project'); INSERT INTO pallet_models(id,project_id,name) VALUES(1,1,'Model'); INSERT INTO pallets(pallet_id,project_id,model_id,max_cycles,nests,created_by) VALUES('PAL-01',1,1,100,1,'IT A')");
     });
     afterAll(async () => {await state.pool?.end();});
+    it('requires LAB membership, audits measurements and checks FIS eligibility on the Warsaw calendar', async () => {
+        const pallet = {pallet_id: 'PAL-01'};
+        const station = {...pallet, station: 'SOLDER-01'};
+        state.auth = ur;
+        await expect(GetStrainPallets({})).rejects.toThrow(/cpe/);
+        await expect(GetStrainHistory(pallet)).rejects.toThrow(/cpe/);
+        await expect(RecordStrainMeasurement({...pallet, measured_on: '2025-01-01'})).rejects.toThrow(/cpe/);
+        await expect(GetSolderingPallet(pallet)).resolves.toMatchObject({...pallet, strain_status: 'missing'});
+
+        state.auth = {...operator, userID: 'lab-user', hasLabAccess: true};
+        state.fis.strainBlocking = true;
+        await expect(GetSolderingPallet(pallet)).rejects.toMatchObject({details: {reason: 'STRAIN_MISSING'}});
+        await expect(SetSolderingStationPallet(station)).rejects.toMatchObject({details: {reason: 'STRAIN_MISSING'}});
+        await expect(RegisterSolderingCycle(station)).rejects.toMatchObject({details: {reason: 'STRAIN_MISSING'}});
+        const {today, pallets} = await GetStrainPallets({});
+        expect(pallets).toMatchObject([{strain_status: 'missing'}]);
+        const daysAgo = (days: number) => new Date(Date.parse(today) - days * 86_400_000).toISOString().slice(0, 10);
+        await expect(RecordStrainMeasurement({...pallet, measured_on: daysAgo(-1), acceptLanguage: 'en'})).rejects.toThrow(/future/);
+        await expect(RecordStrainMeasurement({...pallet, measured_on: '2025-02-29', acceptLanguage: 'en'})).rejects.toThrow(/valid/);
+        await RecordStrainMeasurement({...pallet, measured_on: daysAgo(366)});
+        state.fis.strainBlocking = false;
+        await expect(GetSolderingPallet(pallet)).resolves.toMatchObject({...pallet, strain_status: 'expired'});
+        state.fis.strainBlocking = true;
+        await expect(GetSolderingPallet(pallet)).rejects.toMatchObject({details: {reason: 'STRAIN_EXPIRED'}});
+        await expect(RegisterSolderingCycle(station)).rejects.toMatchObject({details: {reason: 'STRAIN_EXPIRED'}});
+        await RecordStrainMeasurement({...pallet, measured_on: daysAgo(365)});
+        expect((await GetStrainPallets({})).pallets).toMatchObject([{strain_status: 'due_soon', due_on: today}]);
+        await expect(GetSolderingPallet(pallet)).resolves.toMatchObject(pallet);
+        await expect(SetSolderingStationPallet(station)).resolves.toMatchObject(station);
+        await RecordStrainMeasurement({...pallet, measured_on: today});
+        await RecordStrainMeasurement({...pallet, measured_on: today});
+        expect((await GetStrainPallets({})).pallets).toMatchObject([{strain_status: 'current', measured_on: today}]);
+        const {measurements} = await GetStrainHistory(pallet);
+        expect(measurements.map(({measured_on, recorded_by}) => [measured_on, recorded_by]))
+            .toEqual([today, daysAgo(365), daysAgo(366)].map(date => [date, 'lab-user']));
+        await state.pool!.query("UPDATE pallets SET created_at = created_at + interval '1 second' WHERE pallet_id = 'PAL-01'");
+        await expect(GetSolderingPallet(pallet)).rejects.toMatchObject({details: {reason: 'STRAIN_MISSING'}});
+    });
+    it('records a LAB selection atomically and accepts retries', async () => {
+        const params = {pallet_ids: ['PAL-01', 'PAL-02'], measured_on: '2025-01-01'};
+        await expect(RecordStrainMeasurements(params)).rejects.toThrow(/cpe/);
+        state.auth = {...operator, userID: 'lab-user', hasLabAccess: true};
+        await expect(RecordStrainMeasurements(params)).rejects.toThrow();
+        expect((await GetStrainHistory({pallet_id: 'PAL-01'})).measurements).toHaveLength(0);
+        await state.pool!.query("INSERT INTO pallets(pallet_id,project_id,model_id,max_cycles,nests,created_by) VALUES('PAL-02',1,1,100,1,'IT A')");
+        await RecordStrainMeasurements(params);
+        await RecordStrainMeasurements(params);
+        for (const pallet_id of params.pallet_ids) {
+            expect((await GetStrainHistory({pallet_id})).measurements).toMatchObject([
+                {measured_on: params.measured_on, recorded_by: 'lab-user'},
+            ]);
+        }
+    });
+    it.each(['history', 'current'] as const)('keeps sub-millisecond rows across %s report pages', async mode => {
+        await state.pool!.query("INSERT INTO pallets(pallet_id,project_id,model_id,max_cycles,nests,created_by) VALUES('PAL-02',1,1,100,1,'IT A')");
+        await state.pool!.query(`UPDATE pallets SET status_changed_at = '2025-02-01T12:00:00.123900Z'::timestamptz
+                - CASE WHEN pallet_id = 'PAL-02' THEN interval '100 microseconds' ELSE interval '0' END;
+            UPDATE pallet_audit_logs a SET timestamp = p.status_changed_at FROM pallets p WHERE p.pallet_id = a.pallet_id`);
+        const first = await GetReports({mode, limit: 1});
+        const next = await GetReports({mode, limit: 1, before_timestamp: first.next_before_timestamp, before_id: first.next_before_id});
+        expect(first.rows[0].pallet_id).toBe('PAL-01');
+        expect(next.rows.map(row => row.pallet_id)).toEqual(['PAL-02']);
+    });
     it('serializes reconciliation snapshots with deletion so DELETE remains the last queued job', async () => {
         state.auth = itUser;
         let signalRead!: () => void, releaseRead!: () => void;

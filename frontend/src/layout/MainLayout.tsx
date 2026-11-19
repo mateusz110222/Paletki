@@ -1,24 +1,29 @@
 import {ViewBoundary} from '../components/ViewBoundary';
-import React, {useState, type ReactNode} from 'react';
-import {Outlet, useLocation} from 'react-router';
+import React, {useCallback, useState, type ReactNode} from 'react';
+import {Link, Outlet, useLocation} from 'react-router';
 import {useAuth} from '../auth/AuthContext.tsx';
 import {LanguageSwitcher, useTranslation} from '../i18n/LanguageContext.tsx';
 import {Sidebar} from './Sidebar.tsx';
-import {Menu, UserCheck} from 'lucide-react';
+import {ArrowLeft, Menu, UserCheck} from 'lucide-react';
 import {useDocumentMetadata} from '../hooks/useDocumentMetadata.ts';
-import {useEscapeKey} from '../hooks/useEscapeKey.ts';
 
 export const MainLayout: React.FC<{children?: ReactNode}> = ({children}) => {
-    const {user, isGuest, hasITDepartmentAccess, canManagePallets, isMaintenanceOnly, canAccessMaintenance, logout} = useAuth();
+    const {user, isGuest, hasITDepartmentAccess, canManagePallets, isMaintenanceOnly, canAccessMaintenance, canAccessLab, logout} = useAuth();
     const {t, language} = useTranslation();
     const location = useLocation();
     const [mobileNavOpen, setMobileNavOpen] = useState(false);
-    useEscapeKey(mobileNavOpen, () => setMobileNavOpen(false));
+    const closeMobileNav = useCallback(() => setMobileNavOpen(false), []);
 
     const getPageTitle = (pathname: string) => {
         if ((pathname.startsWith('/admin/pallets/') || pathname.startsWith('/maintenance/pallets/')) && pathname.endsWith('/history')) {
-            return {title: t('history_page_title'), sub: t('history_page_subtitle')};
+            return {
+                title: t('history_page_title'),
+                sub: t('history_page_subtitle'),
+                back: pathname.startsWith('/maintenance/') ? {to: '/maintenance/history', label: t('history_back_to_lookup')} : undefined,
+            };
         }
+        const maintenanceBack = {to: '/maintenance', label: t('maintenance_back')};
+        const labBack = {to: '/lab', label: t('lab_back')};
         switch (pathname) {
             case '/documentation':
                 return {title: t('nav_documentation'), sub: t('documentation_subtitle')};
@@ -33,17 +38,23 @@ export const MainLayout: React.FC<{children?: ReactNode}> = ({children}) => {
             case '/dashboards':
                 return {title: t('nav_dashboards'), sub: t('dashboard_hub_intro')};
             case '/maintenance/service':
-                return {title: t('maintenance_service_title'), sub: t('panel_maint_subtitle')};
+                return {title: t('maintenance_service_title'), sub: t('panel_maint_subtitle'), back: maintenanceBack};
             case '/maintenance/history':
-                return {title: t('maintenance_history_title'), sub: t('maintenance_history_description')};
+                return {title: t('maintenance_history_title'), sub: t('maintenance_history_description'), back: maintenanceBack};
             case '/maintenance/washing':
-                return {title: t('washing_scanner_title'), sub: t('washing_scanner_intro')};
+                return {title: t('washing_scanner_title'), sub: t('washing_scanner_intro'), back: maintenanceBack};
             case '/maintenance/defects':
-                return {title: t('defects_title'), sub: t('maintenance_defects_description')};
+                return {title: t('defects_title'), sub: t('maintenance_defects_description'), back: maintenanceBack};
             case '/reports':
                 return {title: t('reports_title'), sub: t('reports_intro')};
             case '/maintenance':
                 return {title: t('maintenance_hub_title'), sub: t('maintenance_hub_intro')};
+            case '/lab':
+                return {title: 'LAB', sub: t('lab_subtitle')};
+            case '/lab/table':
+                return {title: 'LAB', sub: t('lab_table_title'), back: labBack};
+            case '/lab/scan':
+                return {title: 'LAB', sub: t('lab_scan_title'), back: labBack};
             case '/live':
                 return {title: t('panel_live_title'), sub: t('panel_live_subtitle')};
             default:
@@ -51,7 +62,7 @@ export const MainLayout: React.FC<{children?: ReactNode}> = ({children}) => {
         }
     };
 
-    const {title, sub} = getPageTitle(location.pathname);
+    const {title, sub, back} = getPageTitle(location.pathname.replace(/\/+$/, ''));
     useDocumentMetadata(
         title ? `PalletX | ${title}` : 'PalletX',
         sub || t('app_meta_description'),
@@ -62,17 +73,20 @@ export const MainLayout: React.FC<{children?: ReactNode}> = ({children}) => {
         <div
             className="staff-screen flex flex-col lg:flex-row min-h-screen bg-brand-bg text-brand-text font-sans selection:bg-brand-accent selection:text-brand-bg">
             <Sidebar hasITDepartmentAccess={hasITDepartmentAccess} canManagePallets={canManagePallets} isMaintenanceOnly={isMaintenanceOnly}
-                     canAccessMaintenance={canAccessMaintenance} onLogout={logout}
-                     mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)}/>
+                     canAccessMaintenance={canAccessMaintenance} canAccessLab={canAccessLab} onLogout={logout}
+                     mobileOpen={mobileNavOpen} onMobileClose={closeMobileNav}/>
 
-            <main className="staff-main min-w-0 flex-1 p-4 sm:p-6 xl:p-8 space-y-6 w-full">
+            <main className="staff-main min-w-0 flex-1 p-3 sm:p-5 xl:p-8 space-y-4 xl:space-y-6 w-full">
                 {/* Top Header */}
                 <div
-                    className="flex flex-wrap justify-between items-center gap-4 pb-4 border-b border-brand-border/50">
+                    className="flex flex-wrap justify-between items-center gap-3 pb-3 xl:pb-4 border-b border-brand-border/50">
                     <div className="flex items-start gap-3">
                         <button
                             type="button"
-                            onClick={() => setMobileNavOpen(true)}
+                            onClick={event => {
+                                event.currentTarget.focus();
+                                setMobileNavOpen(true);
+                            }}
                             className="lg:hidden mt-0.5 flex size-11 shrink-0 items-center justify-center rounded-xl border border-brand-border bg-brand-surface text-brand-accent transition-colors hover:bg-brand-surface-high"
                             aria-label={t('nav_open')}
                             aria-controls="mobile-navigation"
@@ -80,9 +94,13 @@ export const MainLayout: React.FC<{children?: ReactNode}> = ({children}) => {
                         >
                             <Menu size={22}/>
                         </button>
-                        <div>
-                            <h2 className="text-2xl font-extrabold text-brand-text">{title}</h2>
-                            <p className="text-xs text-brand-text-muted mt-1 font-medium">{sub}</p>
+                        {back && <Link to={back.to} aria-label={back.label} title={back.label}
+                            className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-brand-border bg-brand-surface text-brand-text-muted transition-colors hover:border-brand-accent/50 hover:text-brand-accent focus-visible:outline-2 focus-visible:outline-brand-accent">
+                            <ArrowLeft size={19} aria-hidden="true"/>
+                        </Link>}
+                        <div className="min-w-0">
+                            <h2 className="text-xl xl:text-2xl font-extrabold text-brand-text">{title}</h2>
+                            <p className="text-xs text-brand-text-muted mt-0.5 xl:mt-1 font-medium">{sub}</p>
                         </div>
                     </div>
 

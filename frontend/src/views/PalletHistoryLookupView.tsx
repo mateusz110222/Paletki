@@ -1,6 +1,6 @@
 import {useState, type FormEvent} from 'react';
-import {Link, useNavigate} from 'react-router';
-import {ArrowLeft, ArrowRight, History, Scan} from 'lucide-react';
+import {useNavigate} from 'react-router';
+import {ArrowRight, History, Scan} from 'lucide-react';
 import {useAuth} from '../auth/AuthContext';
 import {useTranslation} from '../i18n/LanguageContext';
 import {getErrorMessage} from '../lib/errors';
@@ -25,7 +25,6 @@ export function PalletHistoryLookupView() {
         } finally {setLoading(false);}
     }
     return <div className="mx-auto w-full max-w-3xl space-y-5">
-        <Link to="/maintenance" className="inline-flex min-h-10 items-center gap-2 text-xs font-bold text-brand-text-muted hover:text-brand-accent"><ArrowLeft size={15}/>{t('maintenance_back')}</Link>
         <section className="overflow-hidden rounded-2xl border border-brand-border bg-brand-surface">
             <div className="h-1 bg-brand-accent"/>
             <header className="flex items-start gap-4 border-b border-brand-border p-6">

@@ -1,4 +1,3 @@
-import {Link} from 'react-router';
 import {OperatorReports} from '../components/OperatorReports';
 import React from 'react';
 import {
@@ -37,7 +36,6 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300" id="maintenance-panel-container">
-            <Link to="/maintenance" className="inline-flex min-h-10 items-center gap-2 text-xs font-bold text-brand-text-muted hover:text-brand-accent">← {t('maintenance_back')}</Link>
             {/* Top statistics section in Bento Grid Style */}
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
                 <div
@@ -163,29 +161,29 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
                 {/* Content Area */}
                 <div
                     key={data.activeTab}
-                    className="p-6 animate-in fade-in slide-in-from-bottom-4 duration-200"
+                    className="p-[clamp(0.75rem,1.8vw,1.5rem)] animate-in fade-in slide-in-from-bottom-4 duration-200"
                 >
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-4">
                         {(data.activeTab === 'repairs' ? data.filteredRepairPallets : data.filteredRoutinePallets).map((p: Pallet) => (
                             <div
                                 key={p.pallet_id}
-                                className="bg-brand-bg border border-brand-border rounded-lg p-5 hover:border-brand-accent/40 transition-all group flex flex-col justify-between"
+                                className="bg-brand-bg border border-brand-border rounded-lg p-[clamp(0.75rem,1.5vw,1.25rem)] hover:border-brand-accent/40 transition-all group flex flex-col justify-between"
                             >
                                 <div>
-                                    <div className="flex justify-between items-start mb-4">
+                                    <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
                                         <div
-                                            className="px-2 py-1 bg-brand-surface-high border border-brand-border rounded font-mono text-xs font-bold text-brand-accent">
+                                            className="max-w-full wrap-anywhere px-2 py-1 bg-brand-surface-high border border-brand-border rounded font-mono text-xs font-bold text-brand-accent">
                                             {p.pallet_id}
                                         </div>
                                         {data.activeTab === 'repairs' ? (
                                             <span
                                                 className="text-[0.625rem] font-black text-red-500 uppercase flex items-center gap-1">
-                                                <AlertTriangle size={12}/> {t('damaged_status')}
+                                                <AlertTriangle size={12} className="shrink-0"/> {t('damaged_status')}
                                             </span>
                                         ) : (
                                             <span
                                                 className="text-[0.625rem] font-black text-yellow-500 uppercase flex items-center gap-1">
-                                                <RefreshCw size={12}/> {t('cyclic_service')}
+                                                <RefreshCw size={12} className="shrink-0"/> {t('cyclic_service')}
                                             </span>
                                         )}
                                     </div>
@@ -193,7 +191,7 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
                                     <div className="space-y-3 mb-6">
                                         <div>
                                             <p className="text-[0.625rem] font-bold text-brand-text-muted uppercase tracking-tighter">{t('project_model')}</p>
-                                            <p className="text-xs font-bold text-brand-text">{p.project} • {p.model}</p>
+                                            <p className="wrap-anywhere text-xs font-bold text-brand-text">{p.project} • {p.model}</p>
                                         </div>
                                         <div>
                                             <p className="text-[0.625rem] font-bold text-brand-text-muted uppercase tracking-tighter">{t('mileage')}</p>
@@ -215,10 +213,10 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
 
                                 <button
                                     onClick={() => actions.handleOpenServiceLog(p)}
-                                    className="w-full py-3 bg-brand-surface-high border border-brand-border text-brand-text font-black text-[0.625rem] uppercase tracking-widest rounded hover:bg-brand-accent hover:text-brand-bg hover:border-brand-accent transition-all flex items-center justify-center gap-2"
+                                    className="flex min-h-11 w-full items-center justify-center gap-2 rounded border border-brand-border bg-brand-surface-high px-2 py-2 text-center text-[0.625rem] font-black uppercase tracking-widest text-brand-text transition-all hover:border-brand-accent hover:bg-brand-accent hover:text-brand-bg"
                                 >
-                                    <CheckSquare size={14}/>
-                                    {t('start_servicing')}
+                                    <CheckSquare size={14} className="shrink-0"/>
+                                    <span>{t('start_servicing')}</span>
                                 </button>
                             </div>
                         ))}

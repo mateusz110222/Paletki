@@ -81,6 +81,8 @@ export const useAdminPanel = ({
     const [editError, setEditError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
+    const exportRunningRef = useRef(false);
 
     const [sort, setSort] = useState(() => parseTableSort(readPreference(ADMIN_SORT_STORAGE_KEY)));
     useEffect(() => {
@@ -181,7 +183,7 @@ export const useAdminPanel = ({
         },
         {totalPallets: 0, availableStock: 0, blockedOrMaint: 0},
     ), [pallets]);
-    const avaliblePalletes_Percenetege = Math.min(100, Math.round((availableStock / totalPallets) * 100)) || 0;
+    const availablePalletsPercentage = Math.min(100, Math.round((availableStock / totalPallets) * 100)) || 0;
 
     const fetchPallets = async () => {
         try {
@@ -481,6 +483,9 @@ export const useAdminPanel = ({
     };
 
     const handleExportAuditTrail = async () => {
+        if (exportRunningRef.current) return;
+        exportRunningRef.current = true;
+        setIsExporting(true);
         try {
             const history = [];
             let beforeId: number | undefined;
@@ -494,10 +499,10 @@ export const useAdminPanel = ({
                 beforeId = page.next_cursor;
             } while (beforeId !== undefined);
 
-            const dataStr = 'data:text/json;charset=utf-8,' +
-                encodeURIComponent(JSON.stringify(history, null, 2));
+            const blob = new Blob([JSON.stringify(history, null, 2)], {type: 'application/json;charset=utf-8'});
+            const url = URL.createObjectURL(blob);
             const downloadAnchor = document.createElement('a');
-            downloadAnchor.setAttribute('href', dataStr);
+            downloadAnchor.setAttribute('href', url);
             downloadAnchor.setAttribute(
                 'download',
                 `dash-solder-audit-trail-${new Date().toISOString().split('T')[0]}.json`,
@@ -505,10 +510,14 @@ export const useAdminPanel = ({
             document.body.appendChild(downloadAnchor);
             downloadAnchor.click();
             downloadAnchor.remove();
+            window.setTimeout(() => URL.revokeObjectURL(url), 1000);
             notify(language === 'pl' ? 'Operacja zakończona pomyślnie.' : 'Operation completed successfully.');
         } catch (error) {
             console.error('Error exporting audit trail:', error);
             showGlobalError(t('error_fetching_audit_history_title'), getErrorMessage(error, t('error_connecting_to_encore')));
+        } finally {
+            exportRunningRef.current = false;
+            setIsExporting(false);
         }
     };
 
@@ -552,7 +561,7 @@ export const useAdminPanel = ({
             availableStock,
             blockedOrMaint,
             errorModalState,
-            avaliblePalletes_Percenetege,
+            availablePalletsPercentage,
             paginatedPallets,
             pageSize,
             currentPage: safeCurrentPage,
@@ -563,6 +572,7 @@ export const useAdminPanel = ({
         status: {
             isSubmitting,
             isRefreshing,
+            isExporting,
         },
         actions: {
             setSearchTerm: updateSearchTerm,

@@ -108,6 +108,7 @@ export interface PublicDashboardResponse {
 export type UserRole = 'staff' | 'operator';
 
 export interface UserData {
+    has_lab_access?: boolean;
     FullName: string;
     department: string;
     title: string;
@@ -136,6 +137,7 @@ export interface DirectoryUser {
     has_it_department_access: boolean;
     has_ur_department_access: boolean;
     has_me_department_access: boolean;
+    has_lab_access?: boolean;
 }
 
 export interface ReportRow {

@@ -17,8 +17,7 @@ function environment(mode: string) {
         LDAP_TIMEOUT_MS: '5000', LDAP_CONNECT_TIMEOUT_MS: '3000',
         LDAP_TLS_REJECT_UNAUTHORIZED: 'true', LDAP_TLS_ALLOW_LEGACY_SERVER_CERT: 'false',
         LDAP_CA_CERT_PATH: '', FIS1_ROUTER_URL: 'http://fis1.test/router.php',
-        FIS2_ROUTER_URL: 'http://fis2.test/router.php', FIS_DB_HOST: 'fis.test',
-        FIS_DB_PORT: '3306', FIS_DB_USER: 'reader',
+        FIS2_ROUTER_URL: 'http://fis2.test/router.php',
     })) vi.stubEnv(name, value);
 }
 
