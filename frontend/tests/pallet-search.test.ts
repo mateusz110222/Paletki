@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {filterPallets, matchesPalletSearch} from '../src/lib/palletSearch';
+import {PALLET_STATUSES} from '@backend/shared/types';
 import type {Pallet} from '@backend/shared/types';
 import {getCatalogAdminUrl} from '../src/lib/catalog';
 
@@ -30,6 +31,14 @@ test('FIS filtering combines with project, model, status, machine and search', (
     const combined = {search: 'pal-', project: 'AUDI', model: 'Board', status: 'Active', machine: 'COAT', fis: '2'};
     assert.deepEqual(filterPallets(pallets, combined).map(p => p.pallet_id), ['PAL-2']);
     assert.deepEqual(filterPallets(pallets, {...combined, fis: 'ALL'}).map(p => p.pallet_id), ['PAL-1', 'PAL-2']);
+});
+
+test('inventory cards split active pallets from every service or blocked status', () => {
+    const pallets = PALLET_STATUSES.map(status => ({status, project: 'AUDI'} as Pallet));
+    const filters = {search: '', project: 'AUDI', model: 'ALL', machine: 'ALL', fis: 'ALL'};
+    assert.deepEqual(filterPallets(pallets, {...filters, status: 'Active'}).map(p => p.status), ['Active']);
+    assert.deepEqual(filterPallets(pallets, {...filters, status: 'Unavailable'}).map(p => p.status),
+        ['Washing_Required', 'Damaged', 'Blocked']);
 });
 
 test('catalog links encode exact project and model filters without stale search parameters', () => {

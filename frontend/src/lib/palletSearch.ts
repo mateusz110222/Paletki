@@ -17,7 +17,9 @@ export function filterPallets(
     return pallets.filter(pallet => matchesPalletSearch(pallet, filters.search)
         && (filters.project === 'ALL' || pallet.project === filters.project)
         && (filters.model === 'ALL' || pallet.model === filters.model)
-        && (filters.status === 'ALL' || pallet.status === filters.status)
+        && (filters.status === 'ALL' || (filters.status === 'Unavailable'
+            ? pallet.status !== 'Active'
+            : pallet.status === filters.status))
         && (filters.machine === 'ALL' || pallet.machine === filters.machine)
         && (filters.fis === 'ALL' || String(pallet.fis) === filters.fis));
 }

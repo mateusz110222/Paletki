@@ -89,6 +89,13 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
         openPalletHistory,
         clearFilters,
     } = useAdminPanelView(props, {data, status, actions});
+    const setStatusFilter = (value: string) => {
+        const params = new URLSearchParams(searchParams);
+        if (value === 'ALL') params.delete('status');
+        else params.set('status', value);
+        setSearchParams(params);
+        actions.setSelectedStatus(value);
+    };
     const hasOpenModal = data.selectedPalletForUnblock !== null || data.errorModalState.isOpen || data.selectedPalletForDelete !== null ||
         data.isBlockOpen || data.isEditOpen || data.isAddOpen;
 
@@ -114,27 +121,33 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
             {/* Quick Stats & Actions */}
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
                 {/* Available Card */}
-                <div
-                    className="bg-brand-surface p-6 rounded-xl border border-brand-border flex flex-col justify-between relative overflow-hidden group hover:border-brand-accent/50 transition-colors">
+                <button
+                    type="button"
+                    aria-pressed={selectedStatusFromUrl === 'Active'}
+                    onClick={() => setStatusFilter(selectedStatusFromUrl === 'Active' ? 'ALL' : 'Active')}
+                    className="bg-brand-surface p-6 rounded-xl border border-brand-border flex flex-col justify-between text-left cursor-pointer hover:border-brand-accent/50 aria-pressed:border-brand-accent focus-visible:outline-2 focus-visible:outline-brand-accent transition-colors">
                     <span
                         className="text-xs font-bold uppercase tracking-wider text-brand-text-muted">{t('stats_available_pallets')}</span>
                     <span className="text-4xl font-extrabold text-brand-accent mt-2">{data.availableStock}</span>
-                    <div className="flex items-center gap-1 text-[0.625rem] text-green-400 mt-2">
+                    <span className="flex items-center gap-1 text-[0.625rem] text-green-400 mt-2">
                         <span>● {data.availablePalletsPercentage} % {t('availability_ok_suffix')}</span>
-                    </div>
-                </div>
+                    </span>
+                </button>
 
                 {/* Blocked / Maint Card */}
-                <div
-                    className="bg-brand-surface p-6 rounded-xl border border-brand-border flex flex-col justify-between relative overflow-hidden group hover:border-brand-accent/50 transition-colors">
+                <button
+                    type="button"
+                    aria-pressed={selectedStatusFromUrl === 'Unavailable'}
+                    onClick={() => setStatusFilter(selectedStatusFromUrl === 'Unavailable' ? 'ALL' : 'Unavailable')}
+                    className="bg-brand-surface p-6 rounded-xl border border-brand-border flex flex-col justify-between text-left cursor-pointer hover:border-brand-accent/50 aria-pressed:border-brand-accent focus-visible:outline-2 focus-visible:outline-brand-accent transition-colors">
                     <span
                         className="text-xs font-bold uppercase tracking-wider text-brand-text-muted">{t('stats_service_blocked')}</span>
                     <span className="text-4xl font-extrabold text-red-400 mt-2">{data.blockedOrMaint}</span>
-                    <div className="flex items-center gap-1 text-[0.625rem] text-red-400 mt-2">
+                    <span className="flex items-center gap-1 text-[0.625rem] text-red-400 mt-2">
                         <ShieldAlert size={12}/>
                         <span>{t('maintenance_abbreviation')}</span>
-                    </div>
-                </div>
+                    </span>
+                </button>
 
                 {/* Action Buttons */}
                 <div className="sm:col-span-2 flex flex-col gap-3 justify-center">
@@ -240,20 +253,11 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                         <select
                             id="admin-filter-status"
                             value={selectedStatusFromUrl}
-                            onChange={(e) => {
-                                const selectedValue = e.target.value;
-                                const newParams = new URLSearchParams(searchParams);
-                                if (selectedValue === 'ALL') {
-                                    newParams.delete('status');
-                                } else {
-                                    newParams.set('status', selectedValue);
-                                }
-                                setSearchParams(newParams);
-                                actions.setSelectedStatus(selectedValue);
-                            }}
+                            onChange={(e) => setStatusFilter(e.target.value)}
                             className="bg-brand-bg border border-brand-border text-xs rounded p-2 text-brand-text font-medium focus:ring-1 focus:ring-brand-accent"
                         >
                             <option value="ALL">{t('all_statuses')}</option>
+                            <option value="Unavailable">{t('stats_service_blocked')}</option>
                             {PALLET_STATUSES.map((status) => (
                                 <option key={status} value={status}>
                                     {t(`status_${status.toLowerCase()}` as TranslationKey)}
