@@ -3,7 +3,7 @@ import React from 'react';
 import { Link } from 'react-router';
 
 import { AlertCircle, AlertTriangle, BarChart3, CheckCircle2, LogIn, Package, RefreshCw, ScanBarcode, ShieldAlert, Tv, Wrench } from 'lucide-react';
-import { LanguageSwitcher } from '../i18n/LanguageContext.tsx';
+import {DisplayPreferences} from '../components/DisplayPreferences';
 import { ProjectStats } from '../hooks/useLiveMonitor.ts';
 
 import { StationSelectionView } from '../components/StationSelectionView.tsx';
@@ -26,7 +26,7 @@ export const LiveMonitorView: React.FC = () => {
     const {t, language, setSearchParams, stationFromUrl, query, selectedStation, showAll, stationHistory, recentProjectNames, projectsQuery, data} = useLiveMonitorView();
     if (query.isPending || (showAll && projectsQuery.isPending)) {
         return (
-            <div className="dashboard-public grid min-h-screen place-items-center p-6 text-white">
+            <div className="dashboard-public grid min-h-screen place-items-center p-6 text-brand-display">
                 <div className="text-center">
                     <RefreshCw className="mx-auto animate-spin text-indigo-300" size="1.75rem"/>
                     <p className="mt-4 text-sm font-semibold text-slate-300">{t('dashboard_loading')}</p>
@@ -37,11 +37,11 @@ export const LiveMonitorView: React.FC = () => {
 
     if (query.isError || projectsQuery.isError) {
         return (
-            <div className="dashboard-public grid min-h-screen place-items-center p-6 text-white">
+            <div className="dashboard-public grid min-h-screen place-items-center p-6 text-brand-display">
                 <div className="dashboard-panel max-w-md rounded-2xl p-8 text-center">
                     <AlertTriangle className="mx-auto text-amber-300" size="2.125rem"/>
                     <h1 className="mt-4 text-lg font-black">{t('dashboard_error_title')}</h1>
-                    <p className="mt-2 text-sm text-slate-400">{t('dashboard_error_hint')}</p>
+                    <p className="mt-2 text-sm text-brand-text-muted">{t('dashboard_error_hint')}</p>
                     <button type="button" onClick={() => {
                         void query.refetch();
                         if (showAll) void projectsQuery.refetch();
@@ -126,10 +126,10 @@ export const LiveMonitorView: React.FC = () => {
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <div className="hidden rounded-lg border border-brand-accent/20 bg-brand-accent/8 px-3 py-2 text-right sm:block">
-                            <p className="text-[0.5625rem] font-bold uppercase tracking-wider text-brand-accent">
+                            <p className="text-xs font-bold uppercase tracking-wider text-brand-accent">
                                 {showAll ? 'ALL' : `${t('dashboard_station')}: ${selectedStation?.station}`}
                             </p>
-                            <p className="mt-0.5 max-w-44 truncate text-[0.625rem] font-semibold text-brand-text">
+                            <p className="mt-0.5 max-w-44 truncate text-xs font-semibold text-brand-text">
                                 {showAll
                                     ? t('dashboard_all_lines')
                                     : visibleProjects.length > 1
@@ -137,16 +137,16 @@ export const LiveMonitorView: React.FC = () => {
                                         : selectedStation?.project}
                             </p>
                         </div>
-                        <button type="button" onClick={() => setSearchParams({})} className="min-h-10 rounded-lg border border-brand-border bg-brand-bg px-3 text-[0.625rem] font-bold text-brand-text-muted hover:border-brand-accent/50 hover:text-brand-text">
+                        <button type="button" onClick={() => setSearchParams({})} className="min-h-10 rounded-lg border border-brand-border bg-brand-bg px-3 text-xs font-bold text-brand-text-muted hover:border-brand-accent/50 hover:text-brand-text">
                             {t('dashboard_change_station')}
                         </button>
-                        <span className="hidden items-center gap-1.5 text-[0.625rem] font-bold uppercase tracking-wider text-emerald-400 sm:flex"><RefreshCw size="0.75rem"/> 30s</span>
-                        <LanguageSwitcher/>
-                        <Link to={`/dashboard?station=${encodeURIComponent(selectedStation?.station ?? 'ALL')}`} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-brand-border bg-brand-bg px-3 text-[0.625rem] font-bold text-brand-text-muted hover:border-brand-accent/50 hover:text-brand-text">
+                        <span className="hidden items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-400 sm:flex"><RefreshCw size="0.75rem"/> 30s</span>
+                        <DisplayPreferences/>
+                        <Link to={`/dashboard?station=${encodeURIComponent(selectedStation?.station ?? 'ALL')}`} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-brand-border bg-brand-bg px-3 text-xs font-bold text-brand-text-muted hover:border-brand-accent/50 hover:text-brand-text">
                             <BarChart3 size="0.875rem"/><span className="hidden sm:inline">{t('nav_public_dashboard')}</span>
                         </Link>
-                        <Link to="/dashboards" className="inline-flex min-h-10 items-center rounded-lg border border-brand-border px-3 text-[10px] font-bold text-brand-text-muted hover:text-brand-text">{t('dashboard_hub_title')}</Link>
-                        <Link to="/" className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-brand-border bg-brand-bg px-3 text-[0.625rem] font-bold text-brand-text-muted hover:border-brand-accent/50 hover:text-brand-text">
+                        <Link to="/dashboards" className="inline-flex min-h-10 items-center rounded-lg border border-brand-border px-3 text-xs font-bold text-brand-text-muted hover:text-brand-text">{t('dashboard_hub_title')}</Link>
+                        <Link to="/" className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-brand-border bg-brand-bg px-3 text-xs font-bold text-brand-text-muted hover:border-brand-accent/50 hover:text-brand-text">
                             <LogIn size="0.875rem"/><span className="hidden sm:inline">{t('dashboard_staff_panel')}</span>
                         </Link>
                     </div>
@@ -160,7 +160,7 @@ export const LiveMonitorView: React.FC = () => {
                 {/* 1. Global Health Score */}
                 <div className="bg-brand-surface p-5 rounded-xl border border-brand-border flex flex-col justify-between relative overflow-hidden group hover:border-brand-accent/40 transition-colors">
                     <div className="flex items-center justify-between">
-                        <span className="text-[0.625rem] font-bold uppercase tracking-wider text-brand-text-muted">
+                        <span className="text-xs font-bold uppercase tracking-wider text-brand-text-muted">
                             {t('fleet_health_score')}
                         </span>
                         <div className="flex items-center gap-1.5">
@@ -168,7 +168,7 @@ export const LiveMonitorView: React.FC = () => {
                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                             </span>
-                            <span className="text-[0.5625rem] font-bold uppercase text-emerald-400">LIVE</span>
+                            <span className="text-xs font-bold uppercase text-emerald-400">LIVE</span>
                         </div>
                     </div>
                     <div className="flex items-baseline gap-2 mt-3">
@@ -187,7 +187,7 @@ export const LiveMonitorView: React.FC = () => {
                 {/* 2. Total Pallets */}
                 <div className="bg-brand-surface p-5 rounded-xl border border-brand-border flex flex-col justify-between hover:border-brand-accent/40 transition-colors">
                     <div className="flex items-center justify-between">
-                        <span className="text-[0.625rem] font-bold uppercase tracking-wider text-brand-text-muted">
+                        <span className="text-xs font-bold uppercase tracking-wider text-brand-text-muted">
                             {t('fleet_total_pallets')}
                         </span>
                         <Package size="1rem" className="text-brand-text-muted"/>
@@ -195,7 +195,7 @@ export const LiveMonitorView: React.FC = () => {
                     <span className="text-4xl font-extrabold text-brand-text mt-3">
                         {data.fleetSummary.total}
                     </span>
-                    <span className="text-[0.625rem] font-semibold text-brand-text-muted mt-2">
+                    <span className="text-xs font-semibold text-brand-text-muted mt-2">
                         {formatProjectsCount(data.totalProjectsCount, language)}
                     </span>
                 </div>
@@ -203,7 +203,7 @@ export const LiveMonitorView: React.FC = () => {
                 {/* 3. Operational in loop */}
                 <div className="bg-brand-surface p-5 rounded-xl border border-brand-border flex flex-col justify-between hover:border-brand-accent/40 transition-colors">
                     <div className="flex items-center justify-between">
-                        <span className="text-[0.625rem] font-bold uppercase tracking-wider text-brand-text-muted">
+                        <span className="text-xs font-bold uppercase tracking-wider text-brand-text-muted">
                             {t('fleet_operational')}
                         </span>
                         <CheckCircle2 size="1rem" className="text-emerald-400"/>
@@ -211,7 +211,7 @@ export const LiveMonitorView: React.FC = () => {
                     <span className="text-4xl font-extrabold text-emerald-400 mt-3">
                         {data.fleetSummary.active}
                     </span>
-                    <span className="text-[0.625rem] font-semibold text-emerald-400/90 mt-2">
+                    <span className="text-xs font-semibold text-emerald-400 mt-2">
                         {formatAvailablePallets(data.fleetSummary.active, language)} ({data.fleetSummary.total > 0
                             ? Math.round((data.fleetSummary.active / data.fleetSummary.total) * 100)
                             : 100}%)
@@ -221,7 +221,7 @@ export const LiveMonitorView: React.FC = () => {
                 {/* 4. In Service / Blocked */}
                 <div className="bg-brand-surface p-5 rounded-xl border border-brand-border flex flex-col justify-between hover:border-brand-accent/40 transition-colors">
                     <div className="flex items-center justify-between">
-                        <span className="text-[0.625rem] font-bold uppercase tracking-wider text-brand-text-muted">
+                        <span className="text-xs font-bold uppercase tracking-wider text-brand-text-muted">
                             {t('fleet_in_service')}
                         </span>
                         <Wrench size="1rem" className="text-amber-400"/>
@@ -230,7 +230,7 @@ export const LiveMonitorView: React.FC = () => {
                         <span className="text-4xl font-extrabold text-amber-400">
                             {data.fleetSummary.damaged + data.fleetSummary.washing + data.fleetSummary.blocked}
                         </span>
-                        <div className="flex gap-2 text-[0.625rem] font-mono">
+                        <div className="flex gap-2 text-xs font-mono">
                             {data.fleetSummary.damaged > 0 && (
                                 <span className="text-rose-400 font-bold">
                                     {data.fleetSummary.damaged} {t('damaged_status')}
@@ -243,7 +243,7 @@ export const LiveMonitorView: React.FC = () => {
                             )}
                         </div>
                     </div>
-                    <span className="text-[0.625rem] text-brand-text-muted mt-2">
+                    <span className="text-xs text-brand-text-muted mt-2">
                         {data.fleetSummary.washing > 0 ? `${data.fleetSummary.washing} ${t('cyclic_service')}` : t('maintenance_queue')}
                     </span>
                 </div>
@@ -253,7 +253,7 @@ export const LiveMonitorView: React.FC = () => {
             {/* Dynamic Grid of Project Cards */}
             {visibleProjects.length === 0 ? (
                 <div className="bg-brand-surface rounded-xl border border-brand-border p-12 text-center">
-                    <Package size="2rem" className="mx-auto text-brand-text-muted/40 mb-3"/>
+                    <Package size="2rem" className="mx-auto text-brand-text-muted mb-3"/>
                     <p className="text-sm font-medium text-brand-text-muted">
                         {t('no_registered_projects')}
                     </p>
@@ -283,7 +283,7 @@ export const LiveMonitorView: React.FC = () => {
                                 {stationRowMode ? (
                                     <div className="grid h-full min-h-0 gap-4 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,0.9fr)_minmax(0,1.8fr)] lg:items-center lg:gap-[clamp(0.75rem,1.4vw,1.75rem)]">
                                         <div className="flex min-h-0 flex-col items-center justify-center border-b border-brand-border/60 pb-4 text-center lg:h-full lg:border-r lg:border-b-0 lg:pr-[clamp(0.75rem,1.4vw,1.75rem)] lg:pb-0">
-                                            <span className="text-[clamp(0.65rem,1.35vh,0.75rem)] font-bold uppercase tracking-[0.2em] text-brand-text-muted">{t('project')}</span>
+                                            <span className="text-xs font-bold uppercase tracking-[0.2em] text-brand-text-muted">{t('project')}</span>
                                             <h4 className="live-project-name mt-[clamp(0.3rem,0.7vh,0.5rem)] w-full truncate text-[clamp(1.75rem,4vh,3rem)] font-black leading-none text-brand-text transition-colors group-hover:text-brand-accent">{proj.name}</h4>
                                             <div className={`mt-[clamp(0.4rem,1vh,1.25rem)] inline-flex items-center gap-2.5 rounded-xl border px-[clamp(0.65rem,1vh,1rem)] py-[clamp(0.4rem,0.8vh,0.75rem)] font-mono text-[clamp(2.25rem,5vh,3.75rem)] font-black leading-none ${theme.badgeBg}`}>
                                                 {theme.icon}<span>{total > 0 ? `${roundedPercentage}%` : '—'}</span>
@@ -295,19 +295,19 @@ export const LiveMonitorView: React.FC = () => {
                                                 <ScanBarcode size="1.75rem"/>
                                             </div>
                                             <div className="min-w-0 flex-1">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-[0.625rem] font-black uppercase tracking-[0.15em] text-brand-accent">{t('dashboard_last_scanned_pallet')}</span>
-                                                    {isNewest && <span className="rounded bg-emerald-400/10 px-1.5 py-0.5 text-[0.5rem] font-black uppercase tracking-wider text-emerald-400">{t('dashboard_newest')}</span>}
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <span className="text-xs font-black uppercase tracking-[0.15em] text-brand-accent">{t('dashboard_last_scanned_pallet')}</span>
+                                                    {isNewest && <span className="rounded bg-emerald-400/10 px-1.5 py-0.5 text-xs font-black uppercase tracking-wider text-emerald-400">{t('dashboard_newest')}</span>}
                                                 </div>
                                                 <p className="mt-[clamp(0.25rem,0.65vh,0.5rem)] truncate font-mono text-[clamp(1.5rem,3.5vh,2.25rem)] font-black tracking-[0.06em] text-brand-text">{stationEntry?.pallet_id ?? '—'}</p>
-                                                <p className="mt-1 truncate text-[clamp(0.65rem,1.4vh,0.75rem)] font-semibold uppercase tracking-wide text-brand-text-muted">
+                                                <p className="mt-1 truncate text-xs font-semibold uppercase tracking-wide text-brand-text-muted">
                                                     {stationEntry?.model ?? '—'} · {formatLastScanTime(stationEntry?.updated_at, language)}
                                                 </p>
                                             </div>
                                         </div>
 
                                         <div className="min-w-0">
-                                            <div className="live-metrics grid h-[clamp(6.25rem,14vh,8.75rem)] grid-cols-4 gap-2 sm:gap-[clamp(0.5rem,0.8vw,0.75rem)]">
+                                            <div className="live-metrics grid grid-cols-2 gap-2 sm:h-[clamp(6.25rem,14vh,8.75rem)] sm:grid-cols-4 sm:gap-[clamp(0.5rem,0.8vw,0.75rem)]">
                                                 {[
                                                     {label: t('status_active'), value: ready, color: 'text-emerald-400', panel: 'border-emerald-500/20 bg-emerald-500/[0.07]', icon: <CheckCircle2 size="1.5rem"/>},
                                                     {label: t('status_washing_required'), value: proj.washing, color: 'text-cyan-400', panel: 'border-cyan-500/20 bg-cyan-500/[0.07]', icon: <RefreshCw size="1.5rem"/>},
@@ -317,7 +317,7 @@ export const LiveMonitorView: React.FC = () => {
                                                     <div key={metric.label} className={`grid min-h-0 min-w-0 grid-rows-[minmax(2.25rem,1fr)_clamp(1.25rem,2.6vh,2rem)_clamp(1.75rem,3.8vh,2.75rem)] place-items-center overflow-hidden rounded-xl border px-2 py-[clamp(0.3rem,0.7vh,0.65rem)] text-center sm:px-3 ${metric.panel}`}>
                                                         <p className={`live-metric-value flex min-h-0 items-center justify-center font-mono text-[clamp(2.1rem,4.8vh,3.75rem)] font-black leading-none ${metric.color}`}>{metric.value}</p>
                                                         <div className={`flex items-center justify-center ${metric.color}`}>{metric.icon}</div>
-                                                        <p className={`flex min-h-0 w-full items-center justify-center break-words text-[clamp(0.58rem,1.3vh,0.875rem)] font-black uppercase leading-tight tracking-[0.03em] ${metric.color}`}>{metric.label}</p>
+                                                        <p className={`min-w-0 w-full wrap-anywhere text-xs font-bold leading-tight ${metric.color}`}>{metric.label}</p>
                                                     </div>
                                                 ))}
                                             </div>
@@ -334,7 +334,7 @@ export const LiveMonitorView: React.FC = () => {
                                         <div>
                                             <div className="mb-4 flex items-start justify-between gap-2">
                                                 <div className="min-w-0 space-y-1">
-                                                    <span className="text-[0.625rem] font-semibold uppercase tracking-wider text-brand-text-muted">
+                                                    <span className="text-xs font-semibold uppercase tracking-wider text-brand-text-muted">
                                                         {t('project')}
                                                     </span>
                                                     <h4 className="truncate text-sm font-bold text-brand-text transition-colors group-hover:text-brand-accent">
@@ -354,12 +354,12 @@ export const LiveMonitorView: React.FC = () => {
                                                             <ScanBarcode size="1.0625rem" className="shrink-0 text-brand-accent"/>
                                                             <div className="min-w-0">
                                                                 <p className="truncate font-mono text-base font-black tracking-[0.06em] text-brand-text">{stationEntry.pallet_id}</p>
-                                                                <p className="mt-0.5 truncate text-[0.625rem] font-semibold text-brand-text-muted">{stationEntry.model}</p>
+                                                                <p className="mt-0.5 truncate text-xs font-semibold text-brand-text-muted">{stationEntry.model}</p>
                                                             </div>
                                                         </div>
                                                         <div className="shrink-0 text-right">
-                                                            {isNewest && <p className="text-[0.5rem] font-black uppercase tracking-[0.14em] text-emerald-400">{t('dashboard_newest')}</p>}
-                                                            <p className="mt-0.5 text-[0.625rem] font-bold text-brand-text-muted">{formatLastScanTime(stationEntry.updated_at, language)}</p>
+                                                            {isNewest && <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-400">{t('dashboard_newest')}</p>}
+                                                            <p className="mt-0.5 text-xs font-bold text-brand-text-muted">{formatLastScanTime(stationEntry.updated_at, language)}</p>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -367,7 +367,7 @@ export const LiveMonitorView: React.FC = () => {
 
                                             <div className="mb-4 grid grid-cols-2 items-center gap-2 rounded-lg border border-brand-border/30 bg-brand-bg/40 p-3">
                                         <div>
-                                            <p className="text-[0.625rem] uppercase font-semibold text-brand-text-muted">
+                                            <p className="text-xs uppercase font-semibold text-brand-text-muted">
                                                 {t('ready_total')}
                                             </p>
                                             <p className="text-lg font-mono font-bold mt-0.5">
@@ -377,7 +377,7 @@ export const LiveMonitorView: React.FC = () => {
                                             </p>
                                         </div>
                                         <div className="text-right">
-                                            <p className="text-[0.625rem] uppercase font-semibold text-brand-text-muted">
+                                            <p className="text-xs uppercase font-semibold text-brand-text-muted">
                                                 {t('unavailable_pallets')}
                                             </p>
                                             <p className={`text-lg font-mono font-bold mt-0.5 ${unavailable > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
@@ -395,7 +395,7 @@ export const LiveMonitorView: React.FC = () => {
                                                 />
                                             </div>
                                             {total === 0 && (
-                                                <p className="text-center text-[0.625rem] italic text-brand-text-muted">
+                                                <p className="text-center text-xs italic text-brand-text-muted">
                                                     {formatPalletsCount(0, language)}
                                                 </p>
                                             )}

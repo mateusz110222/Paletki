@@ -15,6 +15,7 @@ export const PALLET_STATUSES: readonly PalletStatus[] = [
 export interface AuditLog {
     event_kind?: "unblock" | "status" | "update";
     comment?: string;
+    status_reason?: string;
     id: number;
     pallet_id: string;
     timestamp: string;
@@ -52,6 +53,7 @@ export interface Pallet {
     created_at: string;
     created_by: string;
     updated_at: string;
+    status_changed_at?: string;
 }
 
 export interface Project {
@@ -128,20 +130,10 @@ export interface LoginResponse {
     expires_at: string;
 }
 
-export interface DirectoryUser {
-    net_id: string;
-    full_name: string;
-    department: string;
-    title: string;
-    fis_groups: string[];
-    has_it_department_access: boolean;
-    has_ur_department_access: boolean;
-    has_me_department_access: boolean;
-    has_lab_access?: boolean;
-}
-
 export interface ReportRow {
     id: number; pallet_id: string; project: string; model: string; machine: PalletMachine;
     previous_status: string | null; status: string; timestamp: string;
     defect: string | null; description: string; operator: string;
+    block_reason?: string | null;
+    damage_reason?: string | null;
 }

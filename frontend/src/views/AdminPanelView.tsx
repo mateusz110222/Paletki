@@ -1,7 +1,8 @@
+import {DeleteIcon, EditIcon, deleteActionClass} from '../components/RecordActions';
 import { BulkPalletActions } from '../components/BulkPalletActions';
 
-import React, { useLayoutEffect, useRef } from 'react';
-import { AlertCircle, Copy, Download, Edit, History, PlusCircle, RefreshCw, RotateCcw, ShieldAlert, Trash2, X } from 'lucide-react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
+import { AlertCircle, ChevronDown, Copy, Download, History, PlusCircle, RefreshCw, RotateCcw, ShieldAlert, SlidersHorizontal, X } from 'lucide-react';
 import { TranslationKey } from '../i18n/LanguageContext.tsx';
 import { Pallet, PalletModel, PALLET_STATUSES, PalletStatus, Project } from '@backend/shared/types';
 import { useAdminPanel } from '../hooks/useAdminPanel.ts';
@@ -12,7 +13,7 @@ import { SearchInput } from "../components/SearchInput.tsx";
 import { useEscapeKey } from "../hooks/useEscapeKey.ts";
 import { ModalFormActions } from "../components/ModalFormActions.tsx";
 import { ModalPresence, ModalTransition } from '../components/ModalTransition.tsx';
-import { InputField, SelectField, TextareaField } from '../components/FormFields.tsx';
+import { InputField, RequiredMark, SelectField, TextareaField } from '../components/FormFields.tsx';
 import { Pagination } from '../components/Pagination.tsx';
 import {useAdminPanelView} from '../hooks/useAdminPanelView';
 interface AdminPanelViewProps {
@@ -36,6 +37,7 @@ const ErrorAlert: React.FC<{ message: string }> = ({message}) => {
 
 export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
     const {data, status, actions} = useAdminPanel(props);
+    const [showMobileFilters, setShowMobileFilters] = useState(false);
     const tableScrollRef = useRef<HTMLDivElement>(null);
     useLayoutEffect(() => {
         const scroller = tableScrollRef.current;
@@ -117,19 +119,19 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
     });
 
     return (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300" id="admin-panel-container">
+        <div className="space-y-3 sm:space-y-4 xl:space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300" id="admin-panel-container">
             {/* Quick Stats & Actions */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-4 xl:gap-5">
                 {/* Available Card */}
                 <button
                     type="button"
                     aria-pressed={selectedStatusFromUrl === 'Active'}
                     onClick={() => setStatusFilter(selectedStatusFromUrl === 'Active' ? 'ALL' : 'Active')}
-                    className="bg-brand-surface p-6 rounded-xl border border-brand-border flex flex-col justify-between text-left cursor-pointer hover:border-brand-accent/50 aria-pressed:border-brand-accent focus-visible:outline-2 focus-visible:outline-brand-accent transition-colors">
+                    className="bg-brand-surface p-3 xl:p-5 rounded-xl border border-brand-border flex flex-col justify-between text-left cursor-pointer hover:border-brand-accent/50 aria-pressed:border-brand-accent focus-visible:outline-2 focus-visible:outline-brand-accent transition-colors">
                     <span
                         className="text-xs font-bold uppercase tracking-wider text-brand-text-muted">{t('stats_available_pallets')}</span>
-                    <span className="text-4xl font-extrabold text-brand-accent mt-2">{data.availableStock}</span>
-                    <span className="flex items-center gap-1 text-[0.625rem] text-green-400 mt-2">
+                    <span className="text-2xl xl:text-4xl font-extrabold text-brand-accent mt-1">{data.availableStock}</span>
+                    <span className="flex items-center gap-1 text-xs text-green-400 mt-1">
                         <span>● {data.availablePalletsPercentage} % {t('availability_ok_suffix')}</span>
                     </span>
                 </button>
@@ -139,33 +141,33 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                     type="button"
                     aria-pressed={selectedStatusFromUrl === 'Unavailable'}
                     onClick={() => setStatusFilter(selectedStatusFromUrl === 'Unavailable' ? 'ALL' : 'Unavailable')}
-                    className="bg-brand-surface p-6 rounded-xl border border-brand-border flex flex-col justify-between text-left cursor-pointer hover:border-brand-accent/50 aria-pressed:border-brand-accent focus-visible:outline-2 focus-visible:outline-brand-accent transition-colors">
+                    className="bg-brand-surface p-3 xl:p-5 rounded-xl border border-brand-border flex flex-col justify-between text-left cursor-pointer hover:border-brand-accent/50 aria-pressed:border-brand-accent focus-visible:outline-2 focus-visible:outline-brand-accent transition-colors">
                     <span
                         className="text-xs font-bold uppercase tracking-wider text-brand-text-muted">{t('stats_service_blocked')}</span>
-                    <span className="text-4xl font-extrabold text-red-400 mt-2">{data.blockedOrMaint}</span>
-                    <span className="flex items-center gap-1 text-[0.625rem] text-red-400 mt-2">
+                    <span className="text-2xl xl:text-4xl font-extrabold text-red-400 mt-1">{data.blockedOrMaint}</span>
+                    <span className="flex items-center gap-1 text-xs text-red-400 mt-1">
                         <ShieldAlert size={12}/>
                         <span>{t('maintenance_abbreviation')}</span>
                     </span>
                 </button>
 
                 {/* Action Buttons */}
-                <div className="sm:col-span-2 flex flex-col gap-3 justify-center">
-                    <div className="staff-action-grid grid gap-3">
+                <div className="col-span-2 flex flex-col gap-2.5 justify-center">
+                    <div className="grid grid-cols-2 gap-2.5">
                         <button
                             onClick={actions.handleOpenAddPallet}
-                            className="flex-1 bg-brand-accent text-brand-bg font-bold uppercase text-xs min-h-14 px-3 py-3 flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.98] transition-all rounded"
+                            className="bg-brand-accent text-brand-on-accent font-bold uppercase text-xs min-h-11 px-2 py-2 flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.98] transition-all rounded"
                         >
-                            <PlusCircle size={18}/>
+                            <PlusCircle size={17} className="shrink-0" aria-hidden="true"/>
                             {t('btn_add_pallet')}
                         </button>
 
                         <button
                             onClick={actions.handleExportAuditTrail}
                             disabled={status.isExporting}
-                            className="flex-1 border border-brand-border text-brand-text font-bold uppercase text-xs min-h-14 px-3 py-3 flex items-center justify-center gap-2 hover:bg-brand-surface-high active:scale-[0.98] transition-all rounded disabled:opacity-50"
+                            className="border border-brand-border text-brand-text font-bold uppercase text-xs min-h-11 px-2 py-2 flex items-center justify-center gap-2 hover:bg-brand-surface-high active:scale-[0.98] transition-all rounded disabled:opacity-50"
                         >
-                            <Download size={18}/>
+                            <Download size={17} className="shrink-0" aria-hidden="true"/>
                             {t('btn_export_audit')}
                         </button>
                     </div>
@@ -177,11 +179,17 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
 
             {/* Advanced Filters */}
             <div
-                className="admin-filters space-y-3 rounded-xl border border-brand-border bg-brand-surface p-[clamp(0.75rem,1.5vw,1rem)]">
-                <div className="admin-filter-grid grid items-start">
+                className="admin-filters rounded-xl border border-brand-border bg-brand-surface p-[clamp(0.75rem,1.5vw,1rem)]">
+                <button type="button" aria-expanded={showMobileFilters} aria-controls="admin-filters-content"
+                    onClick={() => setShowMobileFilters(open => !open)} className="flex min-h-8 w-full items-center gap-2 text-sm font-bold sm:hidden">
+                    <SlidersHorizontal size={16} aria-hidden="true" className={hasActiveFilters ? 'text-brand-accent' : 'text-brand-text-muted'}/>
+                    {t('admin_filters')}
+                    <ChevronDown size={16} aria-hidden="true" className={showMobileFilters ? 'ms-auto rotate-180' : 'ms-auto'}/>
+                </button>
+                <div id="admin-filters-content" className={`${showMobileFilters ? 'mt-3 grid' : 'hidden'} admin-filter-grid sm:mt-0 sm:grid`}>
                     {/* FILTR: PROJEKT */}
-                    <div className="flex flex-col gap-1">
-                        <label htmlFor="admin-filter-project" className="text-[0.625rem] uppercase font-bold text-brand-text-muted">
+                    <div>
+                        <label htmlFor="admin-filter-project" className="text-xs uppercase font-bold text-brand-text-muted">
                             {t('filter_by_project')}
                         </label>
                         <select
@@ -211,8 +219,8 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                     </div>
 
                     {/* FILTR: MODEL (Zależny od wybranego projektu) */}
-                    <div className="flex flex-col gap-1">
-                        <label htmlFor="admin-filter-model" className="text-[0.625rem] uppercase font-bold text-brand-text-muted">
+                    <div>
+                        <label htmlFor="admin-filter-model" className="text-xs uppercase font-bold text-brand-text-muted">
                             {t('filter_by_model')}
                         </label>
                         <select
@@ -239,15 +247,15 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                             ))}
                         </select>
                         {selectedProjectFromUrl === 'ALL' && (
-                            <span id="admin-filter-model-hint" className="max-w-40 text-[0.5625rem] leading-tight text-brand-text-muted">
+                            <span id="admin-filter-model-hint" className="max-w-40 text-xs leading-tight text-brand-text-muted">
                                 {t('filter_model_hint')}
                             </span>
                         )}
                     </div>
 
                     {/* FILTR: STATUS */}
-                    <div className="flex flex-col gap-1">
-                        <label htmlFor="admin-filter-status" className="text-[0.625rem] uppercase font-bold text-brand-text-muted">
+                    <div>
+                        <label htmlFor="admin-filter-status" className="text-xs uppercase font-bold text-brand-text-muted">
                             {t('filter_by_status')}
                         </label>
                         <select
@@ -266,8 +274,8 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                         </select>
                     </div>
 
-                    <div className="flex flex-col gap-1">
-                        <label htmlFor="admin-filter-machine" className="text-[0.625rem] uppercase font-bold text-brand-text-muted">{t('filter_by_machine')}</label>
+                    <div>
+                        <label htmlFor="admin-filter-machine" className="text-xs uppercase font-bold text-brand-text-muted">{t('filter_by_machine')}</label>
                         <select id="admin-filter-machine" value={selectedMachineFromUrl} onChange={event => {
                             const value = event.target.value;
                             const params = new URLSearchParams(searchParams);
@@ -280,8 +288,8 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                         </select>
                     </div>
 
-                    <div className="flex flex-col gap-1">
-                        <label htmlFor="admin-filter-fis" className="text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted">{t('filter_by_fis')}</label>
+                    <div>
+                        <label htmlFor="admin-filter-fis" className="text-xs uppercase font-bold tracking-wider text-brand-text-muted">{t('filter_by_fis')}</label>
                         <select id="admin-filter-fis" value={selectedFisFromUrl} onChange={event => {
                             const value = event.target.value;
                             const params = new URLSearchParams(searchParams);
@@ -295,56 +303,36 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                         </select>
                     </div>
 
-                    {/* PAGINACJA: ILOŚĆ NA STRONĘ */}
-                    <div className="flex flex-col gap-1">
-                        <label htmlFor="admin-page-size" className="text-[0.625rem] uppercase font-bold text-brand-text-muted">
-                            {t('rows_per_page')}
-                        </label>
-                        <select
-                            id="admin-page-size"
-                            value={data.pageSize}
-                            onChange={(e) => actions.setPageSize(Number(e.target.value))}
-                            className="bg-brand-bg border border-brand-border text-xs rounded p-2 text-brand-text font-medium focus:ring-1 focus:ring-brand-accent"
+                    <div className="admin-filter-reset">
+                        <button
+                            type="button"
+                            onClick={clearFilters}
+                            disabled={!hasActiveFilters}
+                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-brand-border px-3 text-xs font-bold uppercase tracking-wider text-brand-text-muted transition-colors hover:border-brand-accent hover:text-brand-accent disabled:cursor-not-allowed disabled:opacity-30"
                         >
-                            {[25, 50, 100, 200].map((n) => (
-                                <option key={n} value={n}>{n}</option>
-                            ))}
-                        </select>
+                            <RotateCcw size={14} aria-hidden="true"/>
+                            {t('filter_clear')}
+                        </button>
                     </div>
-                    <button
-                        type="button"
-                        onClick={clearFilters}
-                        disabled={!hasActiveFilters}
-                        className="admin-filter-reset inline-flex items-center justify-center gap-2 rounded-lg border border-brand-border px-3 text-[0.625rem] font-bold uppercase tracking-wider text-brand-text-muted transition-colors hover:border-brand-accent hover:text-brand-accent disabled:cursor-not-allowed disabled:opacity-30"
-                    >
-                        <RotateCcw size={14} aria-hidden="true"/>
-                        {t('filter_clear')}
-                    </button>
-                </div>
-
-                <div className="text-xs text-brand-text-muted font-medium">
-                    {t('showing')} <span
-                    className="text-brand-accent font-bold">{data.filteredPallets.length}</span> {t('of')} {data.totalPallets} {t('registered_pallets')}
                 </div>
             </div>
 
             {/* Pallet Inventory Table */}
             <div className="bg-brand-surface rounded-xl border border-brand-border overflow-hidden">
                 <div
-                    className="px-6 py-4 border-b border-brand-border flex flex-wrap gap-3 justify-between items-center bg-brand-surface/50">
+                    className="px-3 py-2.5 sm:px-5 border-b border-brand-border flex gap-3 justify-between items-center bg-brand-surface/50">
                     <h3 className="text-base font-bold text-brand-text">{t('pallet_inventory_title')}</h3>
                     <button
                         onClick={actions.handleRefreshPallets}
                         disabled={status.isRefreshing}
                         title={t('btn_refresh_pallets')}
                         aria-label={t('btn_refresh_pallets')}
-                        className="border border-brand-border text-brand-text font-bold uppercase text-xs h-9 px-3 flex items-center justify-center gap-2 hover:bg-brand-surface-high hover:border-brand-accent/40 active:scale-[0.98] transition-all rounded disabled:opacity-50"
+                        className="size-9 shrink-0 rounded-lg border border-brand-border text-brand-text flex items-center justify-center hover:bg-brand-surface-high hover:border-brand-accent/40 active:scale-[0.98] transition-all disabled:opacity-50"
                     >
-                        <RefreshCw size={14} className={status.isRefreshing ? "animate-spin text-brand-accent" : ""}/>
-                        <span>{t('btn_refresh_pallets')}</span>
+                        <RefreshCw size={16} aria-hidden="true" className={status.isRefreshing ? "animate-spin text-brand-accent" : ""}/>
                     </button>
                 </div>
-                <div className="space-y-4 border-b border-brand-border p-4">
+                <div className="flex flex-col gap-3 border-b border-brand-border p-3 sm:p-4">
                     <details className="text-sm"><summary className="w-fit cursor-pointer rounded-lg border border-brand-border px-3 py-2">{language === 'pl' ? 'Widoczne kolumny' : 'Visible columns'}</summary><div className="mt-3 flex flex-wrap gap-4">{([
                         ['project', 'col_project'], ['model', 'col_model'], ['fis', 'col_fis'], ['nests', 'col_nests'], ['current_cycles', 'col_cycles'], ['status', 'col_status'], ['created_by', 'col_operator'], ['created_at', 'col_created_at'],
                     ] as const).map(([key, label]) => <label key={key} className="flex items-center gap-2"><input type="checkbox" checked={!hiddenColumns.includes(key)} onChange={() => toggleColumn(key)}/>{t(label)}</label>)}</div></details>
@@ -355,16 +343,16 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                     <table className="w-full border-collapse">
                         <thead>
                         <tr className="text-left"><th className="px-4 py-3"><input type="checkbox" aria-label={language === 'pl' ? 'Zaznacz bieżącą stronę' : 'Select current page'} checked={allPageSelected} disabled={!pageIds.length} ref={node => {if(node) node.indeterminate = !allPageSelected && pageIds.some(id => selectedIds.includes(id));}} onChange={togglePage}/></th>
-                            <th aria-sort={data.sort.key === 'pallet_id' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('pallet_id')} className="flex items-center gap-2 whitespace-nowrap">{t('col_pallet_id')}<span aria-hidden="true">{data.sort.key === 'pallet_id' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
-                            <th hidden={hiddenColumns.includes('project')} aria-sort={data.sort.key === 'project' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('project')} className="flex items-center gap-2 whitespace-nowrap">{t('col_project')}<span aria-hidden="true">{data.sort.key === 'project' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
-                            <th hidden={hiddenColumns.includes('model')} aria-sort={data.sort.key === 'model' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('model')} className="flex items-center gap-2 whitespace-nowrap">{t('col_model')}<span aria-hidden="true">{data.sort.key === 'model' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
-                            <th hidden={hiddenColumns.includes('fis')} aria-sort={data.sort.key === 'fis' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('fis')} className="flex items-center gap-2 whitespace-nowrap">{t('col_fis')}<span aria-hidden="true">{data.sort.key === 'fis' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
-                            <th hidden={hiddenColumns.includes('nests')} aria-sort={data.sort.key === 'nests' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('nests')} className="flex items-center gap-2 whitespace-nowrap">{t('col_nests')}<span aria-hidden="true">{data.sort.key === 'nests' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
-                            <th hidden={hiddenColumns.includes('current_cycles')} aria-sort={data.sort.key === 'current_cycles' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('current_cycles')} className="flex items-center gap-2 whitespace-nowrap">{t('col_cycles')}<span aria-hidden="true">{data.sort.key === 'current_cycles' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
-                            <th hidden={hiddenColumns.includes('status')} aria-sort={data.sort.key === 'status' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('status')} className="flex items-center gap-2 whitespace-nowrap">{t('col_status')}<span aria-hidden="true">{data.sort.key === 'status' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
-                            <th hidden={hiddenColumns.includes('created_by')} aria-sort={data.sort.key === 'created_by' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('created_by')} className="flex items-center gap-2 whitespace-nowrap">{t('col_operator')}<span aria-hidden="true">{data.sort.key === 'created_by' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
-                            <th hidden={hiddenColumns.includes('created_at')} aria-sort={data.sort.key === 'created_at' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('created_at')} className="flex items-center gap-2 whitespace-nowrap">{t('col_created_at')}<span aria-hidden="true">{data.sort.key === 'created_at' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
-                            <th className="px-6 py-3 text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted text-right">{t('col_actions')}</th>
+                            <th aria-sort={data.sort.key === 'pallet_id' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('pallet_id')} className="flex items-center gap-2 whitespace-nowrap">{t('col_pallet_id')}<span aria-hidden="true">{data.sort.key === 'pallet_id' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
+                            <th hidden={hiddenColumns.includes('project')} aria-sort={data.sort.key === 'project' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('project')} className="flex items-center gap-2 whitespace-nowrap">{t('col_project')}<span aria-hidden="true">{data.sort.key === 'project' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
+                            <th hidden={hiddenColumns.includes('model')} aria-sort={data.sort.key === 'model' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('model')} className="flex items-center gap-2 whitespace-nowrap">{t('col_model')}<span aria-hidden="true">{data.sort.key === 'model' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
+                            <th hidden={hiddenColumns.includes('fis')} aria-sort={data.sort.key === 'fis' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('fis')} className="flex items-center gap-2 whitespace-nowrap">{t('col_fis')}<span aria-hidden="true">{data.sort.key === 'fis' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
+                            <th hidden={hiddenColumns.includes('nests')} aria-sort={data.sort.key === 'nests' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('nests')} className="flex items-center gap-2 whitespace-nowrap">{t('col_nests')}<span aria-hidden="true">{data.sort.key === 'nests' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
+                            <th hidden={hiddenColumns.includes('current_cycles')} aria-sort={data.sort.key === 'current_cycles' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('current_cycles')} className="flex items-center gap-2 whitespace-nowrap">{t('col_cycles')}<span aria-hidden="true">{data.sort.key === 'current_cycles' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
+                            <th hidden={hiddenColumns.includes('status')} aria-sort={data.sort.key === 'status' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('status')} className="flex items-center gap-2 whitespace-nowrap">{t('col_status')}<span aria-hidden="true">{data.sort.key === 'status' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
+                            <th hidden={hiddenColumns.includes('created_by')} aria-sort={data.sort.key === 'created_by' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('created_by')} className="flex items-center gap-2 whitespace-nowrap">{t('col_operator')}<span aria-hidden="true">{data.sort.key === 'created_by' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
+                            <th hidden={hiddenColumns.includes('created_at')} aria-sort={data.sort.key === 'created_at' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('created_at')} className="flex items-center gap-2 whitespace-nowrap">{t('col_created_at')}<span aria-hidden="true">{data.sort.key === 'created_at' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
+                            <th className="px-6 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted text-right">{t('col_actions')}</th>
                         </tr>
                         </thead>
                         <tbody className="divide-y divide-brand-border">
@@ -400,12 +388,12 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                         <td hidden={hiddenColumns.includes('nests')} className="px-6 py-4 text-xs font-medium text-brand-text">{p.nests}</td>
                                         <td hidden={hiddenColumns.includes('current_cycles')} className="px-6 py-4">
                                             <div className="w-32 flex flex-col gap-1">
-                                                <div className="flex justify-between text-[0.625rem] font-mono">
+                                                <div className="flex justify-between text-xs font-mono">
                                                         <span
                                                             className={isLimitExceeded ? "text-red-400 font-bold" : "text-brand-text-muted"}>
                                                             {currC}
                                                         </span>
-                                                    <span className="text-brand-text-muted/60">/ {maxC}</span>
+                                                    <span className="text-brand-text-muted">/ {maxC}</span>
                                                 </div>
                                                 <div
                                                     className="h-1.5 w-full bg-brand-bg rounded-full overflow-hidden border border-brand-border/40">
@@ -454,7 +442,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                                     aria-label={`${t('btn_edit')}: ${p.pallet_id}`}
                                                     className="rounded-lg p-2 text-brand-text-muted hover:bg-brand-accent/10 hover:text-brand-accent transition-colors"
                                                 >
-                                                    <Edit size={16}/>
+                                                    <EditIcon size={16} aria-hidden="true"/>
                                                     <span className="sr-only">{t('btn_edit')}: {p.pallet_id}</span>
                                                 </button>
 
@@ -488,7 +476,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                                     >
                                                         <ShieldAlert size={16}/>
                                                         <span className="sr-only">{t('btn_block')}: {p.pallet_id}</span>
-                                                        <span className="hidden 2xl:inline text-[0.625rem] font-bold uppercase">{t('btn_block')}</span>
+                                                        <span className="hidden 2xl:inline text-xs font-bold uppercase">{t('btn_block')}</span>
                                                     </button>
                                                 )}
 
@@ -496,11 +484,11 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                                     onClick={() => actions.setSelectedPalletForDelete(p)}
                                                     title={t('btn_delete')}
                                                     aria-label={`${t('btn_delete')}: ${p.pallet_id}`}
-                                                    className="ml-1 inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 p-2 text-red-400 hover:border-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors"
+                                                    className={deleteActionClass + ' ml-1'}
                                                 >
-                                                    <Trash2 size={16}/>
+                                                    <DeleteIcon size={16} aria-hidden="true"/>
                                                     <span className="sr-only">{t('btn_delete')}: {p.pallet_id}</span>
-                                                    <span className="hidden 2xl:inline text-[0.625rem] font-bold uppercase">{t('btn_delete')}</span>
+                                                    <span className="hidden 2xl:inline text-xs font-bold uppercase">{t('btn_delete')}</span>
                                                 </button>
                                             </div>
                                         </td>
@@ -519,6 +507,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                     totalPages={data.totalPages}
                     totalItems={data.filteredPallets.length}
                     pageSize={data.pageSize}
+                    onPageSizeChange={actions.setPageSize}
                     onPageChange={actions.setCurrentPage}
                 />
             </div>
@@ -566,14 +555,14 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 <button
                                     type="button"
                                     onClick={() => actions.setAddMode('single')}
-                                    className={`rounded-lg px-3 py-2.5 text-[0.6875rem] font-black uppercase tracking-wide transition-colors ${data.addMode === 'single' ? 'bg-brand-accent text-brand-bg' : 'text-brand-text-muted hover:text-brand-text'}`}
+                                    className={`rounded-lg px-3 py-2.5 text-xs font-black uppercase tracking-wide transition-colors ${data.addMode === 'single' ? 'bg-brand-accent text-brand-on-accent' : 'text-brand-text-muted hover:text-brand-text'}`}
                                 >
                                     {t('add_mode_single')}
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => actions.setAddMode('range')}
-                                    className={`rounded-lg px-3 py-2.5 text-[0.6875rem] font-black uppercase tracking-wide transition-colors ${data.addMode === 'range' ? 'bg-brand-accent text-brand-bg' : 'text-brand-text-muted hover:text-brand-text'}`}
+                                    className={`rounded-lg px-3 py-2.5 text-xs font-black uppercase tracking-wide transition-colors ${data.addMode === 'range' ? 'bg-brand-accent text-brand-on-accent' : 'text-brand-text-muted hover:text-brand-text'}`}
                                 >
                                     {t('add_mode_range')}
                                 </button>
@@ -639,7 +628,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                             <div className="grid grid-cols-3 gap-3">
                                 <InputField
                                     label={t('label_max_cycles')}
-                                    labelClassName="text-[0.6875rem] font-bold text-brand-text-muted uppercase tracking-wider block truncate"
+                                    labelClassName="text-xs font-bold text-brand-text-muted uppercase tracking-wider block truncate"
                                     type="number"
                                     value={data.newMaxCycles}
                                     onChange={(e) => actions.setNewMaxCycles(e.target.value)}
@@ -649,7 +638,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
 
                                 <InputField
                                     label={t('label_nests')}
-                                    labelClassName="text-[0.6875rem] font-bold text-brand-text-muted uppercase tracking-wider block truncate"
+                                    labelClassName="text-xs font-bold text-brand-text-muted uppercase tracking-wider block truncate"
                                     type="number"
                                     value={data.newNests}
                                     onChange={(e) => actions.setNewNests(e.target.value)}
@@ -659,7 +648,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
 
                                 <SelectField
                                     label={t('label_fis')}
-                                    labelClassName="text-[0.6875rem] font-bold text-brand-text-muted uppercase tracking-wider block truncate"
+                                    labelClassName="text-xs font-bold text-brand-text-muted uppercase tracking-wider block truncate"
                                     monospace
                                     value={data.newFis}
                                     onChange={(e) => actions.setNewFis(e.target.value)}
@@ -674,10 +663,10 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 <section className="cycle-step-card rounded-2xl border border-brand-border bg-brand-surface-high/45 p-4">
                                     <label className="flex cursor-pointer items-start justify-between gap-4">
                                         <span>
-                                            <span className="block text-[0.6875rem] font-black uppercase tracking-wider text-brand-text">
+                                            <span className="block text-xs font-black uppercase tracking-wider text-brand-text">
                                                 {t('cycle_step_title')}
                                             </span>
-                                            <span className="cycle-step-description mt-1 block text-[0.625rem] leading-relaxed text-brand-text-muted">
+                                            <span className="cycle-step-description mt-1 block text-xs leading-relaxed text-brand-text-muted">
                                                 {t('cycle_step_description')}
                                             </span>
                                         </span>
@@ -715,7 +704,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                                 step="1"
                                                 required
                                             />
-                                            <div className={`cycle-step-preview col-span-2 flex min-h-[2.625rem] items-center rounded-xl border px-3 py-2 font-mono text-[0.625rem] leading-relaxed ${data.rangeCyclePreview && data.rangeCyclePreview.lastLimit > 1_000_000
+                                            <div className={`cycle-step-preview col-span-2 flex min-h-[2.625rem] items-center rounded-xl border px-3 py-2 font-mono text-xs leading-relaxed ${data.rangeCyclePreview && data.rangeCyclePreview.lastLimit > 1_000_000
                                                 ? 'border-red-500/30 bg-red-500/[0.07] text-red-300'
                                                 : 'border-brand-accent/20 bg-brand-accent/[0.06] text-brand-text-muted'
                                             }`}>
@@ -771,7 +760,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                             <h3 className="text-sm font-black text-brand-text uppercase tracking-widest flex items-center gap-2.5">
                                 <div
                                     className="w-8 h-8 rounded-xl bg-brand-accent/10 border border-brand-accent/20 flex items-center justify-center text-brand-accent shadow-inner">
-                                    <Edit size={16}/>
+                                    <EditIcon size={16} aria-hidden="true"/>
                                 </div>
                                 {t('modal_edit_pallet_title')} - {data.selectedPalletForEdit.pallet_id}
                             </h3>
@@ -795,19 +784,19 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 className="grid grid-cols-3 gap-3 bg-brand-bg p-3 rounded-xl border border-brand-border">
                                 <div>
                                     <span
-                                        className="text-[0.625rem] uppercase font-bold text-brand-text-muted block">{t('col_pallet_id')}</span>
+                                        className="text-xs uppercase font-bold text-brand-text-muted block">{t('col_pallet_id')}</span>
                                     <span
                                         className="font-mono text-xs font-bold text-brand-accent">{data.selectedPalletForEdit.pallet_id}</span>
                                 </div>
                                 <div>
                                     <span
-                                        className="text-[0.625rem] uppercase font-bold text-brand-text-muted block">{t('col_project')}</span>
+                                        className="text-xs uppercase font-bold text-brand-text-muted block">{t('col_project')}</span>
                                     <span
                                         className="text-xs font-semibold text-brand-text">{data.selectedPalletForEdit.project}</span>
                                 </div>
                                 <div>
                                     <span
-                                        className="text-[0.625rem] uppercase font-bold text-brand-text-muted block">{t('col_model')}</span>
+                                        className="text-xs uppercase font-bold text-brand-text-muted block">{t('col_model')}</span>
                                     <span
                                         className="text-xs font-semibold text-brand-text">{data.selectedPalletForEdit.model}</span>
                                 </div>
@@ -820,7 +809,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                             <div className="grid grid-cols-3 gap-3">
                                 <SelectField
                                     label={t('label_fis')}
-                                    labelClassName="text-[0.6875rem] font-bold text-brand-text-muted uppercase tracking-wider block truncate"
+                                    labelClassName="text-xs font-bold text-brand-text-muted uppercase tracking-wider block truncate"
                                     monospace
                                     value={data.editFis}
                                     onChange={(e) => actions.setEditFis(e.target.value)}
@@ -831,8 +820,8 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 </SelectField>
 
                                 <InputField
-                                    label={<>{t('label_nests')} *</>}
-                                    labelClassName="text-[0.6875rem] font-bold text-brand-text-muted uppercase tracking-wider block truncate"
+                                    label={t('label_nests')}
+                                    labelClassName="text-xs font-bold text-brand-text-muted uppercase tracking-wider block truncate"
                                     type="number"
                                     value={data.editNests}
                                     onChange={(e) => actions.setEditNests(e.target.value)}
@@ -841,8 +830,8 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 />
 
                                 <InputField
-                                    label={<>{t('label_max_cycles')} *</>}
-                                    labelClassName="text-[0.6875rem] font-bold text-brand-text-muted uppercase tracking-wider block truncate"
+                                    label={t('label_max_cycles')}
+                                    labelClassName="text-xs font-bold text-brand-text-muted uppercase tracking-wider block truncate"
                                     type="number"
                                     value={data.editMaxCycles}
                                     onChange={(e) => actions.setEditMaxCycles(e.target.value)}
@@ -853,7 +842,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
 
                             {/* Sekcja statusu */}
                             <SelectField
-                                label={<>{t('col_status')} *</>}
+                                label={t('col_status')}
                                 value={data.editStatus}
                                 onChange={(e) => actions.setEditStatus(e.target.value as PalletStatus)}
                                 required
@@ -867,7 +856,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                             {/* Powód Blokady (gdy wybrany status to Blocked) */}
                             {(data.editStatus === 'Blocked' || data.selectedPalletForEdit.status === 'Blocked') && (
                                 <TextareaField
-                                    label={<>{t(data.editStatus === 'Blocked' ? 'label_block_reason' : 'unblock_comment')} *</>}
+                                    label={t(data.editStatus === 'Blocked' ? 'label_block_reason' : 'unblock_comment')}
                                     value={data.editStatus === 'Blocked' ? data.editBlockReason : data.editUnblockComment}
                                     onChange={(e) => data.editStatus === 'Blocked' ? actions.setEditBlockReason(e.target.value) : actions.setEditUnblockComment(e.target.value)}
                                     rows={3}
@@ -916,9 +905,9 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                         <form onSubmit={actions.handleConfirmBlock} className="space-y-4">
                             <div>
                                 <label
-                                    className="text-xs font-bold text-brand-text-muted uppercase block mb-1">{t('block_reason')}</label>
+                                    htmlFor="admin-block-reason" className="text-xs font-bold text-brand-text-muted uppercase block mb-1">{t('block_reason')}<RequiredMark/></label>
                                 <textarea
-                                    value={data.blockReason}
+                                    id="admin-block-reason" required value={data.blockReason}
                                     onChange={(e) => actions.setBlockReason(e.target.value)}
                                     className="w-full bg-brand-bg border border-brand-border rounded p-2 text-sm text-brand-text focus:ring-1 focus:ring-red-400"
                                     rows={3}
@@ -951,7 +940,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                     <div className="w-full max-w-md overflow-hidden rounded-2xl border border-red-500/30 bg-brand-surface shadow-2xl">
                         <div className="flex items-center gap-3 border-b border-red-500/20 bg-red-950/30 p-5">
                             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-red-500/30 bg-red-500/10 text-red-400">
-                                <Trash2 size={20}/>
+                                <DeleteIcon size={20} aria-hidden="true"/>
                             </div>
                             <div>
                                 <h3 className="text-sm font-black uppercase tracking-wider text-red-400">

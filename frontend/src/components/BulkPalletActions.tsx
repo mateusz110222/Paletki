@@ -1,3 +1,4 @@
+import {RequiredMark} from './FormFields';
 import {ModalFormActions} from './ModalFormActions';
 import {PalletStatusSpan} from './PalletStatusSpan';
 import {SelectedPalletList} from './SelectedPalletList';
@@ -70,7 +71,7 @@ export function BulkPalletActions({pallets, onClear, onCompleted}: {pallets: Pal
         } finally { runningRef.current = false; setBusy(false); }
     };
     return <>
-        <div className="flex flex-wrap items-center gap-3 text-xs">
+        <div className={`${pallets.length > 0 ? 'flex' : 'hidden sm:flex'} flex-wrap items-center gap-3 text-xs`}>
             <strong>{pl ? 'Zaznaczone' : 'Selected'}: {pallets.length}</strong>
             <button type="button" disabled={!pallets.length || busy} onClick={() => {setSnapshot([...pallets]);setReason('');setFailures([]);setProgress(0);}} className="rounded-lg border border-indigo-400/40 px-3 py-2 disabled:opacity-40">{pl ? 'Zmień status zaznaczonych' : 'Change selected status'}</button>
             <button type="button" disabled={!pallets.length || busy} onClick={exportSelected} className="rounded-lg border border-brand-border px-3 py-2 disabled:opacity-40">{pl ? 'Eksport zaznaczonych CSV' : 'Export selected CSV'}</button>
@@ -87,9 +88,9 @@ export function BulkPalletActions({pallets, onClear, onCompleted}: {pallets: Pal
             }} className="max-h-[85dvh] w-full max-w-xl space-y-4 overflow-y-auto rounded-2xl border border-brand-border bg-brand-surface p-6">
                 <h2 id="bulk-title" className="text-xl font-bold">{pl ? 'Zmiana statusu palet' : 'Change pallet status'} · {snapshot.length}</h2>
                 <p className="text-sm text-brand-text-muted">{pl ? 'Zmiana obejmie wyłącznie poniższe ID. Liczniki cykli pozostaną bez zmian.' : 'Only the IDs below will be updated. Cycle counters will remain unchanged.'}</p>
-                <SelectedPalletList pallets={snapshot} statusLabel={t('col_status')} renderStatus={pallet => <PalletStatusSpan status={pallet.status}/>}/>
-                <label className="block text-sm">{pl ? 'Nowy status' : 'New status'}<select autoFocus disabled={busy || failures.length > 0} value={target} onChange={e => setTarget(e.target.value as PalletStatus)} className="mt-2 w-full rounded-lg border border-brand-border bg-brand-bg p-3">{PALLET_STATUSES.map(status => <option key={status} value={status}>{statusLabel(status)}</option>)}</select></label>
-                <label className="block text-sm">{pl ? 'Powód zmiany (historia audytu)' : 'Reason (audit history)'}<textarea disabled={busy || failures.length > 0} value={reason} onChange={e => setReason(e.target.value)} maxLength={1000} className="mt-2 w-full rounded-lg border border-brand-border bg-brand-bg p-3"/></label>
+                <SelectedPalletList pallets={snapshot} statusLabel={t('col_status')} renderStatus={pallet => <PalletStatusSpan status={pallet.status} block_reason={pallet.block_reason}/>}/>
+                <label className="block text-sm">{pl ? 'Nowy status' : 'New status'}<RequiredMark/><select required autoFocus disabled={busy || failures.length > 0} value={target} onChange={e => setTarget(e.target.value as PalletStatus)} className="mt-2 w-full rounded-lg border border-brand-border bg-brand-bg p-3">{PALLET_STATUSES.map(status => <option key={status} value={status}>{statusLabel(status)}</option>)}</select></label>
+                <label className="block text-sm">{pl ? 'Powód zmiany (historia audytu)' : 'Reason (audit history)'}<RequiredMark/><textarea required disabled={busy || failures.length > 0} value={reason} onChange={e => setReason(e.target.value)} maxLength={1000} className="mt-2 w-full rounded-lg border border-brand-border bg-brand-bg p-3"/></label>
                 {busy && <p role="status">{progress} / {snapshot.length}</p>}
                 {failures.length > 0 && <div role="alert" className="space-y-2 text-sm text-rose-300"><p>{pl ? 'Nieudane palety pozostały zaznaczone. Zamknij okno, sprawdź błędy i ponów wybrane zmiany.' : 'Failed pallets remain selected. Close this dialog, review the errors and retry selected changes.'}</p>{failures.map(f => <p key={f.id}>{f.id}: {f.message}</p>)}</div>}
                 <ModalFormActions onCancel={close} cancelLabel={t('btn_close')} submitType="button"

@@ -19,7 +19,7 @@ vi.mock('~encore/auth', () => ({getAuthData: () => state.auth}));
 vi.mock('encore.dev/auth', () => ({authHandler: (handler: unknown) => handler}));
 vi.mock('../shared/persistence', async () => ({palletsDatabase: (await import('./db')).db}));
 vi.mock('../auth/apacs', () => ({findActiveCardOperator: async () => ({externalId: '17', fullName: state.cardName})}));
-vi.mock('../auth/secrets', () => ({apacsDbPassword: () => 'test', ldapLookupBindPassword: () => ''}));
+vi.mock('../auth/secrets', () => ({apacsDbPassword: () => 'test'}));
 vi.mock('../config', () => ({config: {
     fis: state.fis,
     auth: {sessionTtlMinutes: 720}, apacs: {server: 'test', user: 'test'},
@@ -69,7 +69,7 @@ vi.mock('./db', () => {
 import {AddDefect, DeleteDefect, UpdateDefect, CreateOperatorReport, EditOperatorReport, GetOperatorReports} from './operator-reports';
 import {GetReports} from './reports';
 import {ChangePalletStatus, BlockPallet, UnblockPallet} from './status';
-import {AddPallet, AddPalletRange, UpdatePallet, DeletePallet, GetPalletHistory, GetAllPalletHistory} from './pallet';
+import {AddPallet, AddPalletRange, UpdatePallet, DeletePallet, GetPallet, GetPalletHistory, GetAllPalletHistory} from './pallet';
 import {ConfirmPalletWashing} from './washing';
 import {GetPublicDashboard} from './dashboard';
 import {UpdateModel} from './model-catalog';
@@ -492,6 +492,11 @@ suite('operator reports and reporting against isolated PostgreSQL', () => {
         await ChangePalletStatus({pallet_id: 'PAL-01', new_status: 'Active', block_reason: 'Repaired', reset_cycles: true});
         expect((await GetOperatorReports({pallet_id: 'PAL-01'})).reports).toHaveLength(0);
         await expect(EditOperatorReport({id: first.id, pallet_id: 'PAL-01', version: 1, description: 'Late'})).rejects.toThrow();
+        const {rows} = await GetReports({mode: 'history', previous_status: 'Damaged', statuses: 'Active'});
+        expect(rows[0]?.damage_reason).toContain('Second');
+        expect(rows[0]?.damage_reason).not.toContain('Repaired');
+        const {history} = await GetPalletHistory({pallet_id: 'PAL-01'});
+        expect(history.find(entry => entry.new_status === 'Damaged')?.status_reason).toContain('Second');
     });
     it('records washing separately, allows description edits without changing status and closes on service', async () => {
         state.auth = operator;
@@ -646,6 +651,45 @@ suite('operator reports and reporting against isolated PostgreSQL', () => {
         expect((await GetReports({mode: 'history', limit: 1, offset: page.next_offset})).rows[0].id).not.toBe(page.rows[0].id);
         state.auth = operator;
         await expect(GetReports({mode: 'current'})).rejects.toThrow();
+    });
+    it('filters report transitions before pagination and keeps deleted pallet history accessible to maintenance', async () => {
+        const pallet = {pallet_id: 'PAL-01'};
+        await state.pool!.query(`INSERT INTO pallet_audit_logs(pallet_id,operator_id,previous_status,new_status,description,timestamp) VALUES
+            ('PAL-01','UR A','Washing_Required','Active','Washed first','2026-10-12T05:00:00Z'),
+            ('PAL-01','UR A','Washing_Required','Active','Washed again','2026-10-12T06:00:00Z'),
+            ('PAL-01','UR A','Damaged','Active','Repaired','2026-10-12T07:00:00Z'),
+            ('PAL-01','UR A','Active','Active','Metadata update','2026-10-12T08:00:00Z'),
+            ('PAL-01','UR A','Washing_Required','Active','Outside date','2026-10-13T06:00:00Z');
+            UPDATE pallets SET deleted_at=NOW() WHERE pallet_id='PAL-01'`);
+        const filters = {mode: 'history' as const, previous_status: 'Washing_Required', statuses: 'Active',
+            changes_only: true, from: '2026-10-12', to: '2026-10-12', limit: 1};
+        const first = await GetReports(filters);
+        expect(first.rows).toMatchObject([{...pallet, description: 'Washed again'}]);
+        const next = await GetReports({...filters, before_timestamp: first.next_before_timestamp, before_id: first.next_before_id});
+        expect(next.rows).toMatchObject([{...pallet, description: 'Washed first'}]);
+        expect(next.next_offset).toBeUndefined();
+        const changes = await GetReports({mode: 'history', changes_only: true, statuses: 'Active'});
+        expect(changes.rows.map(row => row.description)).toEqual(['Outside date', 'Repaired', 'Washed again', 'Washed first']);
+        await expect(GetReports({...filters, previous_status: 'NEW'})).rejects.toThrow();
+
+        await expect(GetPallet(pallet)).rejects.toThrow();
+        await expect(GetPallet({...pallet, include_deleted: true})).resolves.toMatchObject({pallet});
+        await expect(GetPalletHistory(pallet)).resolves.toMatchObject({history: expect.arrayContaining([expect.objectContaining({new_status: 'DELETED'})])});
+        state.auth = operator;
+        await expect(GetPallet({...pallet, include_deleted: true})).rejects.toThrow();
+    });
+    it('links historical Blocked badges to the reason for the matching block', async () => {
+        state.auth = itUser;
+        await BlockPallet({pallet_id: 'PAL-01', block_reason: 'First inspection'});
+        await UnblockPallet({pallet_id: 'PAL-01', comment: 'Inspection complete'});
+        await UpdatePallet({pallet_id: 'PAL-01', status: 'Blocked', block_reason: 'Second inspection'});
+
+        const {rows} = await GetReports({mode: 'history', changes_only: true, acceptLanguage: 'en'});
+        expect(rows.map(({previous_status, status, block_reason}) => [previous_status, status, block_reason])).toEqual([
+            ['Active', 'Blocked', 'Second inspection'],
+            ['Blocked', 'Active', 'First inspection'],
+            ['Active', 'Blocked', 'First inspection'],
+        ]);
     });
     it('defaults machines to WSM and audits machine edits', async () => {
         expect((await state.pool!.query("SELECT machine FROM pallets WHERE pallet_id='PAL-01'")).rows[0].machine).toBe('WSM');

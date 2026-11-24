@@ -1,12 +1,14 @@
 import {useSearchParams} from 'react-router';
 import {useToast} from '../components/ToastProvider';
-import React, {useMemo, useState} from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import {getErrorMessage} from '../lib/errors.ts';
 import {refreshPalletData} from '../lib/queryCache.ts';
 import {Pallet, PalletStatus} from '@backend/shared/types';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
 import {useAuth} from '../auth/AuthContext.tsx';
 import {useQueryClient} from '@tanstack/react-query';
+import {getMaintenanceQueues} from '../lib/maintenanceQueue';
+import {matchesPalletSearch} from '../lib/palletSearch';
 
 interface UseMaintenancePanelProps {
     pallets: Pallet[];
@@ -15,17 +17,20 @@ interface UseMaintenancePanelProps {
 export function useMaintenancePanel({pallets}: UseMaintenancePanelProps) {
     const notify = useToast();
     const {t, language} = useTranslation();
-    const {user, apiClient} = useAuth();
+    const {apiClient} = useAuth();
     const queryClient = useQueryClient();
 
-    const Operator = user?.FullName ?? "";
-    const [activeTab, setActiveTab] = useState<'repairs' | 'routine'>('repairs');
+    const [activeTab, setActiveTab] = useState<keyof ReturnType<typeof getMaintenanceQueues>>('queue');
+    const [now, setNow] = useState(Date.now);
+    useEffect(() => {
+        const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+        return () => window.clearInterval(timer);
+    }, []);
     const [selectedPallet, setSelectedPallet] = useState<Pallet | null>(null);
     const [repairDescription, setRepairDescription] = useState('');
     const [modalError, setModalError] = useState('');
     const [searchParams, setSearchParams] = useSearchParams();
     const searchTermFromURL = searchParams.get('searchTerm') || '';
-    const searchTerm = searchTermFromURL;
     const setSearchTerm = (value: string) => {
         const next = new URLSearchParams(searchParams);
         if (value) next.set('searchTerm', value);
@@ -33,41 +38,8 @@ export function useMaintenancePanel({pallets}: UseMaintenancePanelProps) {
         setSearchParams(next);
     };
 
-    const repairPallets = useMemo(() => {
-        return (pallets || []).filter(p => p.status === 'Damaged');
-    }, [pallets]);
-
-    const routinePallets = useMemo(() => {
-        return (pallets || []).filter(p => p.status === 'Washing_Required');
-    }, [pallets]);
-
-    const filteredRepairPallets = useMemo(() => {
-        const query = searchTerm.trim().toLowerCase();
-        if (!query) return repairPallets;
-        return repairPallets.filter((p: Pallet) => {
-            const palletId = (p.pallet_id || '').toLowerCase();
-            const project = (p.project || '').toLowerCase();
-            const createdBy = (p.created_by || '').toLowerCase();
-
-            return palletId.includes(query) ||
-                project.includes(query) ||
-                createdBy.includes(query);
-        });
-    }, [repairPallets, searchTerm]);
-
-    const filteredRoutinePallets = useMemo(() => {
-        const query = searchTerm.trim().toLowerCase();
-        if (!query) return routinePallets;
-        return routinePallets.filter((p: Pallet) => {
-            const palletId = (p.pallet_id || '').toLowerCase();
-            const project = (p.project || '').toLowerCase();
-            const createdBy = (p.created_by || '').toLowerCase();
-
-            return palletId.includes(query) ||
-                project.includes(query) ||
-                createdBy.includes(query);
-        });
-    }, [routinePallets, searchTerm]);
+    const queues = useMemo(() => getMaintenanceQueues(pallets), [pallets]);
+    const visiblePallets = queues[activeTab].filter(pallet => matchesPalletSearch(pallet, searchTermFromURL));
 
     const handleOpenServiceLog = (pallet: Pallet) => {
         setSelectedPallet(pallet);
@@ -118,13 +90,8 @@ export function useMaintenancePanel({pallets}: UseMaintenancePanelProps) {
             activeTab,
             selectedPallet,
             repairDescription,
-            Operator,
             modalError,
-            searchTerm,
-            repairPallets,
-            routinePallets,
-            filteredRepairPallets,
-            filteredRoutinePallets
+            queues, visiblePallets, now,
         },
         actions: {
             setActiveTab,

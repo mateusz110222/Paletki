@@ -9,12 +9,16 @@ interface FieldProps {
 
 const controlClassName = 'w-full bg-brand-bg border border-brand-border rounded-xl p-3 text-xs text-brand-text focus:ring-2 focus:ring-brand-accent/30 outline-none';
 
+export function RequiredMark() {
+    return <span aria-hidden="true" className="ms-1 text-red-300">*</span>;
+}
+
 function Field({label, fieldClassName = 'flex flex-col gap-1.5',
-    labelClassName = 'text-[11px] font-bold text-brand-text-muted uppercase tracking-wider',
-    id, children}: FieldProps & {id: string; children: ReactNode}) {
+    labelClassName = 'text-xs font-bold text-brand-text-muted uppercase tracking-wider',
+    id, required, children}: FieldProps & {id: string; required?: boolean; children: ReactNode}) {
     return (
         <div className={fieldClassName}>
-            <label htmlFor={id} className={labelClassName}>{label}</label>
+            <label htmlFor={id} className={labelClassName}>{label}{required && <RequiredMark/>}</label>
             {children}
         </div>
     );
@@ -45,7 +49,7 @@ export function InputField({label, fieldClassName, labelClassName, id, className
 
     if (type === 'number') {
         return (
-            <Field label={label} fieldClassName={fieldClassName} labelClassName={labelClassName} id={inputId}>
+            <Field label={label} fieldClassName={fieldClassName} labelClassName={labelClassName} id={inputId} required={props.required}>
                 <div className="relative w-full">
                     <input
                         {...props}
@@ -82,7 +86,7 @@ export function InputField({label, fieldClassName, labelClassName, id, className
     }
 
     return (
-        <Field label={label} fieldClassName={fieldClassName} labelClassName={labelClassName} id={inputId}>
+        <Field label={label} fieldClassName={fieldClassName} labelClassName={labelClassName} id={inputId} required={props.required}>
             <input {...props} type={type} id={inputId} className={className ?? `${controlClassName} font-mono transition-all`}/>
         </Field>
     );
@@ -95,7 +99,7 @@ export function SelectField({label, fieldClassName, labelClassName, id, classNam
     const generatedId = useId();
     const inputId = id ?? generatedId;
     return (
-        <Field label={label} fieldClassName={fieldClassName} labelClassName={labelClassName} id={inputId}>
+        <Field label={label} fieldClassName={fieldClassName} labelClassName={labelClassName} id={inputId} required={props.required}>
             <select {...props} id={inputId} className={className ?? `${controlClassName}${monospace ? ' font-mono' : ''} transition-all cursor-pointer`}/>
         </Field>
     );
@@ -106,7 +110,7 @@ export function TextareaField({label, fieldClassName, labelClassName, id, classN
     const generatedId = useId();
     const inputId = id ?? generatedId;
     return (
-        <Field label={label} fieldClassName={fieldClassName} labelClassName={labelClassName} id={inputId}>
+        <Field label={label} fieldClassName={fieldClassName} labelClassName={labelClassName} id={inputId} required={props.required}>
             <textarea {...props} id={inputId} className={className ?? `${controlClassName} transition-all`}/>
         </Field>
     );

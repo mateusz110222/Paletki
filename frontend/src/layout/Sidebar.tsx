@@ -1,6 +1,6 @@
 import React, {useLayoutEffect, useRef} from 'react';
 import {NavLink} from 'react-router';
-import {BookOpen, FlaskConical, FolderTree, BarChart3, LayoutDashboard, LogOut, LucideIcon, Scan, Tv, Wrench, UserSearch, X, Code2} from 'lucide-react';
+import {BookOpen, FlaskConical, FolderTree, BarChart3, LayoutDashboard, LucideIcon, Scan, Tv, Wrench, X, Code2} from 'lucide-react';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
 
 interface NavItem {
@@ -10,23 +10,19 @@ interface NavItem {
 }
 
 interface SidebarProps {
-    hasITDepartmentAccess: boolean;
     canManagePallets: boolean;
     isMaintenanceOnly: boolean;
     canAccessMaintenance: boolean;
     canAccessLab: boolean;
-    onLogout: () => void;
     mobileOpen?: boolean;
     onMobileClose?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
-    hasITDepartmentAccess,
     canManagePallets,
     isMaintenanceOnly,
     canAccessMaintenance,
     canAccessLab,
-    onLogout,
     mobileOpen = false,
     onMobileClose = () => undefined,
 }) => {
@@ -65,7 +61,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ...(canAccessLab ? [{path: '/lab', label: 'LAB', icon: FlaskConical}] : []),
         ...(canAccessMaintenance ? [{path: '/reports', label: t('nav_reports'), icon: BarChart3}] : []),
         {path: '/dashboards', label: t('nav_dashboards'), icon: Tv},
-        ...(hasITDepartmentAccess ? [{path: '/directory', label: t('nav_directory'), icon: UserSearch}] : []),
         {path: '/documentation', label: t('nav_documentation'), icon: BookOpen},
     ];
 
@@ -101,7 +96,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <Code2 size={16} />
                 </div>
                 <div className="min-w-0 flex-1">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-brand-text-muted/70">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-brand-text-muted">
                         {t('sidebar_author_role')}
                     </p>
                     <p className="truncate text-xs font-bold text-brand-text">
@@ -112,21 +107,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
     );
 
-    const logoutButton = (onAction?: () => void) => (
-        <div className="p-4 border-t border-brand-border">
-            <button
-                onClick={() => {
-                    onAction?.();
-                    onLogout();
-                }}
-                className="w-full border border-brand-border hover:bg-red-500/10 hover:border-red-500/40 text-brand-text-muted hover:text-red-400 font-bold text-xs uppercase tracking-wider py-2.5 rounded flex items-center justify-center gap-2 transition-all"
-            >
-                <LogOut size={16}/>
-                {t('logout_button')}
-            </button>
-        </div>
-    );
-
     return <>
         <aside className="hidden lg:flex flex-col w-52 xl:w-64 bg-brand-surface border-r border-brand-border h-dvh sticky top-0 shrink-0">
             <div className="p-4 xl:p-6 border-b border-brand-border">
@@ -134,7 +114,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
             {navigation()}
             {authorFooter}
-            {logoutButton()}
         </aside>
 
         {mobileOpen && (
@@ -160,7 +139,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </div>
                     {navigation(closeMobileDialog)}
                     {authorFooter}
-                    {logoutButton(closeMobileDialog)}
                 </div>
             </dialog>
         )}

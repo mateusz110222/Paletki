@@ -1,6 +1,7 @@
+import {DeleteIcon, EditIcon, deleteActionClass} from './RecordActions';
 import {useEffect, useRef, useState, type KeyboardEvent} from 'react';
 import {useQuery, useQueryClient} from '@tanstack/react-query';
-import {Plus, Trash2, Pencil, X, ClipboardList, Search} from 'lucide-react';
+import {Plus, X, ClipboardList, Search} from 'lucide-react';
 import {useAuth} from '../auth/AuthContext';
 import {useTranslation} from '../i18n/LanguageContext';
 import {ModalPresence, ModalTransition} from './ModalTransition';
@@ -58,18 +59,18 @@ export function DefectCatalog() {
     return <div className="space-y-5">
         <section className="min-w-0 overflow-hidden rounded-2xl border border-brand-border bg-brand-surface">
             <header className="flex flex-wrap items-center justify-between gap-3 border-b border-brand-border p-5">
-                <div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-brand-text-muted">{t('defects_count')}</p><h2 className="mt-1 text-lg font-black text-brand-text">{t('defects_title')} <span className="ml-2 rounded-md border border-brand-border bg-brand-bg px-2 py-1 font-mono text-xs text-brand-accent">{query.data?.defects.length ?? 0}</span></h2></div>
-                <div className="flex flex-wrap items-center gap-3"><button type="button" disabled={busy} onClick={() => open('add')} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand-accent px-4 text-xs font-black text-brand-bg transition-colors hover:brightness-110 disabled:opacity-40"><Plus size={16}/>{t('defect_add')}</button><label className="flex min-h-10 items-center gap-2 rounded-xl border border-brand-border bg-brand-bg px-3 text-brand-text-muted"><Search size={15}/><input type="search" aria-label={t('defect_name')} placeholder={t('defect_name')} value={search} onChange={e => setSearch(e.target.value)} className="min-w-0 max-w-48 bg-transparent text-xs text-brand-text outline-none"/></label></div>
+                <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-brand-text-muted">{t('defects_count')}</p><h2 className="mt-1 text-lg font-black text-brand-text">{t('defects_title')} <span className="ml-2 rounded-md border border-brand-border bg-brand-bg px-2 py-1 font-mono text-xs text-brand-accent">{query.data?.defects.length ?? 0}</span></h2></div>
+                <div className="flex flex-wrap items-center gap-3"><button type="button" disabled={busy} onClick={() => open('add')} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand-accent px-4 text-xs font-black text-brand-on-accent transition-colors hover:brightness-110 disabled:opacity-40"><Plus size={16}/>{t('defect_add')}</button><label className="flex min-h-10 items-center gap-2 rounded-xl border border-brand-border bg-brand-bg px-3 text-brand-text-muted"><Search size={15}/><input type="search" aria-label={t('defect_name')} placeholder={t('defect_name')} value={search} onChange={e => setSearch(e.target.value)} className="min-w-0 max-w-48 bg-transparent text-xs text-brand-text outline-none"/></label></div>
             </header>
             {query.isError && <p role="alert" className="p-5 text-sm text-red-300">{getErrorMessage(query.error, t('defects_load_error'))}</p>}
             {query.isPending && <p role="status" className="p-5 text-sm text-brand-text-muted">{t('features_loading')}</p>}
-            {!query.isPending && !query.isError && visibleDefects.length === 0 && <div className="px-6 py-14 text-center"><ClipboardList size={28} className="mx-auto mb-3 text-brand-text-muted/40"/><p className="text-sm text-brand-text-muted">{query.data?.defects.length ? t('history_no_results') : t('defects_empty')}</p></div>}
+            {!query.isPending && !query.isError && visibleDefects.length === 0 && <div className="px-6 py-14 text-center"><ClipboardList size={28} className="mx-auto mb-3 text-brand-text-muted"/><p className="text-sm text-brand-text-muted">{query.data?.defects.length ? t('history_no_results') : t('defects_empty')}</p></div>}
             <ul className="divide-y divide-brand-border/70">
                 {visibleDefects.map((defect, index) => <li key={defect.id} className={`flex items-center justify-between gap-4 px-5 py-4 transition-colors ${selected?.id === defect.id ? 'bg-brand-accent/5' : 'hover:bg-brand-surface-high/30'}`}>
                     <div className="flex min-w-0 items-center gap-4"><span className="rounded-lg border border-brand-border bg-brand-bg px-2 py-1.5 font-mono text-xs text-brand-text-muted">{String(index+1).padStart(2,'0')}</span><span className="break-words text-sm font-bold text-brand-text">{defect.name}</span></div>
                     <div className="flex shrink-0 gap-1.5">
-                        <button type="button" disabled={busy} aria-label={`${t('catalog_edit')}: ${defect.name}`} className="rounded-lg border border-brand-border p-2.5 text-brand-text-muted transition-colors hover:border-brand-accent/40 hover:text-brand-accent disabled:opacity-40" onClick={() => open('edit', defect)}><Pencil size={15}/></button>
-                        <button type="button" disabled={busy} aria-label={`${t('defect_delete')}: ${defect.name}`} className="rounded-lg border border-brand-border p-2.5 text-brand-text-muted transition-colors hover:border-red-400/40 hover:text-red-300 disabled:opacity-40" onClick={() => open('delete', defect)}><Trash2 size={15}/></button>
+                        <button type="button" disabled={busy} aria-label={`${t('catalog_edit')}: ${defect.name}`} className="rounded-lg border border-brand-border p-2.5 text-brand-text-muted transition-colors hover:border-brand-accent/40 hover:text-brand-accent disabled:opacity-40" onClick={() => open('edit', defect)}><EditIcon size={16} aria-hidden="true"/></button>
+                        <button type="button" disabled={busy} aria-label={`${t('defect_delete')}: ${defect.name}`} className={deleteActionClass} onClick={() => open('delete', defect)}><DeleteIcon size={16} aria-hidden="true"/></button>
                     </div>
                 </li>)}
             </ul>
@@ -78,7 +79,7 @@ export function DefectCatalog() {
             <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="defect-modal-title" onKeyDown={handleDialogKeyDown} className="relative w-full max-w-lg overflow-hidden rounded-xl border border-brand-border bg-brand-surface shadow-2xl">
                 <div className="flex items-center justify-between gap-3 border-b border-brand-border bg-brand-surface-high p-5">
                     <h3 id="defect-modal-title" className="flex items-center gap-2 text-base font-bold uppercase tracking-wider">
-                        {selected.mode === 'delete' ? <Trash2 size={18} className="text-red-400"/> : selected.mode === 'add' ? <Plus size={18} className="text-brand-accent"/> : <Pencil size={18} className="text-brand-accent"/>}
+                        {selected.mode === 'delete' ? <DeleteIcon size={18} aria-hidden="true" className="text-red-400"/> : selected.mode === 'add' ? <Plus size={18} className="text-brand-accent"/> : <EditIcon size={18} aria-hidden="true" className="text-brand-accent"/>}
                         {t(selected.mode === 'delete' ? 'defect_delete' : selected.mode === 'add' ? 'defect_add' : 'defects_editing')}
                     </h3>
                     <button type="button" disabled={busy} aria-label={t('btn_cancel')} onClick={close} className="rounded-lg p-1 text-brand-text-muted hover:text-red-400"><X size={18}/></button>

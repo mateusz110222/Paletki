@@ -1,6 +1,6 @@
 import type {SortOrder, EventType} from '../hooks/usePalletHistoryView';
 
-import React, {} from 'react';
+import React, {useMemo} from 'react';
 import { ArrowLeft, ArrowRight, CalendarClock, Check, Copy, Download, ExternalLink, FileClock, Filter, History, RotateCcw, Search, UserRound } from 'lucide-react';
 
 import { AuditLog, PALLET_STATUSES, PalletStatus } from '@backend/shared/types';
@@ -46,12 +46,23 @@ export const PalletHistoryView: React.FC<{backPath?: string}> = ({backPath = '/a
         handleCopyPalletId,
         handleExportCSV,
     } = usePalletHistoryView();
+    const historicalReasons = useMemo(() => {
+        const reasons = new Map<number, {previous?: string; next?: string}>();
+        let next: string | undefined;
+        for (let index = history.length - 1; index >= 0; index--) {
+            const entry = history[index]!;
+            const previous = next;
+            next = entry.status_reason ?? (entry.previous_status === entry.new_status ? previous : undefined);
+            reasons.set(entry.id, {previous, next});
+        }
+        return reasons;
+    }, [history]);
     const renderStatus = (status: string, description?: string) => {
         if (PALLET_STATUSES.includes(status as PalletStatus)) {
             return <PalletStatusSpan status={status as PalletStatus} block_reason={description}/>;
         }
         return (
-            <span className="inline-flex rounded-full border border-brand-border bg-brand-surface-high px-2 py-1 text-[0.625rem] font-bold uppercase text-brand-text-muted">
+            <span className="inline-flex rounded-full border border-brand-border bg-brand-surface-high px-2 py-1 text-xs font-bold uppercase text-brand-text-muted">
                 {status}
             </span>
         );
@@ -116,7 +127,7 @@ export const PalletHistoryView: React.FC<{backPath?: string}> = ({backPath = '/a
                             <FileClock size={27}/>
                         </div>
                         <div>
-                            <p className="text-[0.625rem] font-black uppercase tracking-[0.2em] text-brand-text-muted">{t('audit_trail_title')}</p>
+                            <p className="text-xs font-black uppercase tracking-[0.2em] text-brand-text-muted">{t('audit_trail_title')}</p>
                             <div className="mt-1 flex flex-wrap items-center gap-3">
                                 {fisHistoryUrl ? (
                                     <a
@@ -140,10 +151,10 @@ export const PalletHistoryView: React.FC<{backPath?: string}> = ({backPath = '/a
                                     className="inline-flex items-center gap-1.5 rounded-lg border border-brand-border bg-brand-bg px-2.5 py-1 text-xs font-semibold text-brand-text-muted transition-colors hover:border-brand-accent hover:text-brand-accent"
                                 >
                                     {isCopied ? <Check size={14} className="text-green-400"/> : <Copy size={14}/>}
-                                    <span className="text-[0.625rem]">{isCopied ? t('pallet_id_copied') : t('copy_pallet_id')}</span>
+                                    <span className="text-xs">{isCopied ? t('pallet_id_copied') : t('copy_pallet_id')}</span>
                                 </button>
 
-                                {pallet.status && <PalletStatusSpan status={pallet.status}/>}
+                                {pallet.status && <PalletStatusSpan status={pallet.status} block_reason={pallet.block_reason}/>}
                             </div>
                             <p className="mt-2 text-sm font-semibold text-brand-text">
                                 {pallet.project} <span className="text-brand-text-muted">•</span> {pallet.model} · {t('label_machine')}: {pallet.machine}
@@ -153,24 +164,24 @@ export const PalletHistoryView: React.FC<{backPath?: string}> = ({backPath = '/a
 
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 min-w-0">
                         <div className="rounded-xl border border-brand-border bg-brand-bg/70 p-4">
-                            <p className="text-[0.5625rem] font-bold uppercase tracking-wider text-brand-text-muted">{t('col_total_cycles')}</p>
+                            <p className="text-xs font-bold uppercase tracking-wider text-brand-text-muted">{t('col_total_cycles')}</p>
                             <p className="mt-1 font-mono text-lg font-black text-brand-text">{pallet.total_cycles ?? 0}</p>
-                            <p className="text-[0.625rem] text-brand-text-muted">{t('cycles_unit')}</p>
+                            <p className="text-xs text-brand-text-muted">{t('cycles_unit')}</p>
                         </div>
                         <div className="rounded-xl border border-brand-border bg-brand-bg/70 p-4">
-                            <p className="text-[0.5625rem] font-bold uppercase tracking-wider text-brand-text-muted">{t('col_fis')}</p>
+                            <p className="text-xs font-bold uppercase tracking-wider text-brand-text-muted">{t('col_fis')}</p>
                             <p className="mt-1 font-mono text-lg font-black text-brand-text">FIS {pallet.fis ?? '—'}</p>
-                            {fisHistoryUrl && <p className="text-[0.625rem] text-brand-accent">{t('history_fis_link_available')}</p>}
+                            {fisHistoryUrl && <p className="text-xs text-brand-accent">{t('history_fis_link_available')}</p>}
                         </div>
                         <div className="rounded-xl border border-brand-border bg-brand-bg/70 p-4">
-                            <p className="text-[0.5625rem] font-bold uppercase tracking-wider text-brand-text-muted">{t('history_entries')}</p>
+                            <p className="text-xs font-bold uppercase tracking-wider text-brand-text-muted">{t('history_entries')}</p>
                             <p className="mt-1 font-mono text-lg font-black text-brand-text">{history.length}</p>
-                            <p className="text-[0.625rem] text-brand-text-muted">{formatHistoryEntries(history.length, language, false)}</p>
+                            <p className="text-xs text-brand-text-muted">{formatHistoryEntries(history.length, language, false)}</p>
                         </div>
                         <div className="rounded-xl border border-brand-border bg-brand-bg/70 p-4">
-                            <p className="text-[0.5625rem] font-bold uppercase tracking-wider text-brand-text-muted">{t('history_operators')}</p>
+                            <p className="text-xs font-bold uppercase tracking-wider text-brand-text-muted">{t('history_operators')}</p>
                             <p className="mt-1 font-mono text-lg font-black text-brand-text">{operators.length}</p>
-                            <p className="truncate text-[0.625rem] text-brand-text-muted">
+                            <p className="truncate text-xs text-brand-text-muted">
                                 {formatOperatorsCount(operators.length, language, false)}
                             </p>
                         </div>
@@ -259,35 +270,16 @@ export const PalletHistoryView: React.FC<{backPath?: string}> = ({backPath = '/a
                         type="button"
                         onClick={clearFilters}
                         disabled={!hasFilters}
-                        className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-brand-border px-4 text-[0.625rem] font-bold uppercase tracking-wider text-brand-text-muted transition-colors hover:border-brand-accent hover:text-brand-accent disabled:cursor-not-allowed disabled:opacity-30"
+                        className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-brand-border px-4 text-xs font-bold uppercase tracking-wider text-brand-text-muted transition-colors hover:border-brand-accent hover:text-brand-accent disabled:cursor-not-allowed disabled:opacity-30"
                     >
                         <RotateCcw size={14}/> {t('history_clear_filters')}
                     </button>
                 </div>
             </section>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 px-1">
-                <p className="text-xs text-brand-text-muted">
-                    {t('history_showing_results', {shown: visibleHistory.length, total: filteredHistory.length})}
-                </p>
-                <label className="flex items-center gap-2 text-[0.625rem] font-bold uppercase tracking-wider text-brand-text-muted">
-                    {t('history_rows_per_page')}
-                    <select
-                        value={pageSize}
-                        onChange={(event) => {
-                            setPageSize(Number(event.target.value));
-                            setPage(1);
-                        }}
-                        className="rounded border border-brand-border bg-brand-surface px-2 py-1 text-xs text-brand-text"
-                    >
-                        {[25, 50, 100].map((size) => <option key={size} value={size}>{size}</option>)}
-                    </select>
-                </label>
-            </div>
-
             {visibleHistory.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-brand-border bg-brand-surface/40 py-16 text-center">
-                    <Search className="mx-auto text-brand-text-muted/50" size={32}/>
+                    <Search className="mx-auto text-brand-text-muted" size={32}/>
                     <p className="mt-3 text-sm font-bold text-brand-text">{t('history_no_results')}</p>
                     {hasFilters && (
                         <button type="button" onClick={clearFilters} className="mt-3 text-xs font-bold text-brand-accent hover:underline">
@@ -299,7 +291,8 @@ export const PalletHistoryView: React.FC<{backPath?: string}> = ({backPath = '/a
                 <div className="relative space-y-4 before:absolute before:bottom-6 before:left-4.75 before:top-6 before:w-px before:bg-brand-border sm:before:left-6.75">
                     {visibleHistory.map((entry: AuditLog) => {
                         const isUnblock = entry.event_kind === 'unblock';
-                        const isStatusChange = entry.event_kind === 'status' || (!entry.event_kind && entry.previous_status !== entry.new_status);
+                        const isStatusChange = entry.event_kind === 'status' || entry.previous_status !== entry.new_status;
+                        const reason = historicalReasons.get(entry.id);
                         return (
                             <article key={entry.id} className="relative pl-12 sm:pl-16">
                                 <div className={`absolute left-3 top-6 z-10 h-4 w-4 rounded-full border-[3px] bg-brand-surface sm:left-5 ${
@@ -308,20 +301,20 @@ export const PalletHistoryView: React.FC<{backPath?: string}> = ({backPath = '/a
                                 <div className="group rounded-xl border border-brand-border bg-brand-surface p-5 transition-all hover:-translate-y-0.5 hover:border-brand-accent/40 hover:shadow-[0_12px_30px_rgba(0,0,0,0.18)]">
                                     <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                                         <div className="min-w-0">
-                                            <p className="text-[0.625rem] font-black uppercase tracking-[0.16em] text-brand-accent">
+                                            <p className="text-xs font-black uppercase tracking-[0.16em] text-brand-accent">
                                                 {isUnblock ? t('history_unblocked') : isStatusChange ? t('status_change') : t('status_on_modification')}
                                             </p>
                                             {!isUnblock && <div className="mt-2 flex flex-wrap items-center gap-2">
-                                                {renderStatus(entry.previous_status, entry.description)}
+                                                {renderStatus(entry.previous_status, isStatusChange ? reason?.previous : reason?.next)}
                                                 {isStatusChange && (
                                                     <>
                                                         <ArrowRight size={14} className="shrink-0 text-brand-text-muted"/>
-                                                        {renderStatus(entry.new_status, entry.description)}
+                                                        {renderStatus(entry.new_status, reason?.next)}
                                                     </>
                                                 )}
                                             </div>}
                                         </div>
-                                        <div className="flex shrink-0 items-center gap-2 text-[0.6875rem] font-mono text-brand-text-muted">
+                                        <div className="flex shrink-0 items-center gap-2 text-xs font-mono text-brand-text-muted">
                                             <CalendarClock size={14}/>
                                             {new Date(entry.timestamp).toLocaleString(language)}
                                         </div>
@@ -333,8 +326,8 @@ export const PalletHistoryView: React.FC<{backPath?: string}> = ({backPath = '/a
                                         </p>
                                     )}
 
-                                    {isUnblock && entry.comment && <div className="mt-4 rounded-xl border border-brand-border/60 bg-brand-bg/70 px-4 py-3"><p className="text-[10px] font-bold uppercase tracking-wider text-brand-text-muted">{t('history_comment')}</p><p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-brand-text">{entry.comment}</p></div>}
-                                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-brand-border/50 pt-3 text-[0.625rem] text-brand-text-muted">
+                                    {isUnblock && entry.comment && <div className="mt-4 rounded-xl border border-brand-border/60 bg-brand-bg/70 px-4 py-3"><p className="text-xs font-bold uppercase tracking-wider text-brand-text-muted">{t('history_comment')}</p><p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-brand-text">{entry.comment}</p></div>}
+                                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-brand-border/50 pt-3 text-xs text-brand-text-muted">
                                         <span className="inline-flex items-center gap-1.5">
                                             <UserRound size={13}/>
                                             {t('audit_operator_label')}: <strong className="text-brand-text">{entry.operator_id}</strong>
@@ -355,7 +348,10 @@ export const PalletHistoryView: React.FC<{backPath?: string}> = ({backPath = '/a
                     totalPages={totalPages}
                     totalItems={filteredHistory.length}
                     pageSize={pageSize}
+                    pageSizes={[25, 50, 100]}
+                    onPageSizeChange={size => {setPageSize(size); setPage(1);}}
                     onPageChange={setPage}
+                    className="border-t-0"
                 />
             </div>
         </div>

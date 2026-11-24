@@ -93,11 +93,6 @@ export namespace auth {
         acceptLanguage?: string
     }
 
-    export interface DirectoryLookupRequest {
-        "net_id": string
-        acceptLanguage?: string
-    }
-
     export interface LocalizedRequest {
         acceptLanguage?: string
     }
@@ -120,7 +115,6 @@ export namespace auth {
             this.baseClient = baseClient
             this.Login = this.Login.bind(this)
             this.Logout = this.Logout.bind(this)
-            this.LookupDirectoryUser = this.LookupDirectoryUser.bind(this)
             this.CardLogin = this.CardLogin.bind(this)
         }
 
@@ -154,22 +148,6 @@ export namespace auth {
             return await resp.json() as {
     message: string
 }
-        }
-
-        public async LookupDirectoryUser(params: DirectoryLookupRequest): Promise<shared.DirectoryUser> {
-            // Convert our params into the objects we need for the request
-            const headers = makeRecord<string, string>({
-                "accept-language": params.acceptLanguage,
-            })
-
-            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
-            const body: Record<string, any> = {
-                "net_id": params["net_id"],
-            }
-
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("POST", `/auth/directory/lookup`, JSON.stringify(body), {headers})
-            return await resp.json() as shared.DirectoryUser
         }
 
         public async CardLogin(params: CardLoginRequest): Promise<shared.LoginResponse> {
@@ -334,6 +312,7 @@ export namespace pallet {
     export type GetPalletHistoryResponse = AuditHistoryResponse
 
     export interface GetPalletParams {
+        "include_deleted"?: boolean
         acceptLanguage?: string
     }
 
@@ -455,9 +434,9 @@ export namespace pallet {
             const {acceptLanguage, ...body} = params;
             const resp = await this.baseClient.callTypedAPI('PUT', `/operator-reports/${encodeURIComponent(id)}`, JSON.stringify(body), {headers: makeRecord({'accept-language': acceptLanguage})}); return await resp.json();
         }
-        public async GetReports(params: {mode: 'history' | 'current'; from?: string; to?: string; statuses?: string; limit?: number; offset?: number; before_timestamp?: string; before_id?: number; acceptLanguage?: string}): Promise<{rows: import('@backend/shared/types').ReportRow[]; next_offset?: number; next_before_timestamp?: string; next_before_id?: number}> {
+        public async GetReports(params: {mode: 'history' | 'current'; from?: string; to?: string; statuses?: string; previous_status?: string; changes_only?: boolean; limit?: number; offset?: number; before_timestamp?: string; before_id?: number; acceptLanguage?: string}): Promise<{rows: import('@backend/shared/types').ReportRow[]; next_offset?: number; next_before_timestamp?: string; next_before_id?: number}> {
             const {acceptLanguage, ...query} = params;
-            const resp = await this.baseClient.callTypedAPI('GET', '/pallets/reports', undefined, {query: makeRecord({mode: query.mode, from: query.from, to: query.to, statuses: query.statuses, limit: query.limit?.toString(), offset: query.offset?.toString(), before_timestamp: query.before_timestamp, before_id: query.before_id?.toString()}), headers: makeRecord({'accept-language': acceptLanguage})}); return await resp.json();
+            const resp = await this.baseClient.callTypedAPI('GET', '/pallets/reports', undefined, {query: makeRecord({mode: query.mode, from: query.from, to: query.to, statuses: query.statuses, previous_status: query.previous_status, changes_only: query.changes_only?.toString(), limit: query.limit?.toString(), offset: query.offset?.toString(), before_timestamp: query.before_timestamp, before_id: query.before_id?.toString()}), headers: makeRecord({'accept-language': acceptLanguage})}); return await resp.json();
         }
         public async UpdateProject(id: number, params: UpdateProjectParams): Promise<void> {
             const headers = makeRecord<string, string>({
@@ -688,7 +667,8 @@ export namespace pallet {
             })
 
             // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI("GET", `/pallets/${encodeURIComponent(pallet_id)}`, undefined, {headers})
+            const query = makeRecord<string, string>({"include_deleted": params.include_deleted?.toString()})
+            const resp = await this.baseClient.callTypedAPI("GET", `/pallets/${encodeURIComponent(pallet_id)}`, undefined, {headers, query})
             return await resp.json() as GetPalletResponse
         }
 
@@ -754,6 +734,7 @@ export namespace shared {
     export interface AuditLog {
         event_kind?: "unblock" | "status" | "update"
         comment?: string
+        "status_reason"?: string
         id: number
         "pallet_id": string
         timestamp: string
@@ -764,18 +745,6 @@ export namespace shared {
     }
 
     export type AuditReason = string
-
-    export interface DirectoryUser {
-        "net_id": string
-        "full_name": string
-        department: string
-        title: string
-        "fis_groups": string[]
-        "has_it_department_access": boolean
-        "has_ur_department_access": boolean
-        "has_me_department_access": boolean
-        "has_lab_access"?: boolean
-    }
 
     export type FisUnit = 1 | 2
 
@@ -792,6 +761,7 @@ export namespace shared {
     export type NestCount = number
 
     export interface Pallet {
+        "status_changed_at"?: string
         machine: "WSM" | "SSM" | "COAT"
         id: number
         "pallet_id": string

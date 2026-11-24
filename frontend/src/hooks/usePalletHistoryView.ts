@@ -63,7 +63,7 @@ export function usePalletHistoryView() {
                 const requestApi = apiClient.with({
                     fetcher: (input, init) => fetch(input, {...init, signal: controller.signal}),
                 });
-                const palletResponse = await requestApi.pallet.GetPallet(palletId, {acceptLanguage: language});
+                const palletResponse = await requestApi.pallet.GetPallet(palletId, {include_deleted: true, acceptLanguage: language});
                 const palletData = asPallet(palletResponse.pallet);
                 const fullHistory: AuditLog[] = [];
                 let beforeId: number | undefined;

@@ -10,7 +10,6 @@ import {
     LdapProfileNotFoundError,
     parseLdapLogin,
     withLdapClient,
-    lookupLdapUser,
 } from "./ldap";
 
 function mockClient(searchEntries: Array<Record<string, string | string[]>> = []): LdapClient {
@@ -20,33 +19,6 @@ function mockClient(searchEntries: Array<Record<string, string | string[]>> = []
         unbind: vi.fn().mockResolvedValue(undefined),
     } as unknown as LdapClient;
 }
-
-describe('directory lookup', () => {
-    it('looks up an exact NetID without requesting AD groups', async () => {
-        const client = mockClient([{dn: 'CN=Test', sAMAccountName: 'test', displayName: 'Test User',
-            department: 'UR', title: 'Technician', memberOf: ['CN=B,DC=test', 'CN=A,DC=test', 'CN=A,DC=test']}]);
-        expect(await lookupLdapUser(client, 'test', 'DC=test', 3000)).toEqual({
-            net_id: 'test', full_name: 'Test User', department: 'UR', title: 'Technician',
-        });
-        expect(client.search).toHaveBeenCalledWith('DC=test', expect.objectContaining({
-            filter: '(&(objectCategory=person)(objectClass=user)(sAMAccountName=test))', sizeLimit: 2, timeLimit: 3,
-            attributes: ['sAMAccountName', 'displayName', 'cn', 'department', 'title'],
-        }));
-    });
-
-    it.each(['*', 'a)(sAMAccountName=*)', 'test@example.com', 'DOMAIN\\test', '', 'a'.repeat(65)])('rejects invalid or wildcard NetID %s before search', async netId => {
-        const client = mockClient();
-        await expect(lookupLdapUser(client, netId, 'DC=test', 1000)).rejects.toBeInstanceOf(InvalidLdapLoginError);
-        expect(client.search).not.toHaveBeenCalled();
-    });
-
-    it('handles missing attributes, unknown users and ambiguous results', async () => {
-        const result = await lookupLdapUser(mockClient([{dn: 'CN=Test'}]), 'test', 'DC=test', 1000);
-        expect(result.full_name).toBe('test');
-        await expect(lookupLdapUser(mockClient(), 'test', 'DC=test', 1000)).rejects.toBeInstanceOf(LdapProfileNotFoundError);
-        await expect(lookupLdapUser(mockClient([{dn: 'a'}, {dn: 'b'}]), 'test', 'DC=test', 1000)).rejects.toBeInstanceOf(LdapProfileAmbiguousError);
-    });
-});
 
 describe("LDAP login parsing", () => {
     it("escapes every RFC 4515 special character", () => {

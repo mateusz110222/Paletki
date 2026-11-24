@@ -5,9 +5,6 @@
     "env_type": "production"
   },
   "secrets": {
-    "LDAPLookupBindPassword": {
-      "$env": "LDAP_LOOKUP_BIND_PASSWORD"
-    },
     "APACSDBPassword": {
       "$env": "APACS_DB_PASSWORD"
     }

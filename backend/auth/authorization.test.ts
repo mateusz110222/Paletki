@@ -10,7 +10,7 @@ vi.mock('encore.dev/api', () => {
     }
     return {APIError: TestAPIError};
 });
-import {requireITDepartmentUser, requirePalletManagementUser} from './authorization';
+import {requirePalletManagementUser} from '../shared/authorization';
 
 describe('department authorization guards', () => {
     for (const itAccess of [false, true]) {
@@ -19,8 +19,6 @@ describe('department authorization guards', () => {
                 it(`IT=${itAccess}, UR=${urAccess}, ME=${meAccess}`, () => {
                     const auth = {hasITDepartmentAccess: itAccess, hasURDepartmentAccess: urAccess, hasMEDepartmentAccess: meAccess};
                     getAuthData.mockReturnValue(auth);
-                    if (itAccess) expect(requireITDepartmentUser()).toBe(auth);
-                    else expect(() => requireITDepartmentUser()).toThrow(expect.objectContaining({code: 'permission_denied'}));
                     if (itAccess || meAccess) expect(requirePalletManagementUser()).toBe(auth);
                     else expect(() => requirePalletManagementUser()).toThrow(expect.objectContaining({code: 'permission_denied'}));
                 });
@@ -28,9 +26,8 @@ describe('department authorization guards', () => {
         }
     }
 
-    it('rejects anonymous requests for both guards', () => {
+    it('rejects anonymous requests for pallet management', () => {
         getAuthData.mockReturnValue(null);
-        expect(() => requireITDepartmentUser()).toThrow(expect.objectContaining({code: 'unauthenticated'}));
         expect(() => requirePalletManagementUser()).toThrow(expect.objectContaining({code: 'unauthenticated'}));
     });
 });

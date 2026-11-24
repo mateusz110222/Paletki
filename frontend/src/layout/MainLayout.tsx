@@ -2,19 +2,24 @@ import {ViewBoundary} from '../components/ViewBoundary';
 import React, {useCallback, useState, type ReactNode} from 'react';
 import {Link, Outlet, useLocation} from 'react-router';
 import {useAuth} from '../auth/AuthContext.tsx';
-import {LanguageSwitcher, useTranslation} from '../i18n/LanguageContext.tsx';
+import {useTranslation} from '../i18n/LanguageContext.tsx';
+import {DisplayPreferences} from '../components/DisplayPreferences';
 import {Sidebar} from './Sidebar.tsx';
-import {ArrowLeft, Menu, UserCheck} from 'lucide-react';
+import {ArrowLeft, Menu} from 'lucide-react';
 import {useDocumentMetadata} from '../hooks/useDocumentMetadata.ts';
 
 export const MainLayout: React.FC<{children?: ReactNode}> = ({children}) => {
-    const {user, isGuest, hasITDepartmentAccess, canManagePallets, isMaintenanceOnly, canAccessMaintenance, canAccessLab, logout} = useAuth();
+    const {user, isGuest, canManagePallets, isMaintenanceOnly, canAccessMaintenance, canAccessLab, accessGroups, logout} = useAuth();
     const {t, language} = useTranslation();
     const location = useLocation();
     const [mobileNavOpen, setMobileNavOpen] = useState(false);
     const closeMobileNav = useCallback(() => setMobileNavOpen(false), []);
 
     const getPageTitle = (pathname: string) => {
+        if (pathname.startsWith('/reports/pallets/') && pathname.endsWith('/history')) {
+            return {title: t('history_page_title'), sub: t('history_page_subtitle'),
+                back: {to: '/reports' + location.search, label: t('reports_back')}};
+        }
         if ((pathname.startsWith('/admin/pallets/') || pathname.startsWith('/maintenance/pallets/')) && pathname.endsWith('/history')) {
             return {
                 title: t('history_page_title'),
@@ -29,8 +34,6 @@ export const MainLayout: React.FC<{children?: ReactNode}> = ({children}) => {
                 return {title: t('nav_documentation'), sub: t('documentation_subtitle')};
             case '/catalog':
                 return {title: t('nav_catalog'), sub: t('catalog_subtitle')};
-            case '/directory':
-                return {title: t('directory_title'), sub: t('directory_subtitle')};
             case '/admin':
                 return {title: t('panel_admin_title'), sub: t('panel_admin_subtitle')};
             case '/operator':
@@ -71,9 +74,9 @@ export const MainLayout: React.FC<{children?: ReactNode}> = ({children}) => {
 
     return (
         <div
-            className="staff-screen flex flex-col lg:flex-row min-h-screen bg-brand-bg text-brand-text font-sans selection:bg-brand-accent selection:text-brand-bg">
-            <Sidebar hasITDepartmentAccess={hasITDepartmentAccess} canManagePallets={canManagePallets} isMaintenanceOnly={isMaintenanceOnly}
-                     canAccessMaintenance={canAccessMaintenance} canAccessLab={canAccessLab} onLogout={logout}
+            className="staff-screen flex flex-col lg:flex-row min-h-screen bg-brand-bg text-brand-text font-sans selection:bg-brand-accent selection:text-brand-on-accent">
+            <Sidebar canManagePallets={canManagePallets} isMaintenanceOnly={isMaintenanceOnly}
+                     canAccessMaintenance={canAccessMaintenance} canAccessLab={canAccessLab}
                      mobileOpen={mobileNavOpen} onMobileClose={closeMobileNav}/>
 
             <main className="staff-main min-w-0 flex-1 p-3 sm:p-5 xl:p-8 space-y-4 xl:space-y-6 w-full">
@@ -100,29 +103,12 @@ export const MainLayout: React.FC<{children?: ReactNode}> = ({children}) => {
                         </Link>}
                         <div className="min-w-0">
                             <h2 className="text-xl xl:text-2xl font-extrabold text-brand-text">{title}</h2>
-                            <p className="text-xs text-brand-text-muted mt-0.5 xl:mt-1 font-medium">{sub}</p>
+                            <p className="mt-0.5 text-sm font-medium text-brand-text-muted xl:mt-1">{sub}</p>
                         </div>
                     </div>
 
-                    <div className="flex min-w-0 flex-wrap items-center gap-4">
-                        <LanguageSwitcher/>
-                        {user && (
-                            <div
-                                className="flex min-w-0 max-w-full items-center gap-3 bg-brand-surface border border-brand-border px-4 py-2 rounded-xl">
-                                <div
-                                    className="w-8 h-8 rounded-lg bg-brand-accent/15 border border-brand-accent/30 flex items-center justify-center text-brand-accent font-bold text-xs">
-                                    <UserCheck size={16}/>
-                                </div>
-                                <div className="min-w-0 break-words text-left">
-                                    <p className="text-xs font-black text-brand-text leading-tight">
-                                        {user.FullName}
-                                    </p>
-                                    <p className="text-[10px] text-brand-text-muted font-mono leading-tight">
-                                        {isGuest ? t('guest_department') : user.department || ''}
-                                    </p>
-                                </div>
-                            </div>
-                        )}
+                    <div className="ml-auto min-w-0 max-w-full">
+                        <DisplayPreferences account={user ? {name: user.FullName, subtitle: isGuest ? t('guest_department') : accessGroups.join(' · '), logout} : undefined}/>
                     </div>
                 </div>
 

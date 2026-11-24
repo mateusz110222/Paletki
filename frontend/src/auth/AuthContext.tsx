@@ -28,6 +28,7 @@ interface AuthContextType {
     isMaintenanceOnly: boolean;
     canAccessMaintenance: boolean;
     canAccessLab: boolean;
+    accessGroups: string[];
     defaultPath: string;
     login: (username: string, password: string) => Promise<LoginResult>;
     loginWithCard: (identifier: string) => Promise<LoginResult>;

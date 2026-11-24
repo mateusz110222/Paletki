@@ -1,8 +1,9 @@
+import {RequiredMark} from '../components/FormFields';
 import React from 'react';
 import { AlertCircle, ChevronDown, Eye, EyeOff, IdCard, Key, Loader2, Lock, MonitorCog, ShieldCheck, User } from 'lucide-react';
 
 import {useLoginView} from '../hooks/useLoginView';
-import {LanguageSwitcher} from '../i18n/LanguageContext.tsx';
+import {DisplayPreferences} from '../components/DisplayPreferences';
 export const LoginView: React.FC = () => {
     const {
         t,
@@ -36,7 +37,7 @@ export const LoginView: React.FC = () => {
             </div>
 
             <div className="w-full flex justify-end sm:w-auto sm:fixed sm:top-5 sm:right-6 z-20 mb-3 sm:mb-0 shrink-0">
-                <LanguageSwitcher/>
+                <DisplayPreferences/>
             </div>
 
             <main className="w-full max-w-[400px] z-10 my-auto">
@@ -48,7 +49,7 @@ export const LoginView: React.FC = () => {
                         <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-brand-accent/10 border border-brand-accent/20 flex items-center justify-center text-brand-accent mb-1 shadow-inner shrink-0">
                             <ShieldCheck className="w-6 h-6 sm:w-7 sm:h-7" />
                         </div>
-                        <span className="text-[10px] sm:text-[11px] font-black tracking-[0.25em] text-brand-accent uppercase">
+                        <span className="text-xs font-black tracking-[0.25em] text-brand-accent uppercase">
                             {t('app_product_name')}
                         </span>
                         <h1 className="text-lg sm:text-xl font-black text-brand-text tracking-tight uppercase">
@@ -64,8 +65,8 @@ export const LoginView: React.FC = () => {
                         >
                             <AlertCircle size={16} className="shrink-0 mt-0.5" />
                             <div className="space-y-0.5 min-w-0 flex-1">
-                                <p className="font-bold uppercase tracking-wider text-[11px]">{t('login_error_title')}</p>
-                                <p className="text-red-300/90 leading-snug break-words text-[11px]">{errorMessage}</p>
+                                <p className="font-bold uppercase tracking-wider text-xs">{t('login_error_title')}</p>
+                                <p className="text-red-300 leading-snug break-words text-xs">{errorMessage}</p>
                             </div>
                         </div>
                     )}
@@ -80,9 +81,9 @@ export const LoginView: React.FC = () => {
                         <div className="space-y-1.5">
                             <label
                                 htmlFor="login-username"
-                                className="text-[10px] sm:text-[11px] font-bold text-brand-text-muted uppercase tracking-wider block"
+                                className="text-xs font-bold text-brand-text-muted uppercase tracking-wider block"
                             >
-                                {t('login_username_label')}
+                                {t('login_username_label')}<RequiredMark/>
                             </label>
                             <div className="relative flex items-center">
                                 <User size={17} className="absolute left-3.5 text-brand-text-muted pointer-events-none z-10" />
@@ -94,7 +95,7 @@ export const LoginView: React.FC = () => {
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
                                     placeholder={t('login_username_placeholder')}
-                                    className="w-full bg-brand-bg border border-brand-border rounded-xl py-2.5 sm:py-3 pl-10 pr-4 text-sm font-mono text-brand-text placeholder:text-brand-text-muted/50 focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/30 outline-none transition-all"
+                                    className="w-full bg-brand-bg border border-brand-border rounded-xl py-2.5 sm:py-3 pl-10 pr-4 text-sm font-mono text-brand-text placeholder:text-brand-text-muted focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/30 outline-none transition-all"
                                 />
                             </div>
                         </div>
@@ -102,9 +103,9 @@ export const LoginView: React.FC = () => {
                         <div className="space-y-1.5">
                             <label
                                 htmlFor="login-password"
-                                className="text-[10px] sm:text-[11px] font-bold text-brand-text-muted uppercase tracking-wider block"
+                                className="text-xs font-bold text-brand-text-muted uppercase tracking-wider block"
                             >
-                                {t('login_password_label')}
+                                {t('login_password_label')}<RequiredMark/>
                             </label>
                             <div className="relative flex items-center">
                                 <Key size={17} className="absolute left-3.5 text-brand-text-muted pointer-events-none z-10" />
@@ -116,7 +117,7 @@ export const LoginView: React.FC = () => {
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     placeholder={t('login_password_placeholder')}
-                                    className="w-full bg-brand-bg border border-brand-border rounded-xl py-2.5 sm:py-3 pl-10 pr-11 text-sm text-brand-text placeholder:text-brand-text-muted/50 focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/30 outline-none transition-all"
+                                    className="w-full bg-brand-bg border border-brand-border rounded-xl py-2.5 sm:py-3 pl-10 pr-11 text-sm text-brand-text placeholder:text-brand-text-muted focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/30 outline-none transition-all"
                                 />
                                 <button
                                     type="button"
@@ -134,7 +135,7 @@ export const LoginView: React.FC = () => {
                         <button
                             type="submit"
                             disabled={loading || !username.trim() || !password}
-                            className="w-full py-3 bg-brand-accent hover:bg-brand-accent/90 text-brand-bg font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-[0_10px_20px_rgba(99,102,241,0.25)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-1 cursor-pointer active:scale-[0.98]"
+                            className="w-full py-3 bg-brand-accent hover:bg-brand-accent/90 text-brand-on-accent font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-[0_10px_20px_rgba(99,102,241,0.25)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-1 cursor-pointer active:scale-[0.98]"
                         >
                             {loading ? (
                                 <>
@@ -151,7 +152,7 @@ export const LoginView: React.FC = () => {
 
                         <div className="relative flex py-0.5 items-center">
                             <div className="grow border-t border-brand-border/60"></div>
-                            <span className="shrink mx-3 text-[10px] font-bold text-brand-text-muted/60 uppercase tracking-widest">{t('login_or_divider')}</span>
+                            <span className="shrink mx-3 text-xs font-bold text-brand-text-muted uppercase tracking-widest">{t('login_or_divider')}</span>
                             <div className="grow border-t border-brand-border/60"></div>
                         </div>
                         </div>
@@ -166,7 +167,7 @@ export const LoginView: React.FC = () => {
                             disabled={loading}
                             aria-expanded={showOperatorSession}
                             aria-controls="operator-session-panel"
-                            className={`w-full py-2.5 border font-bold text-[11px] uppercase tracking-wider rounded-xl transition-all flex items-center justify-between px-3.5 hover:-translate-y-px active:translate-y-0 active:scale-[0.98] disabled:transform-none cursor-pointer ${showOperatorSession
+                            className={`w-full py-2.5 border font-bold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-between px-3.5 hover:-translate-y-px active:translate-y-0 active:scale-[0.98] disabled:transform-none cursor-pointer ${showOperatorSession
                                 ? 'bg-brand-accent/10 border-brand-accent/50 text-brand-accent'
                                 : 'bg-brand-bg border-brand-border hover:bg-brand-surface-high hover:border-brand-accent/40 text-brand-text'
                             }`}
@@ -192,10 +193,10 @@ export const LoginView: React.FC = () => {
                                         <IdCard size={16}/>
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <p className="text-[11px] font-black uppercase tracking-wider text-brand-text">
+                                        <p className="text-xs font-black uppercase tracking-wider text-brand-text">
                                             {t('login_operator_session_title')}
                                         </p>
-                                        <p className="mt-0.5 text-[10px] leading-snug text-brand-text-muted">
+                                        <p className="mt-0.5 text-xs leading-snug text-brand-text-muted">
                                             {t('login_operator_session_description')}
                                         </p>
                                     </div>
@@ -204,9 +205,9 @@ export const LoginView: React.FC = () => {
                                 <div className="space-y-1.5">
                                     <label
                                         htmlFor="operator-identifier"
-                                        className="block text-[10px] font-bold uppercase tracking-wider text-brand-text-muted"
+                                        className="block text-xs font-bold uppercase tracking-wider text-brand-text-muted"
                                     >
-                                        {t('login_operator_identifier_label')}
+                                        {t('login_operator_identifier_label')}<RequiredMark/>
                                     </label>
                                     <div className="relative flex items-center">
                                         <User size={16} className="absolute left-3.5 text-brand-text-muted"/>
@@ -224,7 +225,7 @@ export const LoginView: React.FC = () => {
                                             }}
                                             autoComplete="off"
                                             inputMode="numeric"
-                                            pattern="[0-9]{1,30}"
+                                            pattern="[0-9]{1,30}" required
                                             disabled={loading}
                                             autoFocus
                                             maxLength={30}
@@ -232,7 +233,7 @@ export const LoginView: React.FC = () => {
                                             className="w-full rounded-xl border border-brand-border bg-brand-bg py-2.5 pl-9 pr-3 font-mono text-sm text-brand-text outline-none transition-all focus:ring-2 focus:ring-brand-accent/20"
                                         />
                                     </div>
-                                    <p className="text-[9px] text-brand-text-muted/70">
+                                    <p className="text-xs text-brand-text-muted">
                                         {t('login_operator_identifier_examples')}
                                     </p>
                                 </div>
@@ -241,7 +242,7 @@ export const LoginView: React.FC = () => {
                                     type="button"
                                     onClick={() => void handleOperatorLogin()}
                                     disabled={loading || !/^\d{1,30}$/.test(operatorIdentifier.trim())}
-                                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-accent py-2.5 text-[11px] font-black uppercase tracking-widest text-brand-bg shadow-[0_8px_20px_rgba(99,102,241,0.25)] transition-all hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:transform-none cursor-pointer"
+                                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-accent py-2.5 text-xs font-black uppercase tracking-widest text-brand-on-accent shadow-[0_8px_20px_rgba(99,102,241,0.25)] transition-all hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:transform-none cursor-pointer"
                                 >
                                     {loading ? <Loader2 size={15} className="animate-spin"/> : <IdCard size={15}/>}
                                     {t(loading ? 'login_operator_session_starting' : 'login_operator_session_start')}

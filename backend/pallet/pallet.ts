@@ -35,6 +35,7 @@ export interface GetAllPalletsResponse {
 
 interface GetPalletParams extends LocalizedRequest {
     pallet_id: string;
+    include_deleted?: Query<boolean>;
 }
 
 interface GetPalletHistoryParams extends LocalizedRequest {
@@ -169,11 +170,13 @@ export const GetAllPallets = api(
 export const GetPallet = api(
     {method: "GET", path: "/pallets/:pallet_id", expose: true, auth: true},
     async (params: GetPalletParams): Promise<GetPalletResponse> => {
+        const includeDeleted = params.include_deleted ?? false;
+        if (includeDeleted) requireMaintenanceUser();
         const palletId = normalizePalletId(params.pallet_id);
         if (!palletId) throw APIError.invalidArgument(t("pallet_id_empty", params.acceptLanguage));
 
         const pallet = await db.queryRow<PalletRecord>`
-            SELECT * FROM pallet_details WHERE pallet_id = ${palletId} AND deleted_at IS NULL
+            SELECT * FROM pallet_details WHERE pallet_id = ${palletId} AND (deleted_at IS NULL OR ${includeDeleted})
         `;
         if (!pallet) throw APIError.notFound(t("pallet_not_found", params.acceptLanguage));
 

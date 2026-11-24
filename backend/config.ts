@@ -150,7 +150,6 @@ export const config = Object.freeze({
         url: ldapUrl,
         loginDomain: requiredEnv("LDAP_LOGIN_DOMAIN"),
         searchBase: requiredEnv("LDAP_SEARCH_BASE"),
-        lookupBindUser: process.env.LDAP_LOOKUP_BIND_USER?.trim() ?? "",
         timeoutMs: positiveIntegerEnv("LDAP_TIMEOUT_MS"),
         connectTimeoutMs: positiveIntegerEnv("LDAP_CONNECT_TIMEOUT_MS"),
         rejectUnauthorized: ldapRejectUnauthorized,

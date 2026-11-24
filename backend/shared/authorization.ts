@@ -9,14 +9,6 @@ export function requireAuthenticatedUser(): AuthData {
     return auth;
 }
 
-export function requireITDepartmentUser(): AuthData {
-    const auth = requireAuthenticatedUser();
-    if (!auth.hasITDepartmentAccess) {
-        throw APIError.permissionDenied(t("auth_staff_required"));
-    }
-    return auth;
-}
-
 export function requirePalletManagementUser(): AuthData {
     const auth = requireAuthenticatedUser();
     if (!auth.hasITDepartmentAccess && !auth.hasMEDepartmentAccess) {

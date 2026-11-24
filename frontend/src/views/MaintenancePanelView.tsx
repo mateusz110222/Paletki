@@ -1,15 +1,13 @@
+import {RequiredMark} from '../components/FormFields';
 import {OperatorReports} from '../components/OperatorReports';
 import React from 'react';
+import {Link} from 'react-router';
+import {PalletStatusSpan} from '../components/PalletStatusSpan';
+import {remainingCycles, waitingTime, washingSoonRatio} from '../lib/maintenanceQueue';
 import {
     AlertCircle,
     AlertTriangle,
     CheckCircle2,
-    CheckSquare,
-    FileText,
-    RefreshCw,
-    Search,
-    ShieldCheck,
-    User,
     Wrench,
     X
 } from 'lucide-react';
@@ -24,231 +22,70 @@ import {ModalPresence, ModalTransition} from '../components/ModalTransition.tsx'
 
 interface MaintenancePanelViewProps {
     pallets: Pallet[];
+    inventoryState: 'ready' | 'loading' | 'error';
 }
 
 export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props) => {
     const {data, actions} = useMaintenancePanel(props);
-    const {t} = useTranslation();
+    const {t, language} = useTranslation();
 
     const {searchParams, setSearchParams, searchTermFromURL} = data;
+
+    const tabs = [
+        ['queue', t('maintenance_queue')], ['repairs', t('for_repair')],
+        ['routine', t('maintenance_wash_due')], ['soon', t('maintenance_wash_soon')],
+    ] as const;
 
     useEscapeKey(data.selectedPallet !== null, () => actions.setSelectedPallet(null));
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300" id="maintenance-panel-container">
-            {/* Top statistics section in Bento Grid Style */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
-                <div
-                    className="sm:col-span-1 bg-brand-surface p-6 rounded-xl border-l-4 border-brand-accent border-y border-r flex flex-col justify-between">
-                    <span
-                        className="text-[0.625rem] font-bold text-brand-text-muted uppercase tracking-wider">{t('maintenance_queue')}</span>
-                    <div className="flex items-baseline gap-2 mt-2">
-                        <span
-                            className="text-4xl font-black text-brand-text">{data.repairPallets.length + data.routinePallets.length}</span>
-                        <span className="text-xs font-bold text-brand-text-muted">{t('pallets_count')}</span>
-                    </div>
-                    <div
-                        className="mt-4 py-1 px-2 bg-brand-accent/10 border border-brand-accent/20 rounded inline-flex items-center gap-2 w-fit">
-                        <div className="w-1.5 h-1.5 rounded-full bg-brand-accent animate-pulse"></div>
-                        <span className="text-[0.5625rem] font-bold text-brand-accent uppercase">{t('priority_high')}</span>
-                    </div>
-                </div>
-
-                <div
-                    className="sm:col-span-1 bg-brand-surface p-6 rounded-xl border border-brand-border flex flex-col justify-between">
-                    <span
-                        className="text-[0.625rem] font-bold text-brand-text-muted uppercase tracking-wider">{t('for_repair')}</span>
-                    <div className="flex items-baseline gap-2 mt-2">
-                        <span className="text-4xl font-black text-red-500">{data.repairPallets.length}</span>
-                        <div className="flex flex-col">
-                            <span
-                                className="text-[0.625rem] font-bold text-red-500/70 uppercase leading-tight">{t('intervention_required_line1')}</span>
-                            <span
-                                className="text-[0.625rem] font-bold text-red-500/70 uppercase leading-tight">{t('intervention_required_line2')}</span>
-                        </div>
-                    </div>
-                    <div className="mt-4 flex items-center gap-1.5">
-                        <AlertTriangle size={14} className="text-red-500"/>
-                        <span
-                            className="text-[0.625rem] font-medium text-brand-text-muted italic">{t('reported_damage')}</span>
-                    </div>
-                </div>
-
-                <div
-                    className="sm:col-span-1 bg-brand-surface p-6 rounded-xl border border-brand-border flex flex-col justify-between">
-                    <span
-                        className="text-[0.625rem] font-bold text-brand-text-muted uppercase tracking-wider">{t('routine_inspections')}</span>
-                    <div className="flex items-baseline gap-2 mt-2">
-                        <span className="text-4xl font-black text-yellow-500">{data.routinePallets.length}</span>
-                        <div className="flex flex-col">
-                            <span
-                                className="text-[0.625rem] font-bold text-yellow-500/70 uppercase leading-tight">{t('awaiting_service_line1')}</span>
-                            <span
-                                className="text-[0.625rem] font-bold text-yellow-500/70 uppercase leading-tight">{t('awaiting_service_line2')}</span>
-                        </div>
-                    </div>
-                    <div className="mt-4 flex items-center gap-1.5">
-                        <RefreshCw size={14} className="text-yellow-500"/>
-                        <span
-                            className="text-[0.625rem] font-medium text-brand-text-muted italic">{t('cycle_limit_exceeded')}</span>
-                    </div>
-                </div>
-
-                <div
-                    className="sm:col-span-1 bg-brand-surface p-6 rounded-xl border border-brand-border flex flex-col justify-between">
-                    <span
-                        className="text-[0.625rem] font-bold text-brand-text-muted uppercase tracking-wider">{t('technician_status')}</span>
-                    <div className="flex items-center gap-3 mt-2">
-                        <div
-                            className="w-10 h-10 rounded-full bg-brand-accent/20 border border-brand-accent/30 flex items-center justify-center">
-                            <User className="text-brand-accent" size={20}/>
-                        </div>
-                        <div>
-                            <p className="text-xs font-bold text-brand-text">{data.Operator}</p>
-                            <p className="text-[0.625rem] font-medium text-green-400">{t('online_active')}</p>
-                        </div>
-                    </div>
-                    <div className="mt-4 flex items-center gap-1.5">
-                        <ShieldCheck size={14} className="text-brand-accent"/>
-                        <span
-                            className="text-[0.625rem] font-medium text-brand-text-muted italic">{t('service_permissions_ok')}</span>
-                    </div>
-                </div>
-            </div>
-
             <SearchInput searchTerm={searchTermFromURL} searchParams={searchParams}
                          onSearchTermChange={actions.setSearchTerm} setSearchParams={setSearchParams}/>
 
-            {/* Main Work Area */}
-            <div className="bg-brand-surface rounded-xl border border-brand-border overflow-hidden">
-                {/* Custom Tabs */}
-                <div className="relative grid grid-cols-2 border-b border-brand-border bg-brand-surface-high/30">
-                    <button
-                        onClick={() => actions.setActiveTab('repairs')}
-                        className={`relative flex-1 py-4 px-6 text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${data.activeTab === 'repairs'
-                            ? 'bg-brand-surface text-brand-accent'
-                            : 'text-brand-text-muted hover:text-brand-text hover:bg-brand-surface-high/50'
-                        }`}
-                    >
-                        <AlertCircle size={16}/>
-                        {t('repairs_tab')}
-                        {data.filteredRepairPallets.length > 0 && (
-                            <span
-                                className="ml-2 px-1.5 py-0.5 bg-red-500 text-white text-[0.5625rem] rounded-full">{data.filteredRepairPallets.length}</span>
-                        )}
-                    </button>
-                    <button
-                        onClick={() => actions.setActiveTab('routine')}
-                        className={`relative flex-1 py-4 px-6 text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${data.activeTab === 'routine'
-                            ? 'bg-brand-surface text-brand-accent'
-                            : 'text-brand-text-muted hover:text-brand-text hover:bg-brand-surface-high/50'
-                        }`}
-                    >
-                        <Wrench size={16}/>
-                        {t('routine_tab')}
-                        {data.filteredRoutinePallets.length > 0 && (
-                            <span
-                                className="ml-2 px-1.5 py-0.5 bg-yellow-500 text-brand-bg text-[0.5625rem] rounded-full">{data.filteredRoutinePallets.length}</span>
-                        )}
-                    </button>
-                    <span
-                        aria-hidden="true"
-                        className="pointer-events-none absolute bottom-0 left-0 h-0.5 w-1/2 bg-brand-accent transition-transform duration-300 motion-reduce:transition-none"
-                        style={{transform: data.activeTab === 'routine' ? 'translateX(100%)' : 'translateX(0)'}}
-                    />
-                </div>
-
-                {/* Content Area */}
-                <div
-                    key={data.activeTab}
-                    className="p-[clamp(0.75rem,1.8vw,1.5rem)] animate-in fade-in slide-in-from-bottom-4 duration-200"
-                >
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-4">
-                        {(data.activeTab === 'repairs' ? data.filteredRepairPallets : data.filteredRoutinePallets).map((p: Pallet) => (
-                            <div
-                                key={p.pallet_id}
-                                className="bg-brand-bg border border-brand-border rounded-lg p-[clamp(0.75rem,1.5vw,1.25rem)] hover:border-brand-accent/40 transition-all group flex flex-col justify-between"
-                            >
-                                <div>
-                                    <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-                                        <div
-                                            className="max-w-full wrap-anywhere px-2 py-1 bg-brand-surface-high border border-brand-border rounded font-mono text-xs font-bold text-brand-accent">
-                                            {p.pallet_id}
-                                        </div>
-                                        {data.activeTab === 'repairs' ? (
-                                            <span
-                                                className="text-[0.625rem] font-black text-red-500 uppercase flex items-center gap-1">
-                                                <AlertTriangle size={12} className="shrink-0"/> {t('damaged_status')}
-                                            </span>
-                                        ) : (
-                                            <span
-                                                className="text-[0.625rem] font-black text-yellow-500 uppercase flex items-center gap-1">
-                                                <RefreshCw size={12} className="shrink-0"/> {t('cyclic_service')}
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    <div className="space-y-3 mb-6">
-                                        <div>
-                                            <p className="text-[0.625rem] font-bold text-brand-text-muted uppercase tracking-tighter">{t('project_model')}</p>
-                                            <p className="wrap-anywhere text-xs font-bold text-brand-text">{p.project} • {p.model}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-[0.625rem] font-bold text-brand-text-muted uppercase tracking-tighter">{t('mileage')}</p>
-                                            <p className="text-xs font-mono font-bold text-brand-text">
-                                                {p.current_cycles} <span
-                                                className="text-brand-text-muted/60">/ {p.max_cycles}</span>
-                                            </p>
-                                        </div>
-                                        {p.block_reason && (
-                                            <div className="p-2 bg-red-500/5 border border-red-500/20 rounded">
-                                                <p className="text-[0.625rem] font-bold text-red-400 uppercase mb-1 flex items-center gap-1">
-                                                    <FileText size={10}/> {t('reason_for_reporting')}:
-                                                </p>
-                                                <p className="text-[0.6875rem] text-brand-text leading-tight italic">"{p.block_reason}"</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <button
-                                    onClick={() => actions.handleOpenServiceLog(p)}
-                                    className="flex min-h-11 w-full items-center justify-center gap-2 rounded border border-brand-border bg-brand-surface-high px-2 py-2 text-center text-[0.625rem] font-black uppercase tracking-widest text-brand-text transition-all hover:border-brand-accent hover:bg-brand-accent hover:text-brand-bg"
-                                >
-                                    <CheckSquare size={14} className="shrink-0"/>
-                                    <span>{t('start_servicing')}</span>
-                                </button>
-                            </div>
-                        ))}
-
-                        {(data.activeTab === 'repairs' ? data.filteredRepairPallets : data.filteredRoutinePallets).length === 0 && (
-                            searchTermFromURL.trim() ? (
-                                <div className="col-span-full py-20 text-center flex flex-col items-center gap-4">
-                                    <div
-                                        className="w-16 h-16 rounded-full bg-brand-surface-high border border-brand-border flex items-center justify-center text-brand-text-muted">
-                                        <Search size={32}/>
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-bold text-brand-text">{t('no_pallets_found')}</p>
-                                        <p className="text-xs text-brand-text-muted mt-1">{t('btn_search_placeholder')}: "{searchTermFromURL}"</p>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="col-span-full py-20 text-center flex flex-col items-center gap-4">
-                                    <div
-                                        className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center text-green-400">
-                                        <CheckCircle2 size={32}/>
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-bold text-brand-text">{t('queue_empty')}</p>
-                                        <p className="text-xs text-brand-text-muted mt-1">{t('all_pallets_ok')}</p>
-                                    </div>
-                                </div>
-                            )
-                        )}
+            <section className="rounded-xl border border-brand-border bg-brand-surface">
+                <header className="space-y-2 border-b border-brand-border p-3 sm:p-4">
+                    <div role="group" aria-label={t('maintenance_queue')} className="flex flex-wrap gap-2">
+                        {tabs.map(([tab, label]) => <button key={tab} type="button"
+                            aria-pressed={data.activeTab === tab} onClick={() => actions.setActiveTab(tab)}
+                            className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-brand-border px-3 text-xs font-bold text-brand-text-muted hover:text-brand-text aria-pressed:border-brand-accent/50 aria-pressed:bg-brand-accent/10 aria-pressed:text-indigo-300">
+                            {label}<span className="tabular-nums">{props.inventoryState === 'ready' ? data.queues[tab].length : '—'}</span>
+                        </button>)}
                     </div>
+                    <p className="text-xs text-brand-text-muted">{data.activeTab === 'soon'
+                        ? t('maintenance_soon_hint', {percent: washingSoonRatio * 100})
+                        : t('maintenance_oldest_first')}</p>
+                </header>
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-3 p-3 sm:p-4">
+                    {data.visiblePallets.map(pallet => {
+                        const active = pallet.status === 'Active';
+                        const waiting = waitingTime(pallet, data.now, language);
+                        return <article key={pallet.pallet_id} className="flex min-w-0 flex-col gap-3 rounded-lg border border-brand-border bg-brand-bg p-4">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <Link to={`/maintenance/pallets/${encodeURIComponent(pallet.pallet_id)}/history`} className="wrap-anywhere font-mono text-sm font-bold text-indigo-300 underline underline-offset-4">
+                                    {pallet.pallet_id}
+                                </Link>
+                                {active ? <span className="text-xs font-bold text-yellow-400">{t('maintenance_remaining_cycles', {count: remainingCycles(pallet)})}</span>
+                                    : <PalletStatusSpan status={pallet.status} block_reason={pallet.block_reason}/>}
+                            </div>
+                            <div className="space-y-1 text-sm">
+                                <p className="wrap-anywhere font-semibold">{pallet.project} · {pallet.model}</p>
+                                <p className="text-xs text-brand-text-muted">{pallet.machine} · FIS {pallet.fis} · {pallet.current_cycles} / {pallet.max_cycles}</p>
+                                {!active && <p className="text-xs text-brand-text-muted">{waiting
+                                    ? t('maintenance_waiting_time', {time: waiting}) : t('maintenance_waiting_unknown')}</p>}
+                            </div>
+                            {!active && <button type="button" onClick={() => actions.handleOpenServiceLog(pallet)}
+                                className="mt-auto flex min-h-10 items-center justify-center rounded-lg border border-brand-border bg-brand-surface px-3 text-xs font-bold hover:border-brand-accent/50 hover:text-indigo-300">
+                                {t('start_servicing')}
+                            </button>}
+                        </article>;
+                    })}
+                    {data.visiblePallets.length === 0 && <p role="status" className="col-span-full py-8 text-center text-sm text-brand-text-muted">
+                        {t(props.inventoryState === 'loading' ? 'features_loading' : props.inventoryState === 'error' ? 'fetch_error_banner'
+                            : searchTermFromURL.trim() ? 'no_pallets_found' : data.activeTab === 'soon' ? 'maintenance_soon_empty' : 'queue_empty')}
+                    </p>}
                 </div>
-            </div>
+            </section>
 
             {/* SERVICE LOG MODAL */}
             <ModalPresence>
@@ -290,21 +127,21 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
                             {data.modalError && (
                                 <div
                                     className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg flex items-start gap-3 animate-in shake duration-300">
-                                    <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={18}/>
+                                    <AlertCircle className="text-red-300 shrink-0 mt-0.5" size={18}/>
                                     <p className="text-xs font-bold text-red-400 leading-tight">{data.modalError}</p>
                                 </div>
                             )}
 
                             <div className="space-y-2">
                                 <label
-                                    className="text-[0.625rem] font-black text-brand-text-muted uppercase tracking-widest">{t('maint_comment')}</label>
+                                    htmlFor="maintenance-service-comment" className="text-xs font-black text-brand-text-muted uppercase tracking-widest">{t('maint_comment')}<RequiredMark/></label>
                                 <textarea
                                     rows={3}
                                     className="w-full bg-brand-bg border border-brand-border rounded-xl p-4 text-xs text-brand-text focus:ring-2 focus:ring-brand-accent/20 outline-none transition-all"
                                     placeholder={t(data.selectedPallet.status === 'Washing_Required'
                                         ? 'maint_routine_comment_placeholder'
                                         : 'maint_repair_comment_placeholder')}
-                                    value={data.repairDescription}
+                                    id="maintenance-service-comment" required value={data.repairDescription}
                                     onChange={(e) => actions.setRepairDescription(e.target.value)}
                                 ></textarea>
                             </div>

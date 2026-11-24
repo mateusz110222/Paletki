@@ -26,9 +26,9 @@ The system enforces automated lifecycle workflows, cycle limit tracking, FIS gro
 
 ### 2. Role-Based Access Control (FIS Groups)
 Users authenticate with Active Directory / LDAP. The backend checks group membership via the FIS router (`FIS1_ROUTER_URL?job=GetUserGroup`) at login and on authenticated requests (cached for 60 seconds per user). If FIS group lookup fails, privileged access is unavailable.
-* **IT (`fisadmin_group` or `admin_group`)**: Full access to all panels, pallet management, audit exports, maintenance and the LDAP Directory User Lookup tool (`/directory`).
+* **IT (`fisadmin_group` or `admin_group`)**: Full access to all panels, including pallet management, audit exports, maintenance and LAB.
 * **UR (`FIS_UR_GROUP`, default `Maintenance`)**: Access to the Maintenance Panel to repair damaged pallets, service pallets requiring washing, log service notes, and reset cycle counters.
-* **ME (`FIS_ME_GROUP`, default `proceng`)**: Access to pallet management and maintenance panels, excluding the LDAP directory.
+* **ME (`FIS_ME_GROUP`, default `proceng`)**: Access to pallet management and maintenance panels.
 * **Operator Card Login**: Operators enter or scan an active APACS card number to access the scanner and report defects. LDAP remains available for staff. Card login never grants IT/UR/ME privileges.
 
 Configure `APACS_DB_SERVER`, `APACS_DB_USER` and `APACS_DB_PASSWORD` (Encore secret `APACSDBPassword`) using `.env.example`. The backend needs SQL Server connectivity and read-only `SELECT` on `dbo.TCARDISSUE` and `dbo.TCARDHOLDERS`. TLS encryption is enabled and certificate verification required by default. Missing configuration or an APACS outage disables card login without disabling LDAP. APACS connection/query failures log only the failure stage and an allowed driver code, never card numbers, passwords or raw error messages. Nginx limits card login to 5 requests/minute per IP with a burst of 5; keep the backend behind this ingress.
@@ -157,7 +157,7 @@ flowchart TD
 ```text
 paletki/
 ├── backend/                  # Encore.dev backend service
-│   ├── auth/                 # LDAP authentication & user directory lookup
+│   ├── auth/                 # LDAP and card authentication, sessions and FIS permissions
 │   ├── fis/                  # Soldering machine API endpoints
 │   ├── pallet/               # Pallets, project/model catalogs, status and audit trail
 │   │   ├── migrations/       # PostgreSQL schema & trigger migrations
@@ -173,7 +173,7 @@ paletki/
 │   │   ├── hooks/            # Admin, Operator, Maintenance hooks
 │   │   ├── i18n/             # Localization dictionary (PL & EN)
 │   │   ├── lib/              # API client, audio synthesizer, error extractors
-│   │   └── views/            # Admin, Operator, Maintenance, History, Directory views
+│   │   └── views/            # Admin, Operator, Maintenance, History and other views
 │   └── tests/                # Frontend unit tests
 ├── docker-compose.yml        # Multi-container production deployment definition
 ├── .env.example              # Template configuration for local & production runs
@@ -226,8 +226,6 @@ Key configuration variables:
 | `LDAP_URL`                            | LDAPS server connection string                                   | `ldaps://ldap.example.com:636`                                 |
 | `FIS_UR_GROUP`                        | FIS group for maintenance access                                 | `Maintenance`                                                  |
 | `FIS_ME_GROUP`                        | FIS group for ME access                                          | `proceng`                                                      |
-| `LDAP_LOOKUP_BIND_USER`               | Directory service account for user lookup                        | `svc_lookup@example.com`                                       |
-| `LDAP_LOOKUP_BIND_PASSWORD`           | Password for directory service account                           | `secret`                                                       |
 | `FIS1_ROUTER_URL`                     | URL to FIS 1 router endpoint                                     | `http://fis-router-1.local/router.php`                         |
 | `FIS2_ROUTER_URL`                     | URL to FIS 2 router endpoint                                     | `http://fis-router-2.local/router.php`                         |
 | `FIS_OUTBOX_COMPLETED_RETENTION_DAYS` | Retention period for completed FIS outbox jobs                   | `30`                                                           |

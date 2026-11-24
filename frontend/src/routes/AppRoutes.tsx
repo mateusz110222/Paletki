@@ -34,7 +34,6 @@ const MaintenancePanel = maintenanceBundle.view('MaintenancePanelView');
 const AdminPalletHistoryView = adminBundle.view('PalletHistoryView');
 const PalletHistoryView = maintenanceBundle.view('PalletHistoryView');
 const CatalogView = adminBundle.view('CatalogView');
-const DirectoryView = adminBundle.view('DirectoryView');
 const PublicDashboardView = dashboardsBundle.view('PublicDashboardView');
 const LiveMonitorView = dashboardsBundle.view('LiveMonitorView');
 const DocumentationView = lazy(() => import('../views/DocumentationView.tsx').then(module => ({default: module.DocumentationView})));
@@ -77,7 +76,7 @@ export const AppRoutes: React.FC = () => {
 };
 
 const AuthenticatedRoutes: React.FC = () => {
-    const {apiClient, hasITDepartmentAccess, canManagePallets, isMaintenanceOnly, canAccessMaintenance, canAccessLab, defaultPath} = useAuth();
+    const {apiClient, canManagePallets, isMaintenanceOnly, canAccessMaintenance, canAccessLab, defaultPath} = useAuth();
     const {language, t} = useTranslation();
     const pathname = useLocation().pathname;
     const needsPallets = (pathname === '/admin' && canManagePallets) || (pathname === '/maintenance/service' && canAccessMaintenance);
@@ -148,7 +147,6 @@ const AuthenticatedRoutes: React.FC = () => {
                 <Route path="/" element={<Navigate to={defaultPath} replace/>}/>
                 <Route path="/documentation" element={<DocumentationView/>}/>
 
-                {hasITDepartmentAccess && <Route path="/directory" element={<DirectoryView/>}/>}
 
                 {canManagePallets && (
                     <>
@@ -168,7 +166,10 @@ const AuthenticatedRoutes: React.FC = () => {
 
                 {!isMaintenanceOnly && <Route path="/operator" element={<OperatorPanel/>}/>}
 
-                {canAccessMaintenance && <Route path="/reports" element={<ReportsView/>}/>}
+                {canAccessMaintenance && <>
+                    <Route path="/reports" element={<ReportsView/>}/>
+                    <Route path="/reports/pallets/:palletId/history" element={<PalletHistoryView backPath="/reports"/>}/>
+                </>}
                 {canAccessLab && <>
                     <Route path="/lab" element={<LabView/>}/>
                     <Route path="/lab/table" element={<LabView mode="table"/>}/>
@@ -177,7 +178,8 @@ const AuthenticatedRoutes: React.FC = () => {
                 {canAccessMaintenance && (
                     <>
                         <Route path="/maintenance" element={<MaintenanceHubView/>}/>
-                        <Route path="/maintenance/service" element={<MaintenancePanel pallets={pallets}/>}/>
+                        <Route path="/maintenance/service" element={<MaintenancePanel pallets={pallets}
+                            inventoryState={palletsQuery.data ? 'ready' : palletsQuery.isError ? 'error' : 'loading'}/>}/>
                         <Route path="/maintenance/washing" element={<WashingScannerView/>}/>
                         <Route path="/maintenance/history" element={<PalletHistoryLookupView/>}/>
                         <Route path="/maintenance/pallets/:palletId/history" element={<PalletHistoryView backPath="/maintenance/history"/>}/>

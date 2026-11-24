@@ -19,7 +19,8 @@ import {
     Wrench,
 } from 'lucide-react';
 import type {PalletStatus, PublicDashboardPallet} from '@backend/shared/types';
-import {LanguageSwitcher, useTranslation} from '../i18n/LanguageContext.tsx';
+import {useTranslation} from '../i18n/LanguageContext.tsx';
+import {DisplayPreferences} from '../components/DisplayPreferences';
 import {useDocumentMetadata} from '../hooks/useDocumentMetadata.ts';
 import {usePublicDashboard} from '../hooks/usePublicDashboard.ts';
 import {StationSelectionView} from '../components/StationSelectionView.tsx';
@@ -102,11 +103,11 @@ const KpiCard: React.FC<{
         <div className={`absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent ${tone} to-transparent opacity-80`}/>
         <div className="flex items-start justify-between gap-4">
             <div>
-                <p className="text-[0.625rem] font-bold uppercase tracking-[0.18em] text-slate-400">{label}</p>
-                <p className="mt-3 text-3xl font-black tracking-tight text-white">{value}</p>
-                <p className="mt-1 text-[0.6875rem] font-medium text-slate-400">{detail}</p>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-text-muted">{label}</p>
+                <p className="mt-3 text-3xl font-black tracking-tight text-brand-display">{value}</p>
+                <p className="mt-1 text-xs font-medium text-brand-text-muted">{detail}</p>
             </div>
-            <div className="rounded-xl border border-white/8 bg-white/[0.035] p-2.5 text-slate-300 transition-transform group-hover:-translate-y-0.5">
+            <div className="rounded-xl border border-brand-display/8 bg-brand-display/[0.035] p-2.5 text-slate-300 transition-transform group-hover:-translate-y-0.5">
                 {icon}
             </div>
         </div>
@@ -119,12 +120,12 @@ const PanelHeader: React.FC<{icon: React.ReactNode; title: string; subtitle: str
     subtitle,
     aside,
 }) => (
-    <div className="flex items-start justify-between gap-4 border-b border-white/[0.07] px-5 py-4 sm:px-6">
+    <div className="flex items-start justify-between gap-4 border-b border-brand-display/[0.07] px-5 py-4 sm:px-6">
         <div className="flex min-w-0 items-start gap-3">
             <div className="mt-0.5 rounded-lg border border-indigo-400/20 bg-indigo-400/10 p-2 text-indigo-300">{icon}</div>
             <div className="min-w-0">
-                <h2 className="text-sm font-extrabold tracking-tight text-white">{title}</h2>
-                <p className="mt-1 text-[0.6875rem] text-slate-400">{subtitle}</p>
+                <h2 className="text-sm font-extrabold tracking-tight text-brand-display">{title}</h2>
+                <p className="mt-1 text-xs text-brand-text-muted">{subtitle}</p>
             </div>
         </div>
         {aside}
@@ -137,10 +138,10 @@ const StationMetric: React.FC<{
     icon: React.ReactNode;
     tone: string;
 }> = ({label, value, icon, tone}) => (
-    <div className="rounded-xl border border-white/[0.07] bg-black/15 p-4">
+    <div className="rounded-xl border border-brand-display/[0.07] bg-black/15 p-4">
         <div className={`mb-4 flex size-9 items-center justify-center rounded-lg border ${tone}`}>{icon}</div>
-        <p className="text-3xl font-black tracking-tight text-white">{value}</p>
-        <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-400">{label}</p>
+        <p className="text-3xl font-black tracking-tight text-brand-display">{value}</p>
+        <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-brand-text-muted">{label}</p>
     </div>
 );
 
@@ -235,7 +236,7 @@ export const PublicDashboardView: React.FC = () => {
 
     if (query.isPending) {
         return (
-            <div className="dashboard-public min-h-screen grid place-items-center p-6 text-white">
+            <div className="dashboard-public min-h-screen grid place-items-center p-6 text-brand-display">
                 <div className="text-center">
                     <div className="mx-auto grid size-14 place-items-center rounded-2xl border border-indigo-400/25 bg-indigo-400/10">
                         <RefreshCw className="animate-spin text-indigo-300" size="1.5rem"/>
@@ -248,11 +249,11 @@ export const PublicDashboardView: React.FC = () => {
 
     if (query.isError) {
         return (
-            <div className="dashboard-public min-h-screen grid place-items-center p-6 text-white">
+            <div className="dashboard-public min-h-screen grid place-items-center p-6 text-brand-display">
                 <div className="dashboard-panel max-w-md rounded-2xl p-8 text-center">
                     <AlertTriangle className="mx-auto text-amber-300" size="2.125rem"/>
                     <h1 className="mt-4 text-lg font-black">{labels.errorTitle}</h1>
-                    <p className="mt-2 text-sm text-slate-400">{labels.errorHint}</p>
+                    <p className="mt-2 text-sm text-brand-text-muted">{labels.errorHint}</p>
                     <button onClick={() => query.refetch()} className="mt-6 inline-flex items-center gap-2 rounded-xl bg-indigo-500 px-4 py-2.5 text-xs font-bold text-white hover:bg-indigo-400">
                         <RefreshCw size="0.875rem"/> {labels.retry}
                     </button>
@@ -289,9 +290,9 @@ export const PublicDashboardView: React.FC = () => {
     });
 
     return (
-        <div className="dashboard-screen dashboard-public min-h-screen text-slate-100 selection:bg-indigo-400 selection:text-slate-950">
+        <div className="dashboard-screen dashboard-public min-h-screen text-slate-100 selection:bg-indigo-400 selection:text-brand-on-accent">
             <DisplayModeControl/>
-            <header className="sticky top-0 z-30 border-b border-white/[0.07] bg-brand-bg/90 backdrop-blur-xl">
+            <header className="sticky top-0 z-30 border-b border-brand-display/[0.07] bg-brand-bg/90 backdrop-blur-xl">
                 <div className="mx-auto flex w-full flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-7 lg:px-10">
                     <div className="flex items-center gap-4">
                         <div className="relative grid size-11 place-items-center rounded-xl border border-indigo-400/30 bg-indigo-400/10 text-indigo-300 shadow-[0_0_30px_rgba(99,102,241,0.14)]">
@@ -300,8 +301,8 @@ export const PublicDashboardView: React.FC = () => {
                         </div>
                         <div>
                             <div className="flex items-center gap-2">
-                                <span className="text-sm font-black tracking-[0.16em] text-white">PALLETX</span>
-                                <span className="rounded border border-emerald-400/20 bg-emerald-400/10 px-1.5 py-0.5 text-[0.5rem] font-black tracking-[0.15em] text-emerald-300">LIVE</span>
+                                <span className="text-sm font-black tracking-[0.16em] text-brand-display">PALLETX</span>
+                                <span className="rounded border border-emerald-400/20 bg-emerald-400/10 px-1.5 py-0.5 text-xs font-black tracking-[0.15em] text-emerald-300">LIVE</span>
                             </div>
                             <h1 className="mt-0.5 text-xs font-semibold text-slate-300 sm:text-sm">{labels.title}</h1>
                         </div>
@@ -309,29 +310,29 @@ export const PublicDashboardView: React.FC = () => {
 
                     <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
                         <div className="hidden rounded-lg border border-indigo-400/20 bg-indigo-400/8 px-3 py-2 text-right sm:block">
-                            <p className="text-[0.5625rem] font-bold uppercase tracking-wider text-indigo-300">
+                            <p className="text-xs font-bold uppercase tracking-wider text-indigo-300">
                                 {showAll ? 'ALL' : `${labels.station}: ${selectedStation?.station}`}
                             </p>
-                            <p className="mt-0.5 max-w-48 truncate text-[0.625rem] font-semibold text-white">
+                            <p className="mt-0.5 max-w-48 truncate text-xs font-semibold text-brand-display">
                                 {showAll ? labels.allLines : selectedStation?.project}
                             </p>
                         </div>
-                        <button type="button" onClick={() => setSearchParams({})} className="min-h-10 rounded-lg border border-white/10 bg-white/4 px-3 text-[0.625rem] font-bold text-slate-200 hover:bg-white/8">
+                        <button type="button" onClick={() => setSearchParams({})} className="min-h-10 rounded-lg border border-brand-display/10 bg-brand-display/4 px-3 text-xs font-bold text-slate-200 hover:bg-brand-display/8">
                             {labels.changeStation}
                         </button>
-                        <div className="hidden items-center gap-2 rounded-lg border border-white/[0.07] bg-white/2.5 px-3 py-2 text-[0.625rem] text-slate-400 lg:flex">
+                        <div className="hidden items-center gap-2 rounded-lg border border-brand-display/[0.07] bg-brand-display/2.5 px-3 py-2 text-xs text-brand-text-muted lg:flex">
                             <ShieldCheck size="0.8125rem" className="text-emerald-400"/> {labels.publicMode}
                         </div>
-                        <div className="rounded-lg border border-white/[0.07] bg-white/2.5 px-3 py-2 text-right">
-                            <p className="text-[0.625rem] font-bold text-slate-200">{clock}</p>
-                            <p className="mt-0.5 flex items-center justify-end gap-1 text-[0.5625rem] text-slate-500">
+                        <div className="rounded-lg border border-brand-display/[0.07] bg-brand-display/2.5 px-3 py-2 text-right">
+                            <p className="text-xs font-bold text-slate-200">{clock}</p>
+                            <p className="mt-0.5 flex items-center justify-end gap-1 text-xs text-brand-text-muted">
                                 <span className={`size-1.5 rounded-full ${query.isFetching ? 'animate-pulse bg-amber-300' : 'bg-emerald-400'}`}/>
                                 {query.isFetching ? labels.refreshing : `${labels.updated}: ${lastUpdated}`}
                             </p>
                         </div>
-                        <LanguageSwitcher/>
-                        <Link to="/dashboards" className="inline-flex min-h-10 items-center rounded-lg border border-brand-border px-3 text-[10px] font-bold text-brand-text-muted hover:text-brand-text">{t('dashboard_hub_title')}</Link>
-                        <Link to="/" aria-label={labels.staffPanel} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-white/10 bg-white/4 px-3 text-[0.625rem] font-bold text-slate-200 hover:border-indigo-400/35 hover:bg-indigo-400/10 hover:text-white">
+                        <DisplayPreferences/>
+                        <Link to="/dashboards" className="inline-flex min-h-10 items-center rounded-lg border border-brand-border px-3 text-xs font-bold text-brand-text-muted hover:text-brand-text">{t('dashboard_hub_title')}</Link>
+                        <Link to="/" aria-label={labels.staffPanel} className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-brand-display/10 bg-brand-display/4 px-3 text-xs font-bold text-slate-200 hover:border-indigo-400/35 hover:bg-indigo-400/10 hover:text-brand-display">
                             <LogIn size="0.875rem"/><span className="hidden sm:inline">{labels.staffPanel}</span>
                         </Link>
                     </div>
@@ -348,8 +349,8 @@ export const PublicDashboardView: React.FC = () => {
                                     <div className="flex flex-wrap items-start justify-between gap-4">
                                         <div>
                                             <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-300">{labels.lineProject}</p>
-                                            <h2 className="mt-2 text-4xl font-black tracking-tight text-white sm:text-5xl">{selectedStation.project}</h2>
-                                            <p className="mt-2 text-sm font-semibold text-slate-400">{labels.station}: <span className="text-slate-200">{selectedStation.station}</span></p>
+                                            <h2 className="mt-2 text-4xl font-black tracking-tight text-brand-display sm:text-5xl">{selectedStation.project}</h2>
+                                            <p className="mt-2 text-sm font-semibold text-brand-text-muted">{labels.station}: <span className="text-slate-200">{selectedStation.station}</span></p>
                                         </div>
                                         {stationPallet && <StatusBadge pallet={stationPallet} labels={labels}/>}
                                     </div>
@@ -360,14 +361,14 @@ export const PublicDashboardView: React.FC = () => {
                                         </div>
                                         <div className="mt-4 flex flex-wrap items-end justify-between gap-5">
                                             <div>
-                                                <p className="font-mono text-4xl font-black tracking-tight text-white sm:text-6xl">
+                                                <p className="font-mono text-4xl font-black tracking-tight text-brand-display sm:text-6xl">
                                                     {selectedStation.pallet_id || labels.noScanData}
                                                 </p>
                                                 <p className="mt-2 text-base font-bold text-slate-300 sm:text-lg">{selectedStation.model}</p>
                                             </div>
-                                            <div className="rounded-xl border border-white/[0.08] bg-black/20 px-4 py-3 text-right">
-                                                <p className="text-[0.6875rem] font-bold uppercase tracking-[0.14em] text-slate-500">{labels.lastScannedAt}</p>
-                                                <p className="mt-1 text-base font-black text-white">
+                                            <div className="rounded-xl border border-brand-display/[0.08] bg-black/20 px-4 py-3 text-right">
+                                                <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand-text-muted">{labels.lastScannedAt}</p>
+                                                <p className="mt-1 text-base font-black text-brand-display">
                                                     {formatTimestamp(selectedStation.updated_at, locale, {day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'})}
                                                 </p>
                                             </div>
@@ -378,12 +379,12 @@ export const PublicDashboardView: React.FC = () => {
                                         <div className="mt-6">
                                             <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
                                                 <div>
-                                                    <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">{labels.cycleUsage}</p>
-                                                    <p className="mt-1 font-mono text-lg font-black text-white">{stationPallet.current_cycles} / {stationPallet.max_cycles}</p>
+                                                    <p className="text-xs font-black uppercase tracking-[0.16em] text-brand-text-muted">{labels.cycleUsage}</p>
+                                                    <p className="mt-1 font-mono text-lg font-black text-brand-display">{stationPallet.current_cycles} / {stationPallet.max_cycles}</p>
                                                 </div>
                                                 <p className="text-sm font-bold text-slate-300"><span className="text-emerald-300">{stationCyclesRemaining}</span> {labels.cyclesLeft}</p>
                                             </div>
-                                            <div className="h-3 overflow-hidden rounded-full bg-white/[0.07]">
+                                            <div className="h-3 overflow-hidden rounded-full bg-brand-display/[0.07]">
                                                 <div
                                                     className={`h-full rounded-full transition-[width] duration-700 ${stationProgress >= 95 ? 'bg-rose-400' : stationProgress >= 80 ? 'bg-amber-300' : 'bg-emerald-400'}`}
                                                     style={{width: `${stationProgress}%`}}
@@ -397,7 +398,7 @@ export const PublicDashboardView: React.FC = () => {
                             <div className="dashboard-panel rounded-2xl p-5 sm:p-6">
                                 <div className="flex items-center justify-between gap-4">
                                     <div>
-                                        <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">{labels.lineStatus}</p>
+                                        <p className="text-xs font-black uppercase tracking-[0.18em] text-brand-text-muted">{labels.lineStatus}</p>
                                         <p className="mt-2 text-5xl font-black tracking-tight text-emerald-300">{metrics.availability}%</p>
                                     </div>
                                     <div className="grid size-14 place-items-center rounded-2xl border border-emerald-400/20 bg-emerald-400/10 text-emerald-300">
@@ -420,8 +421,8 @@ export const PublicDashboardView: React.FC = () => {
                                         <CheckCircle2 size="1.4375rem"/>
                                     </div>
                                     <div>
-                                        <h2 className="text-base font-black text-white">{labels.lineClear}</h2>
-                                        <p className="mt-0.5 text-sm text-slate-400">{labels.lineClearHint}</p>
+                                        <h2 className="text-base font-black text-brand-display">{labels.lineClear}</h2>
+                                        <p className="mt-0.5 text-sm text-brand-text-muted">{labels.lineClearHint}</p>
                                     </div>
                                 </div>
                                 <span className="inline-flex items-center gap-2 self-start rounded-lg border border-emerald-400/15 bg-black/15 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-emerald-300 sm:self-auto">
@@ -435,20 +436,20 @@ export const PublicDashboardView: React.FC = () => {
                             <PanelHeader icon={<Package size="1.0625rem"/>} title={labels.linePallets} subtitle={labels.linePalletsHint} aside={
                                 <span className="rounded-lg border border-indigo-300/15 bg-indigo-300/[0.07] px-2.5 py-1 text-xs font-black text-indigo-200">{metrics.total}</span>
                             }/>
-                            <div className={`grid gap-px bg-white/[0.055] ${stationPallets.length > 1 ? 'station-pallet-grid' : 'grid-cols-1'}`}>
+                            <div className={`grid gap-px bg-brand-display/[0.055] ${stationPallets.length > 1 ? 'station-pallet-grid' : 'grid-cols-1'}`}>
                                 {stationPallets.map((pallet) => {
                                     const progress = cycleProgress(pallet);
                                     return (
-                                        <div key={pallet.pallet_id} className={`bg-[#101622] p-5 ${stationPallets.length === 1 ? 'sm:flex sm:items-center sm:gap-8' : ''}`}>
+                                        <div key={pallet.pallet_id} className={`bg-brand-dashboard-row p-5 ${stationPallets.length === 1 ? 'sm:flex sm:items-center sm:gap-8' : ''}`}>
                                             <div className={`flex items-start justify-between gap-4 ${stationPallets.length === 1 ? 'sm:min-w-80' : ''}`}>
                                                 <div className="min-w-0">
-                                                    <p className="truncate font-mono text-xl font-black text-white">{pallet.pallet_id}</p>
-                                                    <p className="mt-1 truncate text-sm font-semibold text-slate-400">{pallet.model}</p>
+                                                    <p className="truncate font-mono text-xl font-black text-brand-display">{pallet.pallet_id}</p>
+                                                    <p className="mt-1 truncate text-sm font-semibold text-brand-text-muted">{pallet.model}</p>
                                                 </div>
                                                 <StatusBadge pallet={pallet} labels={labels}/>
                                             </div>
                                             <div className={`mt-5 flex items-center gap-3 ${stationPallets.length === 1 ? 'sm:mt-0 sm:flex-1' : ''}`}>
-                                                <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/[0.07]">
+                                                <div className="h-2 flex-1 overflow-hidden rounded-full bg-brand-display/[0.07]">
                                                     <div className={`h-full rounded-full ${progress >= 95 ? 'bg-rose-400' : progress >= 80 ? 'bg-amber-300' : 'bg-emerald-400'}`} style={{width: `${progress}%`}}/>
                                                 </div>
                                                 <span className="font-mono text-sm font-black text-slate-200">{pallet.current_cycles}/{pallet.max_cycles}</span>
@@ -474,13 +475,13 @@ export const PublicDashboardView: React.FC = () => {
                 <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(360px,0.85fr)]">
                     <div className="dashboard-panel overflow-hidden rounded-2xl">
                         <PanelHeader icon={<Droplets size="1.0625rem"/>} title={labels.upcomingTitle} subtitle={labels.upcomingSubtitle} aside={
-                            <span className="rounded-lg border border-amber-300/20 bg-amber-300/10 px-2.5 py-1 text-[0.625rem] font-black text-amber-200">{metrics.upcoming.length}</span>
+                            <span className="rounded-lg border border-amber-300/20 bg-amber-300/10 px-2.5 py-1 text-xs font-black text-amber-200">{metrics.upcoming.length}</span>
                         }/>
                         <div className="overflow-x-auto">
                             {metrics.upcoming.length > 0 ? (
                                 <table className="w-full min-w-170 border-collapse text-left">
                                     <thead>
-                                    <tr className="border-b border-white/5.5 text-[0.5625rem] font-bold uppercase tracking-[0.14em] text-slate-500">
+                                    <tr className="border-b border-brand-display/5.5 text-xs font-bold uppercase tracking-[0.14em] text-brand-text-muted">
                                         <th className="px-6 py-3">{labels.pallet}</th>
                                         <th className="px-4 py-3">{labels.project}</th>
                                         <th className="px-4 py-3">{labels.cycles}</th>
@@ -493,21 +494,21 @@ export const PublicDashboardView: React.FC = () => {
                                         const progress = cycleProgress(pallet);
                                         const due = pallet.status === 'Washing_Required';
                                         return (
-                                            <tr key={pallet.pallet_id} className="border-b border-white/4.5 last:border-0 hover:bg-white/2.5">
-                                                <td className="px-6 py-3.5"><span className="font-mono text-xs font-bold text-white">{pallet.pallet_id}</span></td>
+                                            <tr key={pallet.pallet_id} className="border-b border-brand-display/4.5 last:border-0 hover:bg-brand-display/2.5">
+                                                <td className="px-6 py-3.5"><span className="font-mono text-xs font-bold text-brand-display">{pallet.pallet_id}</span></td>
                                                 <td className="px-4 py-3.5">
                                                     <p className="max-w-52 truncate text-xs font-semibold text-slate-200">{pallet.project}</p>
-                                                    <p className="mt-0.5 max-w-52 truncate text-[0.625rem] text-slate-500">{pallet.model}</p>
+                                                    <p className="mt-0.5 max-w-52 truncate text-xs text-brand-text-muted">{pallet.model}</p>
                                                 </td>
                                                 <td className="px-4 py-3.5">
                                                     <div className="flex items-center gap-3">
-                                                        <div className="h-1.5 w-24 overflow-hidden rounded-full bg-white/[0.07]">
+                                                        <div className="h-1.5 w-24 overflow-hidden rounded-full bg-brand-display/[0.07]">
                                                             <div className={`h-full rounded-full ${due ? 'bg-cyan-400' : progress >= 95 ? 'bg-rose-400' : 'bg-amber-300'}`} style={{width: `${progress}%`}}/>
                                                         </div>
-                                                        <span className="w-9 font-mono text-[0.625rem] font-bold text-slate-300">{progress}%</span>
+                                                        <span className="w-9 font-mono text-xs font-bold text-slate-300">{progress}%</span>
                                                     </div>
                                                 </td>
-                                                <td className="px-4 py-3.5 font-mono text-[0.625rem] font-semibold text-slate-300">
+                                                <td className="px-4 py-3.5 font-mono text-xs font-semibold text-slate-300">
                                                     {due ? labels.dueNow : `${Math.max(0, pallet.max_cycles - pallet.current_cycles)} ${labels.cyclesLeft}`}
                                                 </td>
                                                 <td className="px-6 py-3.5 text-right"><StatusBadge pallet={pallet} labels={labels}/></td>
@@ -527,28 +528,28 @@ export const PublicDashboardView: React.FC = () => {
                         <div className="p-5 sm:p-6">
                             <div className="mb-5 flex items-end justify-between gap-4">
                                 <div>
-                                    <p className="text-[0.5625rem] font-bold uppercase tracking-[0.15em] text-slate-500">{labels.average}</p>
-                                    <p className="mt-1 text-2xl font-black text-white">{formatDuration(averageInChart, language)}</p>
+                                    <p className="text-xs font-bold uppercase tracking-[0.15em] text-brand-text-muted">{labels.average}</p>
+                                    <p className="mt-1 text-2xl font-black text-brand-display">{formatDuration(averageInChart, language)}</p>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-[0.5625rem] font-bold uppercase tracking-[0.15em] text-slate-500">{labels.completed}</p>
+                                    <p className="text-xs font-bold uppercase tracking-[0.15em] text-brand-text-muted">{labels.completed}</p>
                                     <p className="mt-1 text-lg font-black text-indigo-300">{completedInChart}</p>
                                 </div>
                             </div>
                             {chart.some((point) => point.completed > 0) ? (
-                                <div className="flex h-44 items-end gap-1.5 border-b border-white/8 pt-4">
+                                <div className="flex h-44 items-end gap-1.5 border-b border-brand-display/8 pt-4">
                                     {chart.map((point, index) => {
                                         const height = point.average_minutes > 0 ? Math.max(8, (point.average_minutes / maxChartValue) * 100) : 2;
                                         return (
                                             <div key={point.day} className="group flex h-full min-w-0 flex-1 flex-col justify-end">
                                                 <div className="relative flex flex-1 items-end justify-center">
-                                                    <div className="absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-lg border border-white/10 bg-slate-950 px-2.5 py-2 text-[0.5625rem] shadow-xl group-hover:block">
-                                                        <p className="font-bold text-white">{formatDuration(point.average_minutes, language)}</p>
-                                                        <p className="mt-0.5 text-slate-400">{point.completed} · {labels.completed.toLowerCase()}</p>
+                                                    <div className="absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-lg border border-brand-display/10 bg-brand-bg px-2.5 py-2 text-xs shadow-xl group-hover:block">
+                                                        <p className="font-bold text-brand-display">{formatDuration(point.average_minutes, language)}</p>
+                                                        <p className="mt-0.5 text-brand-text-muted">{point.completed} · {labels.completed.toLowerCase()}</p>
                                                     </div>
-                                                    <div className={`w-full max-w-4 rounded-t-sm ${point.completed > 0 ? 'bg-linear-to-t from-indigo-600 to-cyan-300' : 'bg-white/5'}`} style={{height: `${height}%`}}/>
+                                                    <div className={`w-full max-w-4 rounded-t-sm ${point.completed > 0 ? 'bg-linear-to-t from-indigo-600 to-cyan-300' : 'bg-brand-display/5'}`} style={{height: `${height}%`}}/>
                                                 </div>
-                                                <span className="mt-2 h-4 truncate text-center text-[0.5rem] font-semibold text-slate-500">
+                                                <span className="mt-2 h-5 truncate text-center text-xs font-semibold text-brand-text-muted">
                                                     {index % 2 === 0 ? formatTimestamp(point.day, locale, {day: '2-digit', month: '2-digit'}) : ''}
                                                 </span>
                                             </div>
@@ -556,7 +557,7 @@ export const PublicDashboardView: React.FC = () => {
                                     })}
                                 </div>
                             ) : (
-                                <div className="grid h-44 place-items-center rounded-xl border border-dashed border-white/10 bg-white/1.5 px-4 text-center text-xs text-slate-500">{labels.noServiceHistory}</div>
+                                <div className="grid h-44 place-items-center rounded-xl border border-dashed border-brand-display/10 bg-brand-display/1.5 px-4 text-center text-xs text-brand-text-muted">{labels.noServiceHistory}</div>
                             )}
                         </div>
                     </div>
@@ -566,15 +567,15 @@ export const PublicDashboardView: React.FC = () => {
                     <div className="dashboard-panel overflow-hidden rounded-2xl">
                         <PanelHeader icon={<Wrench size="1.0625rem"/>} title={labels.queue} subtitle={labels.queueSubtitle}/>
                         {metrics.serviceQueue.length > 0 ? (
-                            <div className="grid gap-px bg-white/5.5 sm:grid-cols-2 xl:grid-cols-3">
+                            <div className="grid gap-px bg-brand-display/5.5 sm:grid-cols-2 xl:grid-cols-3">
                                 {metrics.serviceQueue.slice(0, 9).map((pallet) => (
-                                    <div key={pallet.pallet_id} className="bg-[#101622] p-4 hover:bg-[#131b29]">
+                                    <div key={pallet.pallet_id} className="bg-brand-dashboard-row p-4 hover:bg-brand-dashboard-row-hover">
                                         <div className="flex items-center justify-between gap-3">
-                                            <span className="font-mono text-xs font-black text-white">{pallet.pallet_id}</span>
+                                            <span className="font-mono text-xs font-black text-brand-display">{pallet.pallet_id}</span>
                                             <StatusBadge pallet={pallet} labels={labels}/>
                                         </div>
-                                        <p className="mt-3 truncate text-[0.6875rem] font-semibold text-slate-300">{pallet.project} · {pallet.model}</p>
-                                        <div className="mt-2 flex items-center gap-1.5 text-[0.625rem] text-slate-500">
+                                        <p className="mt-3 truncate text-xs font-semibold text-slate-300">{pallet.project} · {pallet.model}</p>
+                                        <div className="mt-2 flex items-center gap-1.5 text-xs text-brand-text-muted">
                                             <Clock3 size="0.75rem"/>{labels.waiting}: <span className="font-bold text-slate-300">{formatDuration(elapsedMinutes(pallet.status_changed_at, effectiveNow), language) || labels.justNow}</span>
                                         </div>
                                     </div>
@@ -594,9 +595,9 @@ export const PublicDashboardView: React.FC = () => {
                                     <div key={project.name}>
                                         <div className="mb-2 flex items-center justify-between gap-3">
                                             <span className="truncate text-xs font-bold text-slate-200">{project.name}</span>
-                                            <span className="shrink-0 font-mono text-[0.625rem] text-slate-400"><strong className={project.attention ? 'text-amber-200' : 'text-emerald-300'}>{project.attention}</strong> / {project.total}</span>
+                                            <span className="shrink-0 font-mono text-xs text-brand-text-muted"><strong className={project.attention ? 'text-amber-200' : 'text-emerald-300'}>{project.attention}</strong> / {project.total}</span>
                                         </div>
-                                        <div className="h-1.5 overflow-hidden rounded-full bg-white/6">
+                                        <div className="h-1.5 overflow-hidden rounded-full bg-brand-display/6">
                                             <div className={`h-full rounded-full ${ratio >= 40 ? 'bg-rose-400' : ratio > 0 ? 'bg-amber-300' : 'bg-emerald-400'}`} style={{width: `${Math.max(project.attention ? 3 : 0, ratio)}%`}}/>
                                         </div>
                                     </div>
@@ -609,7 +610,7 @@ export const PublicDashboardView: React.FC = () => {
                     </>
                 )}
 
-                <footer className="flex items-center justify-center border-t border-white/5.5 py-3 text-[0.625rem] uppercase tracking-[0.16em] text-slate-600 sm:justify-end">
+                <footer className="flex items-center justify-center border-t border-brand-display/5.5 py-3 text-xs uppercase tracking-[0.16em] text-brand-text-muted sm:justify-end">
                     <span className="flex items-center gap-1.5"><RefreshCw size="0.6875rem"/> AUTO REFRESH · 30s</span>
                 </footer>
             </main>
@@ -620,7 +621,7 @@ export const PublicDashboardView: React.FC = () => {
 const StatusBadge: React.FC<{pallet: PublicDashboardPallet; labels: DashboardStatusLabels}> = ({pallet, labels}) => {
     const style = statusStyle[pallet.status];
     return (
-        <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[0.625rem] font-black uppercase tracking-wide ${style.badge}`}>
+        <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-black uppercase tracking-wide ${style.badge}`}>
             {style.icon}{statusLabel(pallet.status, labels)}
         </span>
     );
@@ -630,7 +631,7 @@ const EmptyState: React.FC<{icon: React.ReactNode; text: string}> = ({icon, text
     <div className="grid min-h-44 place-items-center p-8 text-center">
         <div>
             <div className="mx-auto grid size-11 place-items-center rounded-xl border border-emerald-400/15 bg-emerald-400/[0.07] text-emerald-300">{icon}</div>
-            <p className="mt-3 text-xs font-semibold text-slate-400">{text}</p>
+            <p className="mt-3 text-xs font-semibold text-brand-text-muted">{text}</p>
         </div>
     </div>
 );

@@ -47,6 +47,20 @@ export function localizeAuditDescription(description: string, lang?: SupportedLa
     }
 }
 
+export function getAuditStatusReason(description: string | null, lang?: SupportedLanguage | string | null): string | null {
+    if (!description?.startsWith(PREFIX)) return description?.trim() || null;
+    try {
+        const encoded = JSON.parse(description.slice(PREFIX.length)) as EncodedAuditDescription;
+        if (encoded.key === 'audit_blocked' || encoded.key === 'audit_status_changed') {
+            return encoded.comment?.trim() || null;
+        }
+        if (encoded.key === 'audit_operator_report' || encoded.key === 'audit_operator_report_other') {
+            return localizeAuditDescription(description, lang);
+        }
+    } catch { /* Treat an unreadable audit entry as missing. */ }
+    return null;
+}
+
 export function localizeAuditLog(log: AuditLogRecord, lang?: SupportedLanguage | string | null): AuditLog {
     const operatorId = log.operator_id === "System_AutoBlock"
         ? t("system_auto_block_operator", lang)
@@ -59,10 +73,13 @@ export function localizeAuditLog(log: AuditLogRecord, lang?: SupportedLanguage |
         try {encoded = JSON.parse(log.description.slice(PREFIX.length));} catch { /* Legacy plain text. */ }
     }
     const isUnblock = encoded?.key === 'audit_unblocked' || encoded?.key === 'audit_unblocked_cycle_limit';
+    const statusReason = log.new_status === 'Blocked' || log.new_status === 'Damaged'
+        ? getAuditStatusReason(log.description, lang) : null;
     return {
         ...log,
         event_kind: isUnblock ? 'unblock' : encoded?.key === 'audit_updated' || encoded?.key === 'audit_edited' ? 'update' : log.previous_status !== log.new_status ? 'status' : 'update',
         ...(isUnblock && encoded?.comment ? {comment: encoded.comment} : {}),
+        ...(statusReason ? {status_reason: statusReason} : {}),
         timestamp: log.timestamp.toISOString(),
         operator_id: operatorId,
         description: isUnblock ? t("audit_unblocked", lang) : localizeAuditDescription(log.description, lang),

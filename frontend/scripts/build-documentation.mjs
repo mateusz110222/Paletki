@@ -54,10 +54,10 @@ export function renderOfflineDocumentation(data = {pl: getDocumentation('pl'), e
 * { box-sizing: border-box; } body { margin: 0; background: #090d16; color: #f9fafb; font-family: var(--font-sans); }
 h1,h2,h3,h4,p,ol { margin: 0; } button,input { font: inherit; border: 0; } button { background: transparent; color: inherit; } a { color: inherit; text-decoration: none; } [hidden] { display: none !important; }
 .documentation { padding: 24px; } .offline-toolbar { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border: 1px solid #263348; border-radius: 12px; background: #111827; }
-.offline-toolbar h1 { font-size: 14px; font-weight: 600; white-space: nowrap; } .offline-toolbar .doc-search-wrap { flex: 1; }
-.offline-languages { display: flex; gap: 5px; } .offline-languages button { padding: 10px; border: 1px solid #374151; border-radius: 7px; font-size: 12px; cursor: pointer; } .offline-languages button[aria-pressed="true"] { color: #c7d2fe; background: #6366f125; border-color: #818cf8; }
-.offline-toc summary { padding: 12px; cursor: pointer; font-size: 12px; margin-bottom: 18px; color: #dbe4f3; }
-.offline-result-count,.offline-empty { font-size: 13px; color: #a6b4c8; margin-bottom: 18px; } .offline-pagination { display: flex; justify-content: space-between; gap: 24px; padding: 22px 36px; border-top: 1px solid #263348; font-size: 12px; color: #b8c3ff; }
+.offline-toolbar h1 { font-size: 0.875rem; font-weight: 600; white-space: nowrap; } .offline-toolbar .doc-search-wrap { flex: 1; }
+.offline-languages { display: flex; gap: 5px; } .offline-languages button { padding: 10px; border: 1px solid #374151; border-radius: 7px; font-size: 0.875rem; cursor: pointer; } .offline-languages button[aria-pressed="true"] { color: #c7d2fe; background: #6366f125; border-color: #818cf8; }
+.offline-toc summary { padding: 12px; cursor: pointer; font-size: 0.875rem; margin-bottom: 18px; color: #dbe4f3; }
+.offline-result-count,.offline-empty { font-size: 0.875rem; color: #a6b4c8; margin-bottom: 18px; } .offline-pagination { display: flex; justify-content: space-between; gap: 24px; padding: 22px 36px; border-top: 1px solid #263348; font-size: 0.875rem; color: #b8c3ff; }
 .doc-article + .doc-article { margin-top: 20px; } .doc-article-header h2 { font-size: clamp(23px, 2.3vw, 30px); font-weight: 650; line-height: 1.3; letter-spacing: -.035em; margin-top: 15px; }
 .doc-article-action p { flex-wrap: wrap; } .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 ${css}

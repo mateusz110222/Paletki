@@ -7,6 +7,7 @@ import {useTranslation} from '../i18n/LanguageContext';
 import {getErrorMessage} from '../lib/errors';
 import {invalidateAndBroadcast} from '../lib/queryCache';
 import {SelectField, TextareaField} from './FormFields';
+import {EditIcon} from './RecordActions';
 
 export function OperatorReports({palletId}: {palletId: string}) {
     const {apiClient} = useAuth();
@@ -50,10 +51,10 @@ export function OperatorReports({palletId}: {palletId: string}) {
             <p className="whitespace-pre-wrap break-words text-sm text-brand-text-muted">{report.description}</p>
             <p className="text-xs text-brand-text-muted">{report.operator_id} · {new Date(report.created_at).toLocaleString(language, {timeZone: 'Europe/Warsaw'})}</p>
             {report.edited_at && <p className="text-xs text-brand-text-muted">{t('report_edited')}: {report.edited_by} · {new Date(report.edited_at).toLocaleString(language, {timeZone: 'Europe/Warsaw'})}</p>}
-            <button type="button" disabled={busy || defects.isPending} className="min-h-10 text-xs font-bold text-brand-accent" onClick={() => open(report)}>{t('report_edit')}</button>
+            <button type="button" disabled={busy || defects.isPending} className="inline-flex min-h-10 items-center gap-2 text-xs font-bold text-brand-accent" onClick={() => open(report)}><EditIcon size={16} aria-hidden="true"/>{t('report_edit')}</button>
         </article>)}
         {editing && <div className="space-y-3 rounded-xl border border-brand-accent/40 p-4">
-            {editing.kind !== 'washing' && <SelectField label={t('defect_label')} disabled={busy} value={selected} onChange={e => setSelected(e.target.value)}>
+            {editing.kind !== 'washing' && <SelectField label={t('defect_label')} required disabled={busy} value={selected} onChange={e => setSelected(e.target.value)}>
                 {selected === 'saved' && <option value="saved">{editing.defect_name} ({t('report_deleted_defect')})</option>}
                 {defects.data?.defects.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                 <option value="other">{t('op_other_fault_type')}</option>

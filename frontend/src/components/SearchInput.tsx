@@ -37,7 +37,7 @@ export function SearchInput({searchTerm, onSearchTermChange, searchParams, setSe
                 placeholder={t('btn_search_placeholder')}
                 value={searchTerm}
                 onChange={handleChange}
-                className="bg-transparent border-none focus:outline-none focus:ring-0 text-sm w-full placeholder:text-brand-text-muted/60"
+                className="bg-transparent border-none focus:outline-none focus:ring-0 text-sm w-full placeholder:text-brand-text-muted"
             />
         </div>
     );

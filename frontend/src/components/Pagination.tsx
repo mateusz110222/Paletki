@@ -7,6 +7,8 @@ export interface PaginationProps {
     totalPages: number;
     totalItems?: number;
     pageSize?: number;
+    pageSizes?: readonly number[];
+    onPageSizeChange?: (size: number) => void;
     onPageChange: (page: number) => void;
     className?: string;
 }
@@ -16,13 +18,14 @@ export const Pagination: React.FC<PaginationProps> = ({
     totalPages,
     totalItems,
     pageSize = 25,
+    pageSizes = [25, 50, 100, 200],
+    onPageSizeChange,
     onPageChange,
     className = '',
 }) => {
     const {t} = useTranslation();
 
-    if (totalPages <= 0) return null;
-    if (totalPages <= 1 && (totalItems === undefined || totalItems <= pageSize)) return null;
+    if (!onPageSizeChange && totalPages <= 1) return null;
 
     const fromItem = totalItems !== undefined ? Math.min((currentPage - 1) * pageSize + 1, totalItems) : null;
     const toItem = totalItems !== undefined ? Math.min(currentPage * pageSize, totalItems) : null;
@@ -58,25 +61,22 @@ export const Pagination: React.FC<PaginationProps> = ({
 
     return (
         <nav
-            className={`flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-brand-border bg-brand-surface/40 ${className}`}
+            className={`flex flex-wrap items-center justify-between gap-3 border-t border-brand-border bg-brand-surface px-3 py-2.5 sm:px-5 ${className}`}
             aria-label="Pagination"
         >
-            {totalItems !== undefined && fromItem !== null && toItem !== null ? (
-                <div className="text-xs text-brand-text-muted font-medium">
-                    {t('pagination_showing_range', {
-                        from: fromItem,
-                        to: toItem,
-                        total: totalItems,
-                    })}
-                </div>
-            ) : (
-                <div className="text-xs text-brand-text-muted font-medium">
-                    {t('pagination_page')} {currentPage} {t('pagination_of')} {totalPages}
-                </div>
-            )}
+            <div className="flex items-center gap-3 text-xs font-medium tabular-nums text-brand-text-muted">
+                <span>{totalItems === 0 ? 0 : totalItems !== undefined && fromItem !== null && toItem !== null
+                    ? t('pagination_showing_range', {from: fromItem, to: toItem, total: totalItems})
+                    : `${t('pagination_page')} ${currentPage} ${t('pagination_of')} ${totalPages}`}</span>
+                {onPageSizeChange && <select aria-label={t('rows_per_page')} title={t('rows_per_page')}
+                    value={pageSize} onChange={event => onPageSizeChange(Number(event.target.value))}
+                    className="h-9 w-24 rounded-lg border border-brand-border bg-brand-bg ps-2.5 text-brand-text">
+                    {pageSizes.map(size => <option key={size} value={size}>{size}</option>)}
+                </select>}
+            </div>
 
             {totalPages > 1 && (
-                <div className="flex flex-wrap justify-center items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
                     <button
                         type="button"
                         onClick={() => onPageChange(currentPage - 1)}
@@ -110,7 +110,7 @@ export const Pagination: React.FC<PaginationProps> = ({
                                 aria-label={`${t('pagination_page')} ${p}`}
                                 className={`flex h-8 min-w-8 px-2 items-center justify-center rounded-lg text-xs font-mono font-bold transition-all ${
                                     isActive
-                                        ? 'bg-brand-accent text-brand-bg shadow-sm'
+                                        ? 'bg-brand-accent text-brand-on-accent shadow-sm'
                                         : 'border border-brand-border bg-brand-bg text-brand-text-muted hover:border-brand-accent/40 hover:bg-brand-surface-high hover:text-brand-text'
                                 }`}
                             >

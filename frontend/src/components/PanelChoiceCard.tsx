@@ -10,7 +10,7 @@ export function PanelChoiceCard({to, title, description, eyebrow, icon: Icon, to
             <span className={`flex size-[clamp(2.5rem,6vh,3.5rem)] items-center justify-center rounded-xl border ${tone === 'teal' ? 'border-emerald-400/20 bg-emerald-400/10 text-emerald-300' : 'border-brand-accent/20 bg-brand-accent/10 text-brand-accent'}`}><Icon size={24}/></span>
             <ArrowUpRight size={22} className="text-brand-text-muted transition-transform group-hover:-translate-y-1 group-hover:translate-x-1 group-hover:text-brand-text"/>
         </div>
-        <p className="mt-[clamp(0.75rem,2.5vh,1.75rem)] text-[10px] font-black uppercase tracking-[0.18em] text-brand-text-muted">{eyebrow}</p>
+        <p className="mt-[clamp(0.75rem,2.5vh,1.75rem)] text-xs font-black uppercase tracking-[0.18em] text-brand-text-muted">{eyebrow}</p>
         <h2 className="mt-2 text-2xl font-black tracking-tight text-brand-text">{title}</h2>
         <p className="mt-3 max-w-md text-sm leading-relaxed text-brand-text-muted">{description}</p>
     </Link>;

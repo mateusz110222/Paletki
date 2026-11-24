@@ -8,11 +8,12 @@ import { GlobalErrorModal } from "../components/GlobalErrorModal.tsx";
 import { useEscapeKey } from "../hooks/useEscapeKey.ts";
 import { ModalFormActions } from "../components/ModalFormActions.tsx";
 import { ModalPresence, ModalTransition } from '../components/ModalTransition.tsx';
-import { SelectField } from '../components/FormFields.tsx';
+import { RequiredMark, SelectField, TextareaField } from '../components/FormFields.tsx';
 
 export const OperatorPanelView: React.FC = () => {
     const { data, actions } = useOperatorPanel();
     const { t } = useTranslation();
+    const reportingWashing = data.pendingFault?.status === 'Washing_Required';
 
     const currentCycles = data.activePallet?.current_cycles ?? 0;
     const maxCycles = data.activePallet?.max_cycles || 1;
@@ -52,7 +53,7 @@ export const OperatorPanelView: React.FC = () => {
                     {/* Wskaźnik stanu sieci / łączności */}
                     <div
                         id="operator-network-status"
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[0.6875rem] font-black border transition-all duration-300 ${
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-black border transition-all duration-300 ${
                             data.isOnline
                                 ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
                                 : 'bg-rose-500/15 border-rose-500/50 text-rose-300 animate-pulse'
@@ -82,7 +83,7 @@ export const OperatorPanelView: React.FC = () => {
                             title={t('op_volume_tooltip')}
                         >
                             <Volume1 size={16} className="text-brand-accent" />
-                            <span className="text-[0.6875rem] opacity-75 font-semibold">{t('op_volume_label')}:</span>
+                            <span className="text-xs opacity-75 font-semibold">{t('op_volume_label')}:</span>
                             <span className="font-mono font-black text-brand-text">
                                 {data.volumeLevel === 'low'
                                     ? t('op_volume_low')
@@ -142,7 +143,7 @@ export const OperatorPanelView: React.FC = () => {
                                 )}
                             </span>
                             <span className="flex flex-col text-left">
-                                <span className="text-[0.6875rem] uppercase tracking-wider font-extrabold opacity-75">
+                                <span className="text-xs uppercase tracking-wider font-extrabold opacity-75">
                                     {t('op_scanner_sound')}
                                 </span>
                                 <span className="text-xs font-black flex items-center gap-1.5">
@@ -210,11 +211,13 @@ export const OperatorPanelView: React.FC = () => {
 
                         <form id={"scanner-form"} onSubmit={(e) => actions.handleScanSubmit(e)}
                             className="w-full max-w-md space-y-2.5 xl:space-y-3">
+                            <label htmlFor="pallet-scanner-input" className="block text-left text-xs font-bold text-brand-text-muted">{t('op_scan_input_label')}<RequiredMark/></label>
                             <div className="relative">
                                 <input
                                     id="pallet-scanner-input"
                                     ref={actions.barcodeInputRef}
                                     type="text"
+                                    required
                                     value={data.scannedId || ''}
                                     onChange={handleInputChange}
                                     aria-label={t('op_scan_input_label')}
@@ -258,23 +261,23 @@ export const OperatorPanelView: React.FC = () => {
                     <header className="flex items-start justify-between gap-4">
                         <div className="flex min-w-0 items-start gap-4">
                             <span className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-rose-400/25 bg-rose-400/10 text-rose-300">{data.unavailablePallet.status === 'Blocked' ? <LockKeyhole size={24}/> : <AlertTriangle size={24}/>}</span>
-                            <div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-rose-300">{t(data.unavailablePallet.status === 'Blocked' ? 'op_blocked_title' : 'op_damaged_title')}</p>
+                            <div className="min-w-0"><p className="text-xs font-black uppercase tracking-[0.18em] text-rose-300">{t(data.unavailablePallet.status === 'Blocked' ? 'op_blocked_title' : 'op_damaged_title')}</p>
                                 <h2 id="blocked-pallet-title" className="mt-1 break-all font-mono text-3xl font-black tracking-tight text-brand-text sm:text-4xl">{data.unavailablePallet.pallet_id}</h2>
                                 <p className="mt-2 text-xs text-brand-text-muted">{data.unavailablePallet.project} · {data.unavailablePallet.model} · {data.unavailablePallet.machine}</p></div>
                         </div>
                         <button type="button" aria-label={t('op_scan_next')} onClick={actions.handleClearActivePallet} className="rounded-xl border border-brand-border bg-brand-bg p-2.5 text-brand-text-muted transition-colors hover:text-brand-text"><X size={20}/></button>
                     </header>
                     <div role="alert" className="rounded-xl border border-rose-400/20 bg-rose-400/5 px-5 py-4">
-                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-rose-300">{t(data.unavailablePallet.status === 'Blocked' ? 'block_reason' : 'reason_for_reporting')}</p>
+                        <p className="text-xs font-black uppercase tracking-[0.16em] text-rose-300">{t(data.unavailablePallet.status === 'Blocked' ? 'block_reason' : 'reason_for_reporting')}</p>
                         <p className="mt-2 whitespace-pre-wrap break-words text-base font-semibold leading-relaxed text-brand-text">{data.unavailablePallet.block_reason || t(data.unavailablePallet.status === 'Blocked' ? 'block_reason_missing' : 'op_damage_reason_missing')}</p>
                     </div>
                     <div className="grid items-center gap-5 border-t border-brand-border pt-5 md:grid-cols-2">
                         <p className="max-w-md text-sm leading-relaxed text-brand-text-muted">{t(data.unavailablePallet.status === 'Blocked' ? 'op_blocked_help' : 'op_damaged_help')}</p>
                         <form id="scanner-form" onSubmit={e => actions.handleScanSubmit(e)} className="relative">
-                            <label htmlFor="pallet-scanner-input" className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-brand-text-muted">{t('op_scan_next')}</label>
+                            <label htmlFor="pallet-scanner-input" className="mb-2 block text-xs font-bold uppercase tracking-wider text-brand-text-muted">{t('op_scan_next')}<RequiredMark/></label>
                             <div className="flex items-center gap-2 rounded-xl border border-brand-border bg-brand-bg px-4 focus-within:border-brand-accent">
                                 <Scan size={19} className="shrink-0 text-brand-text-muted"/>
-                                <input id="pallet-scanner-input" ref={actions.barcodeInputRef} value={data.scannedId} onChange={handleInputChange} onFocus={e => e.target.select()} aria-label={t('op_scan_input_label')} autoComplete="off" disabled={data.isScanning} className="min-w-0 flex-1 bg-transparent py-3.5 font-mono text-sm font-bold uppercase tracking-wider text-brand-text outline-none"/>
+                                <input id="pallet-scanner-input" required ref={actions.barcodeInputRef} value={data.scannedId} onChange={handleInputChange} onFocus={e => e.target.select()} aria-label={t('op_scan_input_label')} autoComplete="off" disabled={data.isScanning} className="min-w-0 flex-1 bg-transparent py-3.5 font-mono text-sm font-bold uppercase tracking-wider text-brand-text outline-none"/>
                                 <button type="submit" disabled={data.isScanning} aria-label={t('btn_scan')} className="rounded-lg p-2 text-brand-accent hover:bg-brand-accent/10"><ArrowRight size={18}/></button>
                             </div>
                         </form>
@@ -294,7 +297,7 @@ export const OperatorPanelView: React.FC = () => {
                                 className="flex flex-wrap justify-between items-start gap-3 pb-4 xl:pb-6 border-b border-brand-border/60">
                                 <div>
                                     <span
-                                        className="text-[0.6875rem] font-black text-brand-accent uppercase tracking-[0.2em] mb-1 block">
+                                        className="text-xs font-black text-brand-accent uppercase tracking-[0.2em] mb-1 block">
                                         {t('op_technical_data')}
                                     </span>
                                     <h3 className="text-3xl xl:text-5xl font-black text-brand-text tracking-tight uppercase font-mono">
@@ -306,12 +309,12 @@ export const OperatorPanelView: React.FC = () => {
                                         block_reason={data.activePallet.block_reason} />
                                     <button
                                         onClick={actions.handleClearActivePallet}
-                                        className="p-2.5 bg-brand-bg border border-brand-border rounded-xl text-brand-text-muted hover:text-white hover:border-red-500/50 hover:bg-red-500/10 transition-all active:scale-95 flex items-center gap-1.5"
+                                        className="p-2.5 bg-brand-bg border border-brand-border rounded-xl text-brand-text-muted hover:text-brand-display hover:border-red-500/50 hover:bg-red-500/10 transition-all active:scale-95 flex items-center gap-1.5"
                                         title={`${t('btn_cancel')} [ESC]`}
                                         aria-label={`${t('btn_cancel')} [ESC]`}
                                     >
                                         <X size={20} />
-                                        <span className="hidden sm:inline text-[0.625rem] font-mono font-bold bg-brand-surface-high border border-brand-border px-1.5 py-0.5 rounded text-brand-text-muted">ESC</span>
+                                        <span className="hidden sm:inline text-xs font-mono font-bold bg-brand-surface-high border border-brand-border px-1.5 py-0.5 rounded text-brand-text-muted">ESC</span>
                                     </button>
                                 </div>
                             </div>
@@ -325,7 +328,7 @@ export const OperatorPanelView: React.FC = () => {
                                         <Layers size={18} />
                                     </div>
                                     <div className="min-w-0">
-                                        <p className="text-[0.625rem] font-extrabold text-brand-text-muted uppercase tracking-wider">{t('col_project')}</p>
+                                        <p className="text-xs font-extrabold text-brand-text-muted uppercase tracking-wider">{t('col_project')}</p>
                                         <p className="text-base xl:text-lg font-black text-brand-text truncate">{data.activePallet.project || '-'}</p>
                                     </div>
                                 </div>
@@ -337,7 +340,7 @@ export const OperatorPanelView: React.FC = () => {
                                         <Box size={18} />
                                     </div>
                                     <div className="min-w-0">
-                                        <p className="text-[0.625rem] font-extrabold text-brand-text-muted uppercase tracking-wider">{t('op_project_model')}</p>
+                                        <p className="text-xs font-extrabold text-brand-text-muted uppercase tracking-wider">{t('op_project_model')}</p>
                                         <p className="text-base xl:text-lg font-black text-brand-text truncate">{data.activePallet.model || '-'} · {data.activePallet.machine}</p>
                                     </div>
                                 </div>
@@ -380,7 +383,7 @@ export const OperatorPanelView: React.FC = () => {
                                     <AlertTriangle size={18} className="text-red-400 animate-pulse" />
                                     {t('op_report_fault')}
                                 </h4>
-                                <span className="text-[0.625rem] font-mono font-bold text-brand-text-muted bg-brand-surface-high border border-brand-border px-2 py-0.5 rounded">
+                                <span className="text-xs font-mono font-bold text-brand-text-muted bg-brand-surface-high border border-brand-border px-2 py-0.5 rounded">
                                     {t('op_hotkeys_hint')}
                                 </span>
                             </div>
@@ -391,7 +394,7 @@ export const OperatorPanelView: React.FC = () => {
                                     {name: t('op_washing_required'), key: '2', icon: WashingMachine, status: 'Washing_Required' as const, defect: undefined},
                                 ].map(({name, key, icon: Icon, status, defect}) => <button key={key} type="button" disabled={data.isSubmitting} onClick={() => actions.openFaultModal(name, status, defect)} className="group flex w-full items-center justify-between gap-3 rounded-xl border border-brand-border/80 bg-brand-bg/70 p-3 xl:p-4 text-left transition-colors hover:border-red-400/40 hover:bg-red-400/5 disabled:opacity-50">
                                     <span className="flex min-w-0 items-center gap-3"><span className="rounded-lg border border-brand-border/60 bg-brand-surface p-2 text-brand-text-muted group-hover:text-red-300"><Icon size={18}/></span><span className="text-xs font-bold text-brand-text">{name}</span></span>
-                                    <span className="flex shrink-0 items-center gap-2"><kbd className="rounded border border-brand-border bg-brand-surface px-1.5 py-0.5 font-mono text-[10px] font-bold text-brand-text-muted">[{key}]</kbd><ChevronRight size={16} className="text-brand-text-muted"/></span>
+                                    <span className="flex shrink-0 items-center gap-2"><kbd className="rounded border border-brand-border bg-brand-surface px-1.5 py-0.5 font-mono text-xs font-bold text-brand-text-muted">[{key}]</kbd><ChevronRight size={16} className="text-brand-text-muted"/></span>
                                 </button>)}
                             </div>
                         </div>
@@ -405,7 +408,7 @@ export const OperatorPanelView: React.FC = () => {
                 {data.isOtherFaultOpen && !data.isFaultConfirmOpen && (
                     <ModalTransition
                         onBackdropClick={() => actions.closeFaultModal()}
-                        className="items-start pt-6 sm:pt-10"
+                        className={reportingWashing ? undefined : 'items-start pt-6 sm:pt-10'}
                         backdropClassName="bg-black/80 backdrop-blur-sm"
                     >
                         <div
@@ -416,14 +419,14 @@ export const OperatorPanelView: React.FC = () => {
                             <div
                                 className="shrink-0 px-5 py-4 border-b border-brand-border/80 flex justify-between items-center bg-brand-bg/40">
                                 <h3 id="operator-fault-title" className="font-black text-brand-text uppercase tracking-tight text-sm flex items-center gap-2">
-                                    <AlertTriangle size={18} className="text-red-400" />
-                                    {t(data.pendingFault?.status === 'Washing_Required' ? 'op_washing_required' : 'op_describe_fault')}
+                                    {reportingWashing ? <WashingMachine size={18} className="text-amber-400"/> : <AlertTriangle size={18} className="text-red-400"/>}
+                                    {t(reportingWashing ? 'op_washing_required' : 'op_describe_fault')}
                                 </h3>
                                 <button onClick={() => actions.closeFaultModal()}
                                     disabled={data.isSubmitting}
                                     title={t('btn_close')}
                                     aria-label={t('btn_close')}
-                                    className="text-brand-text-muted hover:text-white transition-colors">
+                                    className="text-brand-text-muted hover:text-brand-display transition-colors">
                                     <X size={20} />
                                 </button>
                             </div>
@@ -436,6 +439,7 @@ export const OperatorPanelView: React.FC = () => {
                                         <SelectField
                                             id="operator-defect-select"
                                             label={t('defect_label')}
+                                            required
                                             value={data.selectedDefect}
                                             disabled={data.isSubmitting}
                                             onChange={event => actions.setSelectedDefect(event.target.value)}
@@ -450,9 +454,9 @@ export const OperatorPanelView: React.FC = () => {
                                 ) : (
                                     <p className="text-sm leading-relaxed text-brand-text-muted">{t('op_washing_confirm_hint')}</p>
                                 )}
-                                {data.selectedDefect === 'other' && <textarea
+                                {data.selectedDefect === 'other' && <TextareaField
                                     autoFocus
-                                    aria-label={t('op_describe_fault')}
+                                    label={t('op_describe_fault')}
                                     required
                                     maxLength={2000}
                                     disabled={data.isSubmitting}
@@ -465,11 +469,11 @@ export const OperatorPanelView: React.FC = () => {
                                     onCancel={() => actions.closeFaultModal()}
                                     submitType="button"
                                     onSubmit={actions.requestFaultConfirmation}
-                                    submitLabel={t(data.pendingFault?.status === 'Washing_Required' ? 'op_report_washing' : 'op_report_damage')}
+                                    submitLabel={t(reportingWashing ? 'op_report_washing' : 'op_report_damage')}
                                     submittingLabel={t('saving')}
                                     isSubmitting={data.isSubmitting}
                                     submitDisabled={(data.pendingFault?.status === 'Damaged' && !data.selectedDefect) || (data.selectedDefect === 'other' && !data.customFaultText.trim())}
-                                    variant="danger"
+                                    variant={reportingWashing ? 'warning' : 'danger'}
                                 />
                             </div>
                         </div>
@@ -489,11 +493,11 @@ export const OperatorPanelView: React.FC = () => {
                             aria-modal="true"
                             aria-labelledby="operator-fault-confirm-title"
                             aria-describedby="operator-fault-confirm-desc"
-                            className="relative flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border-2 border-red-500/40 bg-brand-surface shadow-2xl z-10"
+                            className={`relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border-2 bg-brand-surface shadow-2xl ${reportingWashing ? 'border-amber-500/40' : 'border-red-500/40'}`}
                         >
-                            <div className="shrink-0 px-5 py-4 border-b border-brand-border/80 flex justify-between items-center bg-red-500/10">
+                            <div className={`flex shrink-0 items-center justify-between border-b border-brand-border/80 px-5 py-4 ${reportingWashing ? 'bg-amber-500/10' : 'bg-red-500/10'}`}>
                                 <h3 id="operator-fault-confirm-title" className="font-black text-brand-text uppercase tracking-tight text-sm flex items-center gap-2">
-                                    <AlertTriangle size={18} className="text-red-400 shrink-0" />
+                                    {reportingWashing ? <WashingMachine size={18} className="shrink-0 text-amber-400"/> : <AlertTriangle size={18} className="shrink-0 text-red-400"/>}
                                     {t('op_confirm_fault_title')}
                                 </h3>
                                 <button
@@ -502,7 +506,7 @@ export const OperatorPanelView: React.FC = () => {
                                     disabled={data.isSubmitting}
                                     title={t('btn_close')}
                                     aria-label={t('btn_close')}
-                                    className="text-brand-text-muted hover:text-white transition-colors"
+                                    className="text-brand-text-muted hover:text-brand-display transition-colors"
                                 >
                                     <X size={20} />
                                 </button>
@@ -518,35 +522,36 @@ export const OperatorPanelView: React.FC = () => {
                                     {data.activePallet && (
                                         <div className="flex items-center justify-between gap-3 pb-3 border-b border-brand-border/60">
                                             <div>
-                                                <span className="text-[10px] font-extrabold uppercase tracking-wider text-brand-text-muted block">
+                                                <span className="text-xs font-extrabold uppercase tracking-wider text-brand-text-muted block">
                                                     {t('pallet_id_label')}
                                                 </span>
                                                 <span className="font-mono text-xl font-black text-brand-text">
                                                     {data.activePallet.pallet_id}
                                                 </span>
-                                                <span className="block text-[11px] text-brand-text-muted">
+                                                <span className="block text-xs text-brand-text-muted">
                                                     {data.activePallet.project} · {data.activePallet.model} · {data.activePallet.machine}
                                                 </span>
                                             </div>
                                             <div className="text-right">
-                                                <span className="text-[10px] font-extrabold uppercase tracking-wider text-brand-text-muted block mb-1">
+                                                <span className="text-xs font-extrabold uppercase tracking-wider text-brand-text-muted block mb-1">
                                                     {t('op_confirm_target_status')}
                                                 </span>
-                                                <PalletStatusSpan emphasis status={data.pendingFault.status} />
+                                                <PalletStatusSpan emphasis status={data.pendingFault.status}
+                                                    block_reason={[data.selectedDefectLabel, data.customFaultText.trim()].filter(Boolean).join(' — ')}/>
                                             </div>
                                         </div>
                                     )}
 
                                     <div>
-                                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-red-300 block mb-1">
+                                        <span className="text-xs font-extrabold uppercase tracking-wider text-red-300 block mb-1">
                                             {t('op_confirm_selected_fault')}
                                         </span>
                                         <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3.5 py-2.5">
-                                            <p className="text-base font-black text-white break-words">
+                                            <p className="text-base font-black text-brand-display break-words">
                                                 {data.selectedDefectLabel}
                                             </p>
                                             {data.customFaultText.trim() && (
-                                                <p className="mt-1 text-xs font-medium text-red-200/90 whitespace-pre-wrap break-words">
+                                                <p className="mt-1 text-xs font-medium text-red-200 whitespace-pre-wrap break-words">
                                                     {data.customFaultText.trim()}
                                                 </p>
                                             )}
@@ -554,7 +559,7 @@ export const OperatorPanelView: React.FC = () => {
                                     </div>
                                 </div>
 
-                                <ModalFormActions submitFirst submitType="button" variant="danger"
+                                <ModalFormActions submitFirst submitType="button" variant={reportingWashing ? 'warning' : 'danger'}
                                     onSubmit={actions.handleReportFault} submitLabel={t('op_confirm_fault_submit')}
                                     submitIcon={<CheckCircle2 size={17}/>} isSubmitting={data.isSubmitting}
                                     onCancel={actions.cancelFaultConfirmation}

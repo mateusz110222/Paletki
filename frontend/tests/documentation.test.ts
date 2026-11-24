@@ -43,14 +43,14 @@ test('both languages have complete matching chapters, unique identifiers and val
 
 test('documentation panel links follow operator, UR, ME and IT view permissions', () => {
     const roles = [
-        {it: false, ur: false, me: false, expected: [true, false, false, true, false]},
-        {it: false, ur: true, me: false, expected: [true, false, true, false, false]},
-        {it: false, ur: false, me: true, expected: [true, true, true, true, false]},
-        {it: true, ur: true, me: false, expected: [true, true, true, true, true]},
+        {it: false, ur: false, me: false, expected: [true, false, false, true]},
+        {it: false, ur: true, me: false, expected: [true, false, true, false]},
+        {it: false, ur: false, me: true, expected: [true, true, true, true]},
+        {it: true, ur: true, me: false, expected: [true, true, true, true]},
     ];
     for (const role of roles) {
         const access = getViewAccess({has_it_department_access: role.it, has_ur_department_access: role.ur, has_me_department_access: role.me});
-        assert.deepEqual((['all', 'manage', 'maintenance', 'operator', 'it'] as const).map(rule => canOpenDocumentationLink(rule, access)), role.expected);
+        assert.deepEqual((['all', 'manage', 'maintenance', 'operator'] as const).map(rule => canOpenDocumentationLink(rule, access)), role.expected);
     }
 });
 

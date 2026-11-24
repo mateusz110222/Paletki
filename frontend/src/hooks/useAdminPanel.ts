@@ -557,7 +557,6 @@ export const useAdminPanel = ({
             blockError,
             filteredPallets,
             sort,
-            totalPallets,
             availableStock,
             blockedOrMaint,
             errorModalState,

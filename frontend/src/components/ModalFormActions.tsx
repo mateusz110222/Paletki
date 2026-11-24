@@ -11,7 +11,7 @@ interface ModalFormActionsProps {
     submittingLabel?: string;
     isSubmitting?: boolean;
     submitDisabled?: boolean;
-    variant?: 'primary' | 'danger';
+    variant?: 'primary' | 'danger' | 'warning';
     submitType?: 'submit' | 'button';
     onSubmit?: () => void;
     submitIcon?: ReactNode;
@@ -39,9 +39,11 @@ export function ModalFormActions({
 }: ModalFormActionsProps) {
     const {t} = useTranslation();
     const hasAdditionalAction = Boolean(additionalActionLabel && onAdditionalAction);
-    const submitColors = variant === 'danger'
-        ? 'bg-red-600 text-white hover:bg-red-500 hover:shadow-[0_12px_28px_rgba(220,38,38,0.35)]'
-        : 'bg-brand-accent text-brand-bg hover:brightness-110 hover:shadow-[0_12px_28px_rgba(59,130,246,0.35)]';
+    const submitColors = {
+        danger: 'bg-red-600 text-white hover:bg-red-500 hover:shadow-[0_12px_28px_rgba(220,38,38,0.35)]',
+        primary: 'bg-brand-accent text-brand-on-accent hover:brightness-110 hover:shadow-[0_12px_28px_rgba(59,130,246,0.35)]',
+        warning: 'bg-yellow-300 text-yellow-950 hover:bg-yellow-200',
+    }[variant];
 
     const cancelButton = (
         <button
@@ -77,7 +79,7 @@ export function ModalFormActions({
                 onClick={onSubmit}
                 disabled={isSubmitting || submitDisabled}
                 className={`flex-1 min-h-12 ${hasAdditionalAction
-                    ? 'px-3 text-[10px] leading-tight tracking-[0.12em]'
+                    ? 'px-3 text-xs leading-tight tracking-[0.12em]'
                     : 'px-4 text-xs tracking-widest'
                 } font-black uppercase rounded-xl flex items-center justify-center gap-2 transition-all duration-200 shadow-[0_8px_18px_rgba(59,130,246,0.15)] hover:-translate-y-1 hover:scale-[1.02] active:translate-y-0 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none motion-reduce:transform-none motion-reduce:transition-none ${submitColors}`}
             >

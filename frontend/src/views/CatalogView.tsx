@@ -1,5 +1,6 @@
+import {DeleteIcon, EditIcon, deleteActionClass} from '../components/RecordActions';
 import {Link} from 'react-router';
-import {FolderTree, ExternalLink, Folder, Layers3, Search, ArrowRight, Info, CheckCircle2, Pencil, Trash2, PlusCircle, X} from 'lucide-react';
+import {FolderTree, ExternalLink, Folder, Layers3, Search, ArrowRight, Info, CheckCircle2, PlusCircle, RefreshCw, X} from 'lucide-react';
 import {InputField, SelectField} from '../components/FormFields';
 
 import {ModalPresence, ModalTransition} from '../components/ModalTransition';
@@ -21,13 +22,13 @@ export function CatalogView() {
                 <div className="flex items-start gap-4">
                     <div className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-brand-accent/25 bg-brand-accent/10 text-indigo-300"><FolderTree size={23}/></div>
                     <div>
-                        <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-brand-text-muted/70">{t('catalog_eyebrow')}</p>
+                        <p className="mb-1 text-xs font-semibold text-brand-text-muted">{t('catalog_eyebrow')}</p>
                         <h3 className="text-lg font-extrabold tracking-tight">{t('catalog_heading')}</h3>
-                        <p className="mt-1 text-xs leading-relaxed text-brand-text-muted/80">{t('catalog_intro')}</p>
+                        <p className="mt-1 text-sm leading-relaxed text-brand-text-muted">{t('catalog_intro')}</p>
                     </div>
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row xl:shrink-0">
-                    <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand-accent px-4 text-xs font-bold text-white transition hover:brightness-110" onClick={() => add('project')}><PlusCircle size={16}/>{t('btn_add_project')}</button>
+                    <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand-accent px-4 text-xs font-bold text-brand-on-accent transition hover:brightness-110" onClick={() => add('project')}><PlusCircle size={16}/>{t('btn_add_project')}</button>
                     <button className={buttonClass + ' min-h-11 px-4'} onClick={() => add('model')} disabled={projects.isPending || projects.isError || !projects.data?.projects.length}><PlusCircle size={16}/>{t('btn_add_model')}</button>
                 </div>
             </div>
@@ -35,19 +36,19 @@ export function CatalogView() {
                 <div className="inline-flex self-start rounded-lg border border-brand-border/70 bg-brand-bg/60 p-1" role="group" aria-label={t('nav_catalog')}>
                     {(['project', 'model'] as const).map(kind => <button key={kind} type="button" aria-pressed={tab === kind}
                         aria-label={t(kind === 'project' ? 'catalog_projects' : 'catalog_models')}
-                        className={'inline-flex min-h-10 items-center gap-2 rounded-md px-3 sm:px-4 text-xs font-bold transition-colors ' + (tab === kind ? ' bg-brand-surface-high text-white shadow-sm' : ' text-brand-text-muted/70 hover:text-white')}
+                        className={'inline-flex min-h-10 items-center gap-2 rounded-md px-3 sm:px-4 text-sm font-bold transition-colors ' + (tab === kind ? ' bg-brand-surface-high text-brand-display shadow-sm' : ' text-brand-text-muted hover:text-brand-display')}
                         onClick={() => changeTab(kind)} disabled={busy}>
                         {kind === 'project' ? <Folder size={15}/> : <Layers3 size={15}/>}
                         {t(kind === 'project' ? 'catalog_projects' : 'catalog_models')}
-                        <span className={'ml-1 rounded px-1.5 py-0.5 text-[10px] font-mono ' + (tab === kind ? ' bg-brand-accent/20 text-indigo-200' : ' bg-brand-surface text-brand-text-muted')}>
+                        <span className={'ml-1 rounded px-1.5 py-0.5 text-xs font-mono ' + (tab === kind ? ' bg-brand-accent/20 text-indigo-200' : ' bg-brand-surface text-brand-text-muted')}>
                             {(kind === 'project' ? projects.data?.projects.length : models.data?.models.length) ?? '—'}
                         </span>
                     </button>)}
                 </div>
                 <div className="flex h-11 items-center gap-2 rounded-lg border border-brand-border/70 bg-brand-bg/60 px-3 transition focus-within:border-brand-accent lg:w-80">
-                    <Search size={16} className="shrink-0 text-brand-text-muted/60"/>
+                    <Search size={16} className="shrink-0 text-brand-text-muted"/>
                     <input aria-label={t('catalog_search')} placeholder={t('catalog_search')} value={search} onChange={event => setSearch(event.target.value)} type="search"
-                        className="min-w-0 w-full bg-transparent text-xs outline-none placeholder:text-brand-text-muted/50"/>
+                        className="min-w-0 w-full bg-transparent text-sm outline-none placeholder:text-brand-text-muted"/>
                 </div>
             </div>
         </section>
@@ -63,7 +64,7 @@ export function CatalogView() {
                     onKeyDown={handleDialogKeyDown}>
                     <div className="bg-brand-surface-high p-5 border-b border-brand-border flex justify-between items-center">
                         <h3 id="catalog-modal-title" className="text-base font-bold uppercase tracking-wider flex items-center gap-2">
-                            {selected.remove ? <Trash2 size={18} className="text-red-400"/> : selected.create ? <PlusCircle size={18} className="text-brand-accent"/> : <Pencil size={18} className="text-brand-accent"/>}
+                            {selected.remove ? <DeleteIcon size={18} aria-hidden="true" className="text-red-400"/> : selected.create ? <PlusCircle size={18} className="text-brand-accent"/> : <EditIcon size={18} aria-hidden="true" className="text-brand-accent"/>}
                             {modalTitle}
                         </h3>
                         <button type="button" disabled={busy} aria-label={t('btn_cancel')} onClick={close} className="text-brand-text-muted hover:text-red-400"><X size={18}/></button>
@@ -81,7 +82,7 @@ export function CatalogView() {
                                 <option value="">{t('placeholder_select_project')}</option>
                                 {(projects.data?.projects ?? []).map(project => <option key={project.id} value={project.id}>{project.name}</option>)}
                             </SelectField>
-                            {modelProjectId !== selected.entry.projectId && <p className="text-xs text-brand-text-muted">{t('catalog_move_hint')}</p>}
+                            {modelProjectId !== selected.entry.projectId && <p className="text-sm text-brand-text-muted">{t('catalog_move_hint')}</p>}
                         </>}
                         {selected.remove ? <p>{t('catalog_confirm')}</p> : <InputField
                             label={t(selected.entry.kind === 'project' ? 'label_project_name' : 'label_model_name')}
@@ -96,10 +97,14 @@ export function CatalogView() {
         </ModalPresence>
         {projects.isPending || models.isPending ? <p role="status">{t('catalog_loading')}</p>
             : projects.isError || models.isError ? <div role="alert" className="space-y-3 text-red-400">
-                <p>{t('fetch_error_banner')}</p><button className={buttonClass} onClick={refresh}>{t('btn_refresh_pallets')}</button>
+                <p>{t('fetch_error_banner')}</p>
+                <button type="button" className="inline-flex size-9 items-center justify-center rounded-lg border border-brand-border text-brand-text hover:bg-brand-surface-high"
+                    title={t('btn_refresh_pallets')} aria-label={t('btn_refresh_pallets')} onClick={refresh}>
+                    <RefreshCw size={16} aria-hidden="true"/>
+                </button>
             </div> : <section className="@container overflow-hidden rounded-2xl border border-brand-border/70 bg-brand-surface">
                 <table className="w-full text-sm text-left">
-                    <thead className="border-b border-brand-border/60 bg-brand-bg/30 text-[10px] uppercase tracking-widest text-brand-text-muted/70"><tr>
+                    <thead className="border-b border-brand-border/60 bg-brand-bg/30 text-sm text-brand-text-muted"><tr>
                         <th scope="col" className="px-5 py-4 sm:px-6">{t(tab === 'project' ? 'col_project' : 'col_model')}</th>
                         <th scope="col" className="hidden px-5 py-4 sm:table-cell">{t(tab === 'project' ? 'catalog_linked_models' : 'col_project')}</th>
                         <th scope="col" className="px-3 py-4 text-right sm:px-6">{t('col_actions')}</th>
@@ -113,25 +118,25 @@ export function CatalogView() {
                                         {entry.kind === 'project' ? <Folder size={18}/> : <Layers3 size={18}/>}
                                     </div>
                                     <div className="min-w-0">
-                                        <span className="font-bold wrap-anywhere">{entry.name}</span>
-                                        <p className="mt-1 text-[11px] wrap-anywhere text-brand-text-muted/60">{entry.kind === 'project' ? t('catalog_project_record') : entry.project}</p>
+                                        <span className="text-base font-bold wrap-anywhere">{entry.name}</span>
+                                        <p className="mt-1 text-sm leading-snug wrap-anywhere text-brand-text-muted">{entry.kind === 'project' ? t('catalog_project_record') : entry.project}</p>
                                     </div>
                                 </div>
                             </td>
                             <td className="hidden px-5 py-5 sm:table-cell">
                                 {entry.kind === 'project' ? <button type="button" onClick={() => showProjectModels(entry.id)}
-                                    className="group/models inline-flex items-center gap-3 rounded-lg py-1 text-xs text-brand-text-muted hover:text-indigo-200"
+                                    className="group/models inline-flex items-center gap-3 rounded-lg py-1 text-sm text-brand-text-muted hover:text-indigo-200"
                                     aria-label={t('catalog_view_models') + ': ' + entry.name}>
                                     <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-brand-border/60 bg-brand-bg/40 font-mono text-indigo-200">{children.length}</span>
                                     <span className="flex max-w-lg flex-wrap gap-1.5 text-left">
                                         {children.length ? children.map(model => (
-                                            <span key={model.id} className="max-w-full rounded-md border border-brand-border/70 bg-brand-bg/50 px-2.5 py-1.5 text-xs leading-relaxed text-brand-text wrap-anywhere">
+                                            <span key={model.id} className="max-w-full rounded-md border border-brand-border/70 bg-brand-bg/50 px-2.5 py-1.5 text-sm leading-relaxed text-brand-text wrap-anywhere">
                                                 {model.name}
                                             </span>
                                         )) : t('catalog_no_models')}
                                     </span>
-                                    <ArrowRight size={14} className="shrink-0 text-brand-text-muted/50 transition-transform group-hover/models:translate-x-1"/>
-                                </button> : <span className="inline-flex items-center gap-2 rounded-md border border-brand-border/60 bg-brand-bg/30 px-2.5 py-1.5 text-xs wrap-anywhere text-brand-text-muted"><Folder size={13} className="shrink-0"/>{entry.project}</span>}
+                                    <ArrowRight size={14} className="shrink-0 text-brand-text-muted transition-transform group-hover/models:translate-x-1"/>
+                                </button> : <span className="inline-flex items-center gap-2 rounded-md border border-brand-border/60 bg-brand-bg/30 px-2.5 py-1.5 text-sm wrap-anywhere text-brand-text-muted"><Folder size={13} className="shrink-0"/>{entry.project}</span>}
                             </td>
                             <td className="w-px px-3 py-3 sm:px-6"><div className="flex justify-end gap-1 whitespace-nowrap @min-[52rem]:gap-2">
                                 <Link to={getAdminUrl(entry)} className={buttonClass + ' min-h-10 text-indigo-200'}
@@ -139,16 +144,16 @@ export function CatalogView() {
                                     title={t('catalog_view_pallets')}>
                                     <ExternalLink size={14}/><span className="hidden @min-[52rem]:inline">{t('catalog_view_pallets')}</span>
                                 </Link>
-                                <button className={buttonClass + ' min-h-10'} disabled={busy} onClick={() => select(entry, false)} aria-label={t('catalog_edit') + ': ' + (entry.project ?? '') + ' ' + entry.name} title={t('catalog_edit')}><Pencil size={14}/><span className="hidden @min-[52rem]:inline">{t('catalog_edit')}</span></button>
-                                <button className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-brand-text-muted/60 transition-colors hover:bg-red-500/10 hover:text-red-400 disabled:opacity-40" disabled={busy} onClick={() => select(entry, true)} aria-label={t('catalog_delete') + ': ' + (entry.project ?? '') + ' ' + entry.name} title={t('catalog_delete')}><Trash2 size={15}/></button>
+                                <button className={buttonClass + ' size-10 px-0'} disabled={busy} onClick={() => select(entry, false)} aria-label={t('catalog_edit') + ': ' + (entry.project ?? '') + ' ' + entry.name} title={t('catalog_edit')}><EditIcon size={16} aria-hidden="true"/></button>
+                                <button className={deleteActionClass + ' size-10'} disabled={busy} onClick={() => select(entry, true)} aria-label={t('catalog_delete') + ': ' + (entry.project ?? '') + ' ' + entry.name} title={t('catalog_delete')}><DeleteIcon size={16} aria-hidden="true"/></button>
                             </div></td>
                         </tr>;
                     })}</tbody>
                 </table>
-                {!entries.length && <div className="px-6 py-14 text-center"><Search size={28} className="mx-auto mb-3 text-brand-text-muted/40"/><p className="text-sm text-brand-text-muted">{t('catalog_empty')}</p></div>}
+                {!entries.length && <div className="px-6 py-14 text-center"><Search size={28} className="mx-auto mb-3 text-brand-text-muted"/><p className="text-sm text-brand-text-muted">{t('catalog_empty')}</p></div>}
                 <div className="flex items-start gap-2 border-t border-brand-border/50 bg-brand-bg/20 px-5 py-4 sm:px-6">
-                    <Info size={14} className="mt-0.5 shrink-0 text-brand-text-muted/50"/>
-                    <p className="text-[11px] leading-relaxed text-brand-text-muted/60">{t('catalog_hint')}</p>
+                    <Info size={14} className="mt-0.5 shrink-0 text-brand-text-muted"/>
+                    <p className="text-sm leading-relaxed text-brand-text-muted">{t('catalog_hint')}</p>
                 </div>
             </section>}
 

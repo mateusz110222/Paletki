@@ -1,3 +1,4 @@
+import {RequiredMark} from '../components/FormFields';
 import {useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react';
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 import {AlertCircle, ClipboardList, FlaskConical, Plus, RefreshCw, Scan, Search, X} from 'lucide-react';
@@ -34,7 +35,7 @@ const statusRank: Record<pallet.StrainPallet['strain_status'], number> = {
 
 function StrainStatusBadge({status}: {status: pallet.StrainPallet['strain_status']}) {
     const {t} = useTranslation();
-    return <span className={`inline-block max-w-full wrap-anywhere rounded-full border px-2 py-0.5 text-center align-middle text-[0.6875rem] font-bold ${statusBadgeStyle[status]}`}>
+    return <span className={`inline-block max-w-full wrap-anywhere rounded-full border px-2 py-0.5 text-center align-middle text-xs font-bold ${statusBadgeStyle[status]}`}>
         {t(`lab_${status}`)}
     </span>;
 }
@@ -135,7 +136,7 @@ function LabScanner() {
                     </div>
                 </dl>
                 <button ref={measurementButton} type="button" onClick={() => setMeasurementOpen(true)}
-                    className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 text-sm font-bold text-brand-bg hover:bg-emerald-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300">
+                    className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 text-sm font-bold text-brand-on-accent hover:bg-emerald-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300">
                     <Plus size={18} aria-hidden="true"/>{t('lab_action')}
                 </button>
             </div>}
@@ -283,7 +284,7 @@ function LabTable() {
                         className={`min-h-10 border-b-2 px-1 text-xs font-bold uppercase tracking-wider transition-colors focus-visible:outline-2 focus-visible:outline-brand-accent ${filter === value ? 'border-brand-accent text-brand-accent' : 'border-transparent text-brand-text-muted hover:text-brand-text'}`}
                         onClick={() => {setFilter(value); setCurrentPage(1);}}>
                         {t(value === 'due_soon' ? 'lab_due_soon_filter' : `lab_${value}`)}
-                        <span className="ml-1.5 rounded bg-brand-bg px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-brand-text-muted">{counts[value]}</span>
+                        <span className="ml-1.5 rounded bg-brand-bg px-1.5 py-0.5 font-mono text-xs tabular-nums text-brand-text-muted">{counts[value]}</span>
                     </button>)}
                 </div>
 
@@ -305,29 +306,15 @@ function LabTable() {
                             className="h-9 w-full rounded border border-brand-border bg-brand-bg pl-9 pr-3 text-xs text-brand-text focus:border-brand-accent focus:outline-none"
                             onChange={event => {setSearch(event.target.value); setCurrentPage(1);}}/>
                     </label>
-                    <div className="flex items-center gap-2">
-                        <label htmlFor="lab-page-size" className="text-[0.625rem] uppercase font-bold text-brand-text-muted">
-                            {t('rows_per_page')}
-                        </label>
-                        <select
-                            id="lab-page-size"
-                            value={pageSize}
-                            onChange={e => {setPageSize(Number(e.target.value)); setCurrentPage(1);}}
-                            className="h-9 bg-brand-bg border border-brand-border text-xs rounded px-2 text-brand-text font-medium focus:ring-1 focus:ring-brand-accent"
-                        >
-                            {[25, 50, 100, 200].map(n => <option key={n} value={n}>{n}</option>)}
-                        </select>
-                    </div>
                     <button
                         type="button"
                         onClick={() => void query.refetch()}
                         disabled={query.isFetching}
                         title={t('btn_refresh_pallets')}
                         aria-label={t('btn_refresh_pallets')}
-                        className="border border-brand-border text-brand-text font-bold uppercase text-xs h-9 px-3 flex items-center justify-center gap-2 hover:bg-brand-surface-high hover:border-brand-accent/40 active:scale-[0.98] transition-all rounded disabled:opacity-50"
+                        className="size-9 shrink-0 rounded-lg border border-brand-border text-brand-text flex items-center justify-center hover:bg-brand-surface-high hover:border-brand-accent/40 active:scale-[0.98] transition-all disabled:opacity-50"
                     >
-                        <RefreshCw size={14} className={query.isFetching ? 'animate-spin text-brand-accent' : ''}/>
-                        <span>{t('btn_refresh_pallets')}</span>
+                        <RefreshCw size={16} aria-hidden="true" className={query.isFetching ? 'animate-spin text-brand-accent' : ''}/>
                     </button>
                 </div>
             </div>
@@ -348,37 +335,37 @@ function LabTable() {
                                         onChange={event => togglePageSelection(event.target.checked)}
                                     />
                                 </th>
-                                <th scope="col" aria-sort={ariaSort('pallet_id')} className="w-[40%] px-3 py-3 text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted @min-[56rem]:w-auto @min-[56rem]:px-6">
+                                <th scope="col" aria-sort={ariaSort('pallet_id')} className="w-[40%] px-3 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted @min-[56rem]:w-auto @min-[56rem]:px-6">
                                     <button type="button" onClick={() => sortBy('pallet_id')} className="flex items-center gap-2 whitespace-nowrap">
                                         {t('col_pallet_id')}{renderSortArrow('pallet_id')}
                                     </button>
                                 </th>
-                                <th scope="col" aria-sort={ariaSort('project')} className={`${detailColumn} px-6 py-3 text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted`}>
+                                <th scope="col" aria-sort={ariaSort('project')} className={`${detailColumn} px-6 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted`}>
                                     <button type="button" onClick={() => sortBy('project')} className="flex items-center gap-2 whitespace-nowrap">
                                         {t('col_project')}{renderSortArrow('project')}
                                     </button>
                                 </th>
-                                <th scope="col" aria-sort={ariaSort('model')} className={`${detailColumn} px-6 py-3 text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted`}>
+                                <th scope="col" aria-sort={ariaSort('model')} className={`${detailColumn} px-6 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted`}>
                                     <button type="button" onClick={() => sortBy('model')} className="flex items-center gap-2 whitespace-nowrap">
                                         {t('col_model')}{renderSortArrow('model')}
                                     </button>
                                 </th>
-                                <th scope="col" aria-sort={ariaSort('measured_on')} className={`${detailColumn} px-6 py-3 text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted`}>
+                                <th scope="col" aria-sort={ariaSort('measured_on')} className={`${detailColumn} px-6 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted`}>
                                     <button type="button" onClick={() => sortBy('measured_on')} className="flex items-center gap-2 whitespace-nowrap">
                                         {t('lab_measured')}{renderSortArrow('measured_on')}
                                     </button>
                                 </th>
-                                <th scope="col" aria-sort={ariaSort('due_on')} className={`${detailColumn} px-6 py-3 text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted`}>
+                                <th scope="col" aria-sort={ariaSort('due_on')} className={`${detailColumn} px-6 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted`}>
                                     <button type="button" onClick={() => sortBy('due_on')} className="flex items-center gap-2 whitespace-nowrap">
                                         {t('lab_due')}{renderSortArrow('due_on')}
                                     </button>
                                 </th>
-                                <th scope="col" aria-sort={ariaSort('strain_status')} className="w-[27%] px-1 py-3 text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted @min-[56rem]:w-auto @min-[56rem]:px-6">
+                                <th scope="col" aria-sort={ariaSort('strain_status')} className="w-[27%] px-1 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted @min-[56rem]:w-auto @min-[56rem]:px-6">
                                     <button type="button" onClick={() => sortBy('strain_status')} className="flex items-center gap-1 text-left @min-[56rem]:gap-2 @min-[56rem]:whitespace-nowrap">
                                         {t('lab_status')}{renderSortArrow('strain_status')}
                                     </button>
                                 </th>
-                                <th scope="col" className="px-3 py-3 text-[0.625rem] uppercase font-bold tracking-wider text-brand-text-muted text-right @min-[56rem]:px-6">
+                                <th scope="col" className="px-3 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted text-right @min-[56rem]:px-6">
                                     {t('col_actions')}
                                 </th>
                             </tr>
@@ -453,6 +440,7 @@ function LabTable() {
                 totalPages={totalPages}
                 totalItems={sortedRows.length}
                 pageSize={pageSize}
+                onPageSizeChange={size => {setPageSize(size); setCurrentPage(1);}}
                 onPageChange={setCurrentPage}
             />
         </div>}
@@ -513,7 +501,7 @@ function StrainDialog({pallets, today, formatDate, onClose, onSaved}: {
         <form className="mt-4 space-y-4" onSubmit={event => {event.preventDefault(); if (!save.isPending) save.mutate();}}>
             <SelectedPalletList pallets={pallets} statusLabel={t('lab_status')} renderStatus={row => <StrainStatusBadge status={row.strain_status}/>}/>
             <label className="block text-sm font-semibold">
-                {t('lab_date')}
+                {t('lab_date')}<RequiredMark/>
                 <input type="date" autoFocus required min="0001-01-01" max={today} value={measuredOn} disabled={save.isPending}
                     className={`${control} mt-2 block w-full`} onChange={event => setMeasuredOn(event.target.value)}/>
             </label>

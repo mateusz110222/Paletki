@@ -12,6 +12,7 @@ test('input retains native validation, value, autofocus and explicit label assoc
         assert.ok(html.includes(attribute), attribute);
     }
     assert.ok(html.includes('font-mono transition-all'));
+    assert.match(html, /Limit<span aria-hidden="true"[^>]*>\*<\/span><\/label>/);
 });
 
 test('generated IDs uniquely connect each label to its control', () => {
@@ -21,6 +22,7 @@ test('generated IDs uniquely connect each label to its control', () => {
     assert.equal(ids.length, 2);
     assert.notEqual(ids[0], ids[1]);
     assert.deepEqual(ids, labels);
+    assert.doesNotMatch(html, />\*<\/span>/);
 });
 
 test('select retains children, selected option, disabled and required states', () => {
@@ -31,6 +33,7 @@ test('select retains children, selected option, disabled and required states', (
     assert.ok(html.includes('disabled=""'));
     assert.ok(html.includes('required=""'));
     assert.ok(html.includes('font-mono transition-all cursor-pointer'));
+    assert.match(html, /FIS<span aria-hidden="true"[^>]*>\*<\/span><\/label>/);
 });
 
 test('textarea retains comment, placeholder, rows and required validation', () => {
@@ -40,13 +43,14 @@ test('textarea retains comment, placeholder, rows and required validation', () =
     assert.ok(html.includes('placeholder="Comment"'));
     assert.ok(html.includes('required=""'));
     assert.ok(html.includes('>Needs repair</textarea>'));
+    assert.match(html, /Reason<span aria-hidden="true"[^>]*>\*<\/span><\/label>/);
 });
 
 test('layout overrides preserve existing form styling', () => {
-    const html = renderToStaticMarkup(<InputField label={<>Nests *</>} fieldClassName="col-span-2"
+    const html = renderToStaticMarkup(<InputField label={<>Nests</>} required fieldClassName="col-span-2"
         labelClassName="truncate" className="custom-control"/>);
     assert.ok(html.includes('class="col-span-2"'));
     assert.ok(html.includes('class="truncate"'));
     assert.ok(html.includes('class="custom-control"'));
-    assert.ok(html.includes('Nests *'));
+    assert.match(html, /Nests<span aria-hidden="true"[^>]*>\*<\/span><\/label>/);
 });

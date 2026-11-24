@@ -17,6 +17,7 @@ export interface PalletRecord {
     created_at: Date;
     created_by: string;
     updated_at: Date;
+    status_changed_at?: Date;
     updated_by: string | null;
     deleted_at: Date | null;
     deleted_by: string | null;
@@ -50,5 +51,6 @@ export function toPalletDTO(row: PalletRecord, lang?: string): Pallet {
         created_at: row.created_at.toISOString(),
         created_by: row.created_by,
         updated_at: row.updated_at.toISOString(),
+        status_changed_at: row.status_changed_at?.toISOString(),
     };
 }
