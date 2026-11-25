@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import ExcelJS from 'exceljs';
-import {createReportWorkbook} from '../src/lib/reportWorkbook';
+import {createAuditWorkbook, createReportWorkbook} from '../src/lib/reportWorkbook';
 import type {ReportRow} from '../../backend/shared/types';
 import {dictionaries} from '../src/i18n/LanguageContext';
 
@@ -33,6 +33,29 @@ test('XLSX roundtrip keeps user text as strings, preserves all rows and formats 
         assert.ok(Array.isArray(cells));
         assert.ok(cells.every(value => typeof value === 'string'));
     }
+});
+
+test('audit XLSX includes status reasons, comments and event types as filterable text', async () => {
+    const blob = await createAuditWorkbook([
+        {id: 2, pallet_id: '0012', timestamp: '2026-03-29T01:30:00Z', operator_id: 'Operator',
+            previous_status: 'Blocked', new_status: 'Active', event_kind: 'unblock', description: 'Zwolnienie', comment: '=1+1'},
+        {id: 1, pallet_id: '0012', timestamp: '2026-03-28T12:00:00Z', operator_id: 'Operator',
+            previous_status: 'Active', new_status: 'Blocked', event_kind: 'status', description: 'Blokada', status_reason: 'Kontrola'},
+    ], {
+        sheet: 'Audyt', headers: ['ID', 'Paletka', 'Czas', 'Operator', 'Przed', 'Po', 'Typ', 'Opis', 'Powód', 'Komentarz'],
+        status: value => ({Blocked: 'Zablokowana', Active: 'Aktywna'} as Record<string, string>)[value] ?? value,
+        events: {unblock: 'Odblokowanie', status: 'Zmiana statusu', update: 'Aktualizacja'},
+    });
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(await blob.arrayBuffer());
+    const sheet = workbook.worksheets[0];
+    assert.equal(sheet.autoFilter, 'A1:J3');
+    assert.equal(sheet.views[0].state, 'frozen');
+    assert.equal(sheet.views[0].ySplit, 1);
+    assert.deepEqual([sheet.getCell('B2').value, sheet.getCell('C2').value, sheet.getCell('E2').value,
+        sheet.getCell('G2').value, sheet.getCell('I3').value, sheet.getCell('J2').value],
+        ['0012', '2026-03-29 03:30:00', 'Zablokowana', 'Odblokowanie', 'Kontrola', '=1+1']);
+    assert.equal(sheet.getCell('J2').type, ExcelJS.ValueType.String);
 });
 
 test('new catalog and report translations have matching PL/EN keys', () => {

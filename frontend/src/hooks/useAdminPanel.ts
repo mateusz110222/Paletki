@@ -6,7 +6,7 @@ import {useToast} from '../components/ToastProvider';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {getErrorMessage} from '../lib/errors';
 import {asPallet} from '../lib/api';
-import {Pallet, PalletModel, PalletStatus, PalletMachine, Project} from '@backend/shared/types';
+import {type AuditLog, Pallet, PalletModel, PalletStatus, PalletMachine, Project} from '@backend/shared/types';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
 import {useAuth} from "../auth/AuthContext.tsx";
 import {keepPreviousData, useQuery, useQueryClient} from '@tanstack/react-query';
@@ -500,7 +500,7 @@ export const useAdminPanel = ({
         exportRunningRef.current = true;
         setIsExporting(true);
         try {
-            const history = [];
+            const history: AuditLog[] = [];
             let beforeId: number | undefined;
             do {
                 const page = await apiClient.pallet.GetAllPalletHistory({
@@ -512,13 +512,29 @@ export const useAdminPanel = ({
                 beforeId = page.next_cursor;
             } while (beforeId !== undefined);
 
-            const blob = new Blob([JSON.stringify(history, null, 2)], {type: 'application/json;charset=utf-8'});
+            const {createAuditWorkbook} = await import('../lib/reportWorkbook');
+            const statusLabels: Record<AuditLog['previous_status'] | AuditLog['new_status'], string> = {
+                Active: t('status_active'),
+                Washing_Required: t('status_washing_required'),
+                Damaged: t('status_damaged'),
+                Blocked: t('status_blocked'),
+                NEW: t('reports_status_new'),
+                DELETED: t('reports_status_deleted'),
+            };
+            const blob = await createAuditWorkbook(history, {
+                sheet: t('reports_history'),
+                headers: ['ID', t('col_pallet_id'), `${t('reports_date')} (Europe/Warsaw)`, t('reports_operator'),
+                    t('reports_previous'), t('reports_next_status'), t('audit_export_event'),
+                    t('report_description'), t('history_csv_reason'), t('history_comment')],
+                status: value => statusLabels[value as keyof typeof statusLabels] ?? value,
+                events: {unblock: t('history_unblocked'), status: t('audit_export_status_change'), update: t('audit_export_update')},
+            });
             const url = URL.createObjectURL(blob);
             const downloadAnchor = document.createElement('a');
             downloadAnchor.setAttribute('href', url);
             downloadAnchor.setAttribute(
                 'download',
-                `dash-solder-audit-trail-${new Date().toISOString().split('T')[0]}.json`,
+                `PalletX_audit_${new Date().toLocaleDateString('sv-SE', {timeZone: 'Europe/Warsaw'})}.xlsx`,
             );
             document.body.appendChild(downloadAnchor);
             downloadAnchor.click();

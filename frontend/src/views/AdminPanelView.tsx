@@ -160,10 +160,11 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                         <button
                             onClick={actions.handleExportAuditTrail}
                             disabled={status.isExporting}
+                            aria-busy={status.isExporting}
                             className="border border-brand-border text-brand-text font-bold uppercase text-xs min-h-11 px-2 py-2 flex items-center justify-center gap-2 hover:bg-brand-surface-high active:scale-[0.98] transition-all rounded disabled:opacity-50"
                         >
                             <Download size={17} className="shrink-0" aria-hidden="true"/>
-                            {t('btn_export_audit')}
+                            {t(status.isExporting ? 'reports_exporting' : 'btn_export_audit')}
                         </button>
                     </div>
 
