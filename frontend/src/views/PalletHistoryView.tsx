@@ -99,18 +99,6 @@ export const PalletHistoryView: React.FC<{backPath?: string}> = ({backPath = '/a
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300" id="pallet-history-container">
-            {backPath === '/admin' && (
-                <div className="flex items-center gap-3">
-                    <button
-                        type="button"
-                        onClick={() => navigate(backPath)}
-                        className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-brand-text-muted transition-colors hover:text-brand-accent"
-                    >
-                        <ArrowLeft size={16}/> {t('history_back_to_admin')}
-                    </button>
-                </div>
-            )}
-
             <section className="relative overflow-hidden rounded-2xl border border-brand-border bg-brand-surface p-6">
                 <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-brand-accent/10 blur-3xl"/>
                 <div className="relative flex flex-col gap-6">

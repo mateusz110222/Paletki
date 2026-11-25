@@ -16,7 +16,6 @@ import { InputField, RequiredMark, SelectField, TextareaField } from '../compone
 import { Pagination } from '../components/Pagination.tsx';
 import {useAdminPanelView} from '../hooks/useAdminPanelView';
 interface AdminPanelViewProps {
-    pallets: Pallet[];
     projects: Project[];
     models: PalletModel[];
 }
@@ -126,9 +125,9 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                     className="bg-brand-surface p-3 xl:p-5 rounded-xl border border-brand-border flex flex-col justify-between text-left cursor-pointer hover:border-brand-accent/50 aria-pressed:border-brand-accent focus-visible:outline-2 focus-visible:outline-brand-accent transition-colors">
                     <span
                         className="text-xs font-bold uppercase tracking-wider text-brand-text-muted">{t('stats_available_pallets')}</span>
-                    <span className="text-2xl xl:text-4xl font-extrabold text-brand-accent mt-1">{data.availableStock}</span>
+                    <span className="text-2xl xl:text-4xl font-extrabold text-brand-accent mt-1">{status.hasSummary ? data.availableStock : '—'}</span>
                     <span className="flex items-center gap-1 text-xs text-green-400 mt-1">
-                        <span>● {data.availablePalletsPercentage} % {t('availability_ok_suffix')}</span>
+                        <span>{status.hasSummary ? `● ${data.availablePalletsPercentage} % ${t('availability_ok_suffix')}` : '—'}</span>
                     </span>
                 </button>
 
@@ -140,7 +139,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                     className="bg-brand-surface p-3 xl:p-5 rounded-xl border border-brand-border flex flex-col justify-between text-left cursor-pointer hover:border-brand-accent/50 aria-pressed:border-brand-accent focus-visible:outline-2 focus-visible:outline-brand-accent transition-colors">
                     <span
                         className="text-xs font-bold uppercase tracking-wider text-brand-text-muted">{t('stats_service_blocked')}</span>
-                    <span className="text-2xl xl:text-4xl font-extrabold text-red-400 mt-1">{data.blockedOrMaint}</span>
+                    <span className="text-2xl xl:text-4xl font-extrabold text-red-400 mt-1">{status.hasSummary ? data.blockedOrMaint : '—'}</span>
                     <span className="flex items-center gap-1 text-xs text-red-400 mt-1">
                         <ShieldAlert size={12}/>
                         <span>{t('maintenance_abbreviation')}</span>
@@ -313,27 +312,51 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
             </div>
 
             {/* Pallet Inventory Table */}
-            <div className="bg-brand-surface rounded-xl border border-brand-border overflow-hidden">
+            <div className="bg-brand-surface rounded-xl border border-brand-border">
                 <div
-                    className="px-3 py-2.5 sm:px-5 border-b border-brand-border flex gap-3 justify-between items-center bg-brand-surface/50">
+                    className="relative z-30 rounded-t-xl px-3 py-2.5 sm:px-5 border-b border-brand-border flex flex-wrap gap-3 justify-between items-center bg-brand-surface/50">
                     <h3 className="text-base font-bold text-brand-text">{t('pallet_inventory_title')}</h3>
-                    <button
-                        onClick={actions.handleRefreshPallets}
-                        disabled={status.isRefreshing}
-                        title={t('btn_refresh_pallets')}
-                        aria-label={t('btn_refresh_pallets')}
-                        className="size-9 shrink-0 rounded-lg border border-brand-border text-brand-text flex items-center justify-center hover:bg-brand-surface-high hover:border-brand-accent/40 active:scale-[0.98] transition-all disabled:opacity-50"
-                    >
-                        <RefreshCw size={16} aria-hidden="true" className={status.isRefreshing ? "animate-spin text-brand-accent" : ""}/>
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <details className="group relative open:z-30">
+                            <summary className="flex h-9 cursor-pointer list-none items-center gap-2 rounded-lg border border-brand-border bg-brand-bg/70 px-3 text-xs font-bold text-brand-text-muted transition-colors hover:border-brand-accent/40 hover:bg-brand-surface-high hover:text-brand-text [&::-webkit-details-marker]:hidden">
+                                <SlidersHorizontal size={14} aria-hidden="true" className="shrink-0"/>
+                                <span>{language === 'pl' ? 'Kolumny' : 'Columns'}</span>
+                                {hiddenColumns.length > 0 && (
+                                    <span className="rounded bg-brand-accent/15 px-1.5 py-0.5 font-mono text-[11px] font-bold text-brand-accent">
+                                        {8 - hiddenColumns.length}/8
+                                    </span>
+                                )}
+                                <ChevronDown size={14} aria-hidden="true" className="shrink-0 transition-transform duration-200 group-open:rotate-180"/>
+                            </summary>
+                            <div className="ui-dropdown-panel absolute right-0 top-full mt-2 w-56 rounded-xl border border-brand-border bg-brand-surface p-2.5 shadow-xl">
+                                <p className="mb-2 px-1.5 text-[11px] font-bold uppercase tracking-wider text-brand-text-muted">
+                                    {language === 'pl' ? 'Widoczne kolumny' : 'Visible columns'}
+                                </p>
+                                <div className="space-y-0.5">
+                                    {([
+                                        ['project', 'col_project'], ['model', 'col_model'], ['fis', 'col_fis'], ['nests', 'col_nests'], ['current_cycles', 'col_cycles'], ['status', 'col_status'], ['created_by', 'col_operator'], ['created_at', 'col_created_at'],
+                                    ] as const).map(([key, label]) => (
+                                        <label key={key} className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-xs font-medium text-brand-text hover:bg-brand-surface-high">
+                                            <input type="checkbox" className="size-4 accent-brand-accent" checked={!hiddenColumns.includes(key)} onChange={() => toggleColumn(key)}/>
+                                            <span>{t(label)}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        </details>
+                        <button
+                            onClick={actions.handleRefreshPallets}
+                            disabled={status.isRefreshing}
+                            title={t('btn_refresh_pallets')}
+                            aria-label={t('btn_refresh_pallets')}
+                            className="size-9 shrink-0 rounded-lg border border-brand-border text-brand-text flex items-center justify-center hover:bg-brand-surface-high hover:border-brand-accent/40 active:scale-[0.98] transition-all disabled:opacity-50"
+                        >
+                            <RefreshCw size={16} aria-hidden="true" className={status.isRefreshing ? "animate-spin text-brand-accent" : ""}/>
+                        </button>
+                    </div>
                 </div>
-                <div className="flex flex-col gap-3 border-b border-brand-border p-3 sm:p-4">
-                    <details className="text-sm"><summary className="w-fit cursor-pointer rounded-lg border border-brand-border px-3 py-2">{language === 'pl' ? 'Widoczne kolumny' : 'Visible columns'}</summary><div className="mt-3 flex flex-wrap gap-4">{([
-                        ['project', 'col_project'], ['model', 'col_model'], ['fis', 'col_fis'], ['nests', 'col_nests'], ['current_cycles', 'col_cycles'], ['status', 'col_status'], ['created_by', 'col_operator'], ['created_at', 'col_created_at'],
-                    ] as const).map(([key, label]) => <label key={key} className="flex items-center gap-2"><input type="checkbox" checked={!hiddenColumns.includes(key)} onChange={() => toggleColumn(key)}/>{t(label)}</label>)}</div></details>
-                    <BulkPalletActions pallets={selectedPallets} onClear={() => setSelectedIds([])} onCompleted={ids => setSelectedIds(current => current.filter(id => !ids.includes(id)))}/>
-                </div>
-                <div className="admin-table-frame relative">
+                <BulkPalletActions pallets={selectedPallets} onClear={() => setSelectedIds([])} onCompleted={ids => setSelectedIds(current => current.filter(id => !ids.includes(id)))}/>
+                <div className="admin-table-frame relative overflow-hidden rounded-b-xl">
                 <div ref={tableScrollRef} className="admin-table-scroll relative max-h-[65dvh] overflow-auto">
                     <table className="w-full border-collapse">
                         <thead>
@@ -347,11 +370,35 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                             <th hidden={hiddenColumns.includes('status')} aria-sort={data.sort.key === 'status' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-3 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('status')} className="flex items-center gap-1.5 whitespace-nowrap">{t('col_status')}<span aria-hidden="true">{data.sort.key === 'status' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
                             <th hidden={hiddenColumns.includes('created_by')} aria-sort={data.sort.key === 'created_by' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-3 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('created_by')} className="flex items-center gap-1.5 whitespace-nowrap">{t('col_operator')}<span aria-hidden="true">{data.sort.key === 'created_by' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
                             <th hidden={hiddenColumns.includes('created_at')} aria-sort={data.sort.key === 'created_at' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-3 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('created_at')} className="flex items-center gap-1.5 whitespace-nowrap">{t('col_created_at')}<span aria-hidden="true">{data.sort.key === 'created_at' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
-                            <th scope="col" className="sticky right-0 z-10 border-l border-brand-border/50 bg-brand-surface-high px-3 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted text-right">{t('col_actions')}</th>
+                            <th scope="col" className="sticky right-0 z-20 border-l border-brand-border/50 bg-brand-surface-high px-3 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted text-right">{t('col_actions')}</th>
                         </tr>
                         </thead>
                         <tbody className="divide-y divide-brand-border">
-                        {data.paginatedPallets.length === 0 ? (
+                        {status.isLoadError && data.paginatedPallets.length === 0 ? (
+                            <tr>
+                                <td colSpan={11 - hiddenColumns.length} className="px-6 py-10 text-center">
+                                    <div role="alert" className="mx-auto flex max-w-md flex-col items-center gap-3">
+                                        <AlertCircle size={24} className="text-red-400" aria-hidden="true"/>
+                                        <p className="text-sm font-semibold text-red-300">{status.loadErrorMessage || t('fetch_error_banner')}</p>
+                                        <button
+                                            type="button"
+                                            onClick={actions.handleRefreshPallets}
+                                            disabled={status.isRefreshing}
+                                            className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-brand-border bg-brand-bg px-3.5 text-xs font-bold text-brand-text transition-colors hover:border-brand-accent/50 hover:text-brand-accent disabled:opacity-50"
+                                        >
+                                            <RefreshCw size={14} aria-hidden="true" className={status.isRefreshing ? 'animate-spin' : ''}/>
+                                            {t('lab_retry')}
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        ) : status.isInitialLoading ? (
+                            <tr>
+                                <td colSpan={11 - hiddenColumns.length} className="px-6 py-10 text-center text-brand-text-muted" role="status">
+                                    {t('features_loading')}
+                                </td>
+                            </tr>
+                        ) : data.paginatedPallets.length === 0 ? (
                             <tr>
                                 <td colSpan={11 - hiddenColumns.length} className="px-6 py-10 text-center text-brand-text-muted">
                                     {t('no_pallets_found')}
@@ -419,13 +466,13 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                                 ? new Date(p.created_at).toLocaleString(language)
                                                 : t('value_not_available')}
                                         </td>
-                                        <td className="sticky right-0 border-l border-brand-border/50 bg-brand-surface px-3 py-3 text-right">
-                                            <div className="flex items-center justify-end gap-1">
+                                        <td className="sticky right-0 z-[1] whitespace-nowrap border-l border-brand-border/50 bg-brand-surface px-3 py-3 text-right">
+                                            <div className="inline-flex items-center justify-end gap-1">
                                                 <button
                                                     onClick={() => openPalletHistory(p)}
                                                     title={t('audit_trail_title')}
                                                     aria-label={`${t('audit_trail_title')}: ${p.pallet_id}`}
-                                                    className="rounded-lg p-2 text-brand-text-muted hover:bg-brand-accent/10 hover:text-brand-accent transition-colors"
+                                                    className="shrink-0 rounded-lg p-2 text-brand-text-muted hover:bg-brand-accent/10 hover:text-brand-accent transition-colors"
                                                 >
                                                     <History size={16}/>
                                                     <span className="sr-only">{t('audit_trail_title')}: {p.pallet_id}</span>
@@ -435,7 +482,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                                     onClick={() => actions.handleOpenEditModal(p)}
                                                     title={t('btn_edit')}
                                                     aria-label={`${t('btn_edit')}: ${p.pallet_id}`}
-                                                    className="rounded-lg p-2 text-brand-text-muted hover:bg-brand-accent/10 hover:text-brand-accent transition-colors"
+                                                    className="shrink-0 rounded-lg p-2 text-brand-text-muted hover:bg-brand-accent/10 hover:text-brand-accent transition-colors"
                                                 >
                                                     <EditIcon size={16} aria-hidden="true"/>
                                                     <span className="sr-only">{t('btn_edit')}: {p.pallet_id}</span>
@@ -445,20 +492,20 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                                     onClick={() => actions.handleCopyPallet(p)}
                                                     title={t('btn_copy_pallet')}
                                                     aria-label={`${t('btn_copy_pallet')}: ${p.pallet_id}`}
-                                                    className="rounded-lg p-2 text-brand-text-muted hover:bg-brand-accent/10 hover:text-brand-accent transition-colors"
+                                                    className="shrink-0 rounded-lg p-2 text-brand-text-muted hover:bg-brand-accent/10 hover:text-brand-accent transition-colors"
                                                 >
                                                     <Copy size={16}/>
                                                     <span className="sr-only">{t('btn_copy_pallet')}: {p.pallet_id}</span>
                                                 </button>
 
-                                                <span aria-hidden="true" className="mx-1 h-6 w-px bg-brand-border"/>
+                                                <span aria-hidden="true" className="mx-1 h-6 w-px shrink-0 bg-brand-border"/>
 
                                                 {p.status === 'Blocked' ? (
                                                     <button
                                                         onClick={() => actions.handleUnblock(p)}
                                                         title={t('btn_unblock')}
                                                         aria-label={`${t('btn_unblock')}: ${p.pallet_id}`}
-                                                        className="text-xs font-bold text-green-400 hover:underline px-1"
+                                                        className="shrink-0 text-xs font-bold text-green-400 hover:underline px-1"
                                                     >
                                                         {t('btn_unblock')}
                                                     </button>
@@ -467,11 +514,10 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                                         onClick={() => actions.handleBlockClick(p)}
                                                         title={t('btn_block')}
                                                         aria-label={`${t('btn_block')}: ${p.pallet_id}`}
-                                                        className="inline-flex items-center gap-1.5 rounded-lg p-2 text-brand-text-muted hover:bg-amber-500/10 hover:text-amber-400 transition-colors"
+                                                        className="inline-flex shrink-0 items-center justify-center rounded-lg p-2 text-brand-text-muted hover:bg-amber-500/10 hover:text-amber-400 transition-colors"
                                                     >
                                                         <ShieldAlert size={16}/>
                                                         <span className="sr-only">{t('btn_block')}: {p.pallet_id}</span>
-                                                        <span className="hidden 2xl:inline text-xs font-bold uppercase">{t('btn_block')}</span>
                                                     </button>
                                                 )}
 
@@ -479,11 +525,10 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                                     onClick={() => actions.setSelectedPalletForDelete(p)}
                                                     title={t('btn_delete')}
                                                     aria-label={`${t('btn_delete')}: ${p.pallet_id}`}
-                                                    className={deleteActionClass + ' ml-1'}
+                                                    className={deleteActionClass + ' ml-1 shrink-0'}
                                                 >
                                                     <DeleteIcon size={16} aria-hidden="true"/>
                                                     <span className="sr-only">{t('btn_delete')}: {p.pallet_id}</span>
-                                                    <span className="hidden 2xl:inline text-xs font-bold uppercase">{t('btn_delete')}</span>
                                                 </button>
                                             </div>
                                         </td>
@@ -497,14 +542,16 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                 </div>
 
                 {/* Paginacja */}
-                <Pagination
-                    currentPage={data.currentPage}
-                    totalPages={data.totalPages}
-                    totalItems={data.filteredPallets.length}
-                    pageSize={data.pageSize}
-                    onPageSizeChange={actions.setPageSize}
-                    onPageChange={actions.setCurrentPage}
-                />
+                {!(status.isLoadError && data.paginatedPallets.length === 0) && (
+                    <Pagination
+                        currentPage={data.currentPage}
+                        totalPages={data.totalPages}
+                        totalItems={status.hasSummary ? data.totalFilteredPallets : undefined}
+                        pageSize={data.pageSize}
+                        onPageSizeChange={actions.setPageSize}
+                        onPageChange={actions.setCurrentPage}
+                    />
+                )}
             </div>
 
             {/* MODAL 1: DODAWANIE NOWEJ PALETY */}

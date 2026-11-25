@@ -305,6 +305,19 @@ suite('operator reports and reporting against isolated PostgreSQL', () => {
             {status: 'dead', attempts: 10}, {status: 'completed', attempts: 1},
         ]);
     });
+    it('blocks duplicate washing reports including concurrent submissions while still allowing damage escalation', async () => {
+        state.auth = operator;
+        const results = await Promise.allSettled([
+            CreateOperatorReport({pallet_id: 'PAL-01', kind: 'washing', acceptLanguage: 'en'}),
+            CreateOperatorReport({pallet_id: 'PAL-01', kind: 'washing', acceptLanguage: 'en'}),
+        ]);
+        expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1);
+        expect(results.filter(r => r.status === 'rejected')).toHaveLength(1);
+        await expect(CreateOperatorReport({pallet_id: 'PAL-01', kind: 'washing', acceptLanguage: 'en'})).rejects.toThrow(/already marked as washing/i);
+        expect((await state.pool!.query("SELECT COUNT(*)::int AS count FROM operator_reports WHERE pallet_id='PAL-01'")).rows[0].count).toBe(1);
+        await expect(CreateOperatorReport({pallet_id: 'PAL-01', description: 'Cracked corner'})).resolves.toMatchObject({kind: 'defect'});
+        expect((await state.pool!.query("SELECT status FROM pallets WHERE pallet_id='PAL-01'")).rows[0].status).toBe('Damaged');
+    });
     it('keeps a damaged pallet and its defect open until the repair is completed', async () => {
         const pallet_id = 'PAL-01';
         await CreateOperatorReport({pallet_id, description: 'Broken latch'});
@@ -663,6 +676,8 @@ suite('operator reports and reporting against isolated PostgreSQL', () => {
         expect(logs[1]).toMatchObject({operator_id: 'UR A', previous_status: 'Active', new_status: 'Active'});
         expect(logs[1].description).toContain('audit_washing_confirmed');
         expect(logs[1].description).toContain('Washed at zero');
+        const washed = await GetReports({mode: 'history', washed_only: true});
+        expect(washed.rows.map(row => row.description)).toEqual([expect.stringContaining('Washed at zero')]);
     });
     it('confirms queued washing and closes its operator reports atomically', async () => {
         state.auth = operator;

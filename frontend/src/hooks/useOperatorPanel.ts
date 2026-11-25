@@ -26,6 +26,20 @@ import {canOpenPalletInOperatorPanel} from '@backend/shared/permissions';
 
 export type ScanFeedbackTone = 'success' | 'warning' | 'error';
 
+const SCANNER_BURST_MS = 90;
+
+function isPalletStateConflictError(error: unknown): boolean {
+    if (!error || typeof error !== 'object') return false;
+    const candidate = error as {status?: unknown; code?: unknown};
+    if (typeof candidate.code === 'string') {
+        return ['failed_precondition', 'permission_denied', 'not_found', 'aborted', 'already_exists'].includes(candidate.code);
+    }
+    if (typeof candidate.status === 'number') {
+        return [403, 404, 409, 412].includes(candidate.status);
+    }
+    return false;
+}
+
 export const useOperatorPanel = () => {
     const {t, language} = useTranslation();
     const {apiClient} = useAuth();
@@ -85,6 +99,9 @@ export const useOperatorPanel = () => {
     const barcodeInputRef = useRef<HTMLInputElement>(null);
     const scanAbortRef = useRef<AbortController | null>(null);
     const scanRequestRef = useRef(0);
+    const submittingRef = useRef(false);
+    const lastPrintableKeyTimeRef = useRef(0);
+    const pendingHotkeyTimerRef = useRef<number | null>(null);
 
     const [searchParams, setSearchParams] = useSearchParams();
     const palletIDFromUrl = searchParams.get('palletID') || '';
@@ -284,11 +301,13 @@ export const useOperatorPanel = () => {
     }, [handleScanSubmit, palletIDFromUrl]);
 
     const openFaultModal = useCallback((name: string, status: PalletStatus, defect?: number | 'other') => {
+        if (!activePallet || submittingRef.current || isSubmitting || !isOnline) return;
+        if (status === 'Washing_Required' && activePallet.status === 'Washing_Required') return;
         setCustomFaultText('');
         setIsFaultConfirmOpen(false);
         setPendingFault({name, status});
         setSelectedDefect(status === 'Damaged' ? defect === undefined ? '' : String(defect) : 'washing');
-    }, []);
+    }, [activePallet, isOnline, isSubmitting]);
 
     const closeFaultModal = useCallback(() => {
         if (!isSubmitting) {
@@ -327,19 +346,30 @@ export const useOperatorPanel = () => {
     }, [searchParams, setSearchParams]);
 
     const handleReportFault = useCallback(async () => {
-        if (!pendingFault || isSubmitting || (pendingFault.status === 'Damaged' && !selectedDefect) || (selectedDefect === 'other' && !customFaultText.trim())) return;
+        if (!pendingFault || submittingRef.current || isSubmitting || (pendingFault.status === 'Damaged' && !selectedDefect) || (selectedDefect === 'other' && !customFaultText.trim())) return;
+        if (!isOnline) {
+            triggerToast(t('op_network_offline_alert'), 'error');
+            return;
+        }
         if (!activePallet) {
             triggerToast(t('op_no_pallet_scanned'));
             return;
         }
+        if (pendingFault.status === activePallet.status) {
+            setIsFaultConfirmOpen(false);
+            setPendingFault(null);
+            return;
+        }
 
+        submittingRef.current = true;
         setIsSubmitting(true);
+        const reportedPalletId = activePallet.pallet_id;
         const name = pendingFault.status === 'Washing_Required' ? pendingFault.name : defectsQuery.data?.defects.find(d => String(d.id) === selectedDefect)?.name ?? t('op_other_fault_type');
         const faultName = `${name}${customFaultText.trim() ? ': ' + customFaultText.trim() : ''}`;
 
         try {
             await apiClient.pallet.CreateOperatorReport({
-                pallet_id: activePallet.pallet_id,
+                pallet_id: reportedPalletId,
                 kind: pendingFault.status === 'Washing_Required' ? 'washing' : 'defect',
                 defect_id: pendingFault.status === 'Washing_Required' || selectedDefect === 'other' ? null : Number(selectedDefect),
                 description: customFaultText.trim(), acceptLanguage: language,
@@ -356,39 +386,87 @@ export const useOperatorPanel = () => {
         } catch (error: unknown) {
             console.error('Błąd zgłaszania usterki:', error);
             triggerToast(getErrorMessage(error, t('error_connecting_to_encore')), 'error');
+            if (isPalletStateConflictError(error)) {
+                setIsFaultConfirmOpen(false);
+                setPendingFault(null);
+                void refreshPalletData(queryClient);
+                void handleScanSubmit(undefined, reportedPalletId);
+            }
         } finally {
+            submittingRef.current = false;
             setIsSubmitting(false);
         }
-    }, [activePallet, apiClient, language, queryClient, t, triggerToast, pendingFault, customFaultText, selectedDefect, defectsQuery.data, isSubmitting, handleClearActivePallet]);
+    }, [activePallet, apiClient, language, queryClient, t, triggerToast, pendingFault, customFaultText, selectedDefect, defectsQuery.data, isOnline, isSubmitting, handleClearActivePallet, handleScanSubmit]);
 
     // Operator Hotkeys: 1, 2, 3 to report quick faults when active pallet is open
     useEffect(() => {
+        const clearPendingHotkey = () => {
+            if (pendingHotkeyTimerRef.current !== null) {
+                window.clearTimeout(pendingHotkeyTimerRef.current);
+                pendingHotkeyTimerRef.current = null;
+            }
+        };
+
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (!activePallet || isOtherFaultOpen || isSubmitting) return;
+            if (!activePallet || isOtherFaultOpen || isSubmitting || submittingRef.current) return;
+            if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
 
             const target = e.target as HTMLElement | null;
             if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) {
                 return;
             }
 
-            if (e.key === '1') {
-                e.preventDefault();
-                openFaultModal(t('op_mechanical_damage'), 'Damaged');
-            } else if (e.key === '2') {
-                e.preventDefault();
-                openFaultModal(t('op_washing_required'), 'Washing_Required');
-            } else if (e.key === '3') {
-                e.preventDefault();
-                openFaultModal(t('op_other_fault_type'), 'Damaged', 'other');
-            } else if (e.key === 'Escape') {
+            if (e.key === 'Escape') {
+                clearPendingHotkey();
                 e.preventDefault();
                 handleClearActivePallet();
+                return;
+            }
+
+            // Detect rapid keystroke bursts (typical of USB HID barcode scanners), including
+            // scans that begin with 1/2/3: defer hotkey execution briefly and cancel it if
+            // another key arrives within SCANNER_BURST_MS.
+            const now = performance.now();
+            const isFollowUpBurst = now - lastPrintableKeyTimeRef.current < SCANNER_BURST_MS;
+            if (e.key.length === 1 || e.key === 'Enter' || e.key === 'Tab') {
+                if (pendingHotkeyTimerRef.current !== null) {
+                    clearPendingHotkey();
+                    if (e.key.length === 1) lastPrintableKeyTimeRef.current = now;
+                    return;
+                }
+                if (e.key.length === 1) {
+                    lastPrintableKeyTimeRef.current = now;
+                }
+            }
+            if (isFollowUpBurst || !isOnline) return;
+
+            if (e.key === '1') {
+                e.preventDefault();
+                pendingHotkeyTimerRef.current = window.setTimeout(() => {
+                    pendingHotkeyTimerRef.current = null;
+                    openFaultModal(t('op_mechanical_damage'), 'Damaged');
+                }, SCANNER_BURST_MS);
+            } else if (e.key === '2' && activePallet.status !== 'Washing_Required') {
+                e.preventDefault();
+                pendingHotkeyTimerRef.current = window.setTimeout(() => {
+                    pendingHotkeyTimerRef.current = null;
+                    openFaultModal(t('op_washing_required'), 'Washing_Required');
+                }, SCANNER_BURST_MS);
+            } else if (e.key === '3') {
+                e.preventDefault();
+                pendingHotkeyTimerRef.current = window.setTimeout(() => {
+                    pendingHotkeyTimerRef.current = null;
+                    openFaultModal(t('op_other_fault_type'), 'Damaged', 'other');
+                }, SCANNER_BURST_MS);
             }
         };
 
         window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [activePallet, handleClearActivePallet, openFaultModal, isOtherFaultOpen, isSubmitting, t, defectsQuery.data]);
+        return () => {
+            clearPendingHotkey();
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [activePallet, handleClearActivePallet, openFaultModal, isOnline, isOtherFaultOpen, isSubmitting, t]);
 
     const selectedDefectLabel = pendingFault?.status === 'Washing_Required'
         ? pendingFault.name

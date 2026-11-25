@@ -3,6 +3,7 @@ import {ModalFormActions} from './ModalFormActions';
 import {PalletStatusSpan} from './PalletStatusSpan';
 import {SelectedPalletList} from './SelectedPalletList';
 import {useRef, useState} from 'react';
+import {Download, SlidersHorizontal, X} from 'lucide-react';
 import type {Pallet, PalletStatus} from '@backend/shared/types';
 import {PALLET_STATUSES} from '@backend/shared/types';
 import {useAuth} from '../auth/AuthContext';
@@ -59,12 +60,33 @@ export function BulkPalletActions({pallets, onClear, onCompleted}: {pallets: Pal
         } finally { runningRef.current = false; setBusy(false); }
     };
     return <>
-        <div className={`${pallets.length > 0 ? 'flex' : 'hidden sm:flex'} flex-wrap items-center gap-3 text-xs`}>
-            <strong>{pl ? 'Zaznaczone' : 'Selected'}: {pallets.length}</strong>
-            <button type="button" disabled={!pallets.length || busy} onClick={() => {setSnapshot([...pallets]);setReason('');setFailures([]);setProgress(0);}} className="rounded-lg border border-indigo-400/40 px-3 py-2 disabled:opacity-40">{pl ? 'Zmień status zaznaczonych' : 'Change selected status'}</button>
-            <button type="button" disabled={!pallets.length || busy} onClick={exportSelected} className="rounded-lg border border-brand-border px-3 py-2 disabled:opacity-40">{pl ? 'Eksport zaznaczonych CSV' : 'Export selected CSV'}</button>
-            <button type="button" disabled={!pallets.length || busy} onClick={onClear} className="px-2 py-2 disabled:opacity-40">{pl ? 'Wyczyść zaznaczenie' : 'Clear selection'}</button>
-        </div>
+        {pallets.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-brand-border bg-brand-accent/8 px-3 py-2.5 text-xs sm:px-5 animate-in fade-in duration-200">
+                <span className="inline-flex items-center gap-2 font-bold text-brand-text">
+                    <span className="rounded-md bg-brand-accent px-2 py-0.5 font-mono text-xs font-black text-brand-on-accent tabular-nums">
+                        {pallets.length}
+                    </span>
+                    <span>{pl ? 'zaznaczonych palet' : 'selected pallets'}</span>
+                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                    <button type="button" disabled={busy} onClick={() => {setSnapshot([...pallets]);setReason('');setFailures([]);setProgress(0);}}
+                        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-accent px-3 font-bold text-brand-on-accent transition-colors hover:bg-brand-accent/90 disabled:opacity-40">
+                        <SlidersHorizontal size={13} aria-hidden="true"/>
+                        {pl ? 'Zmień status' : 'Change status'}
+                    </button>
+                    <button type="button" disabled={busy} onClick={exportSelected}
+                        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-brand-border bg-brand-surface px-3 font-bold text-brand-text transition-colors hover:border-brand-accent/40 hover:bg-brand-surface-high disabled:opacity-40">
+                        <Download size={13} aria-hidden="true"/>
+                        {pl ? 'Eksport CSV' : 'Export CSV'}
+                    </button>
+                    <button type="button" disabled={busy} onClick={onClear}
+                        className="inline-flex h-8 items-center gap-1 rounded-lg px-2.5 font-semibold text-brand-text-muted transition-colors hover:bg-brand-surface hover:text-brand-text disabled:opacity-40">
+                        <X size={14} aria-hidden="true"/>
+                        {pl ? 'Wyczyść' : 'Clear'}
+                    </button>
+                </div>
+            </div>
+        )}
         <ModalPresence>{snapshot && <ModalTransition onBackdropClick={close} className="overflow-y-auto">
             <section role="dialog" aria-modal="true" aria-labelledby="bulk-title" className="max-h-[85dvh] w-full max-w-xl space-y-4 overflow-y-auto rounded-2xl border border-brand-border bg-brand-surface p-6">
                 <h2 id="bulk-title" className="text-xl font-bold">{pl ? 'Zmiana statusu palet' : 'Change pallet status'} · {snapshot.length}</h2>

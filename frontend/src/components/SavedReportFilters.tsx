@@ -42,9 +42,9 @@ export function SavedReportFilters({username, query, disabled, onApply}: {
     return <details className="group rounded-lg border border-brand-border bg-brand-bg/35">
         <summary className="flex min-h-11 list-none items-center gap-2 px-3 text-sm font-semibold [&::-webkit-details-marker]:hidden">
             <Bookmark size={16} aria-hidden="true"/>{t('reports_saved_filters')}
-            <ChevronDown size={16} aria-hidden="true" className="ms-auto group-open:rotate-180"/>
+            <ChevronDown size={16} aria-hidden="true" className="ms-auto transition-transform duration-200 group-open:rotate-180"/>
         </summary>
-        <div className="space-y-3 border-t border-brand-border p-3">
+        <div className="ui-disclosure-panel space-y-3 border-t border-brand-border p-3">
             {filters.length > 0 && <ul className="space-y-1">
                 {filters.map(filter => <li key={filter.name} className="flex items-center gap-2">
                     <button type="button" disabled={disabled} onClick={() => onApply(filter.query)}

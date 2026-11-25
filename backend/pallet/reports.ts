@@ -15,7 +15,7 @@ type ReportRecord = ReportRow & {
 interface ReportParams {
     mode: Query<"history" | "current">;
     from?: Query<string>; to?: Query<string>; statuses?: Query<string>;
-    previous_status?: Query<string>; changes_only?: Query<boolean>;
+    previous_status?: Query<string>; changes_only?: Query<boolean>; washed_only?: Query<boolean>;
     limit?: Query<number>; offset?: Query<number>;
     before_timestamp?: Query<string>; before_id?: Query<number>;
     acceptLanguage?: Header<"Accept-Language">;
@@ -29,13 +29,14 @@ export function validReportDate(value: string): boolean {
 }
 
 export const GetReports = api({method: "GET", path: "/pallets/reports", expose: true, auth: true},
-    async (params: ReportParams): Promise<{rows: ReportRow[]; next_offset?: number; next_before_timestamp?: string; next_before_id?: number}> => {
+    async (params: ReportParams): Promise<{rows: ReportRow[]; total_count?: number; next_offset?: number; next_before_timestamp?: string; next_before_id?: number}> => {
         requireMaintenanceUser();
         const from = params.from || null;
         const to = params.to || null;
         const statuses = params.statuses?.split(",").filter(Boolean) ?? [];
         const previousStatus = params.previous_status || null;
         const changesOnly = params.changes_only ?? false;
+        const washedOnly = params.washed_only ?? false;
         const limit = params.limit ?? 50;
         const offset = params.offset ?? 0;
         const beforeTimestamp = params.before_timestamp || null;
@@ -45,7 +46,7 @@ export const GetReports = api({method: "GET", path: "/pallets/reports", expose: 
             (to && !validReportDate(to)) || (from && to && from > to) ||
             statuses.some(status => !PALLET_STATUSES.includes(status as typeof PALLET_STATUSES[number])) ||
             (previousStatus !== null && !PALLET_STATUSES.includes(previousStatus as typeof PALLET_STATUSES[number])) ||
-            (params.mode === "current" && (previousStatus !== null || changesOnly)) ||
+            (params.mode === "current" && (previousStatus !== null || changesOnly || washedOnly)) ||
             !Number.isSafeInteger(limit) || limit < 1 || limit > 200 || !Number.isSafeInteger(offset) || offset < 0 ||
             (hasCursor && (!beforeTimestamp || !Number.isFinite(Date.parse(beforeTimestamp)) || beforeId === null || !Number.isSafeInteger(beforeId) || beforeId < 1))) {
             throw APIError.invalidArgument(t("report_dates_invalid", params.acceptLanguage));
@@ -101,6 +102,10 @@ export const GetReports = api({method: "GET", path: "/pallets/reports", expose: 
                     AND a.previous_status = ANY(string_to_array(${palletStatuses}, ','))
                     AND a.new_status = ANY(string_to_array(${palletStatuses}, ','))
                   ))
+                  AND (NOT ${washedOnly}::boolean OR (
+                    (a.previous_status = 'Washing_Required' AND a.new_status = 'Active')
+                    OR a.event_type = 'washing_confirmed'
+                  ))
                   AND (${beforeTimestamp}::timestamptz IS NULL OR (a.timestamp, a.id) < (${beforeTimestamp}::timestamptz, ${beforeId}::int))
                 ORDER BY a.timestamp DESC, a.id DESC LIMIT ${limit + 1} OFFSET ${effectiveOffset}`
             : await db.queryAll<ReportRecord>`SELECT p.id, p.pallet_id, p.project, p.model, p.machine,
@@ -120,6 +125,28 @@ export const GetReports = api({method: "GET", path: "/pallets/reports", expose: 
                   AND (${statusFilter} = '' OR p.status = ANY(string_to_array(${statusFilter}, ',')))
                   AND (${beforeTimestamp}::timestamptz IS NULL OR (p.status_changed_at, p.id) < (${beforeTimestamp}::timestamptz, ${beforeId}::int))
                 ORDER BY p.status_changed_at DESC, p.id DESC LIMIT ${limit + 1} OFFSET ${effectiveOffset}`;
+        const totalRow = hasCursor ? null : params.mode === "history"
+            ? await db.queryRow<{total: number}>`SELECT COUNT(*)::int AS total
+                FROM pallet_audit_logs a JOIN pallet_details p ON p.pallet_id = a.pallet_id
+                WHERE (${from}::date IS NULL OR a.timestamp >= (${from}::date::timestamp AT TIME ZONE 'Europe/Warsaw'))
+                  AND (${to}::date IS NULL OR a.timestamp < ((${to}::date + 1)::timestamp AT TIME ZONE 'Europe/Warsaw'))
+                  AND (${statusFilter} = '' OR a.new_status = ANY(string_to_array(${statusFilter}, ',')))
+                  AND (${previousStatus}::text IS NULL OR a.previous_status = ${previousStatus})
+                  AND (NOT ${changesOnly}::boolean OR (
+                    a.previous_status <> a.new_status
+                    AND a.previous_status = ANY(string_to_array(${palletStatuses}, ','))
+                    AND a.new_status = ANY(string_to_array(${palletStatuses}, ','))
+                  ))
+                  AND (NOT ${washedOnly}::boolean OR (
+                    (a.previous_status = 'Washing_Required' AND a.new_status = 'Active')
+                    OR a.event_type = 'washing_confirmed'
+                  ))`
+            : await db.queryRow<{total: number}>`SELECT COUNT(*)::int AS total
+                FROM pallet_details p
+                WHERE p.deleted_at IS NULL
+                  AND (${from}::date IS NULL OR p.status_changed_at >= (${from}::date::timestamp AT TIME ZONE 'Europe/Warsaw'))
+                  AND (${to}::date IS NULL OR p.status_changed_at < ((${to}::date + 1)::timestamp AT TIME ZONE 'Europe/Warsaw'))
+                  AND (${statusFilter} = '' OR p.status = ANY(string_to_array(${statusFilter}, ',')))`;
         const hasMore = rows.length > limit;
         const pageRows = rows.slice(0, limit);
         const lastRow = pageRows.at(-1);
@@ -134,6 +161,7 @@ export const GetReports = api({method: "GET", path: "/pallets/reports", expose: 
                     ...(block_reason_updated ? {previous_block_reason: getAuditStatusReason(previous_block_reason ?? null, params.acceptLanguage)} : {}),
                 } : {}),
                 description: localizeAuditDescription(row.description, params.acceptLanguage)})),
+            ...(totalRow ? {total_count: totalRow.total} : {}),
             next_offset: hasMore ? effectiveOffset + limit : undefined,
             next_before_timestamp: hasMore && lastRow ? lastRow.timestamp : undefined,
             next_before_id: hasMore && lastRow ? lastRow.id : undefined,

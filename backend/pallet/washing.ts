@@ -42,8 +42,8 @@ export const ConfirmPalletWashing = api(
         await tx.exec`UPDATE pallets SET current_cycles = 0, status = 'Active', block_reason = NULL,
             updated_by = ${auth.fullName}, updated_at = NOW(), last_operation_description = ${description}
             WHERE pallet_id = ${id}`;
-        await tx.exec`INSERT INTO pallet_audit_logs (pallet_id, operator_id, previous_status, new_status, description)
-            VALUES (${id}, ${auth.fullName}, ${before.status}, 'Active', ${description})`;
+        await tx.exec`INSERT INTO pallet_audit_logs (pallet_id, operator_id, previous_status, new_status, description, event_type)
+            VALUES (${id}, ${auth.fullName}, ${before.status}, 'Active', ${description}, 'washing_confirmed')`;
         const row = await tx.queryRow<PalletRecord>`SELECT * FROM pallet_details WHERE pallet_id = ${id}`;
         await tx.commit();
         return {pallet: toPalletDTO(row!, params.acceptLanguage), reset};

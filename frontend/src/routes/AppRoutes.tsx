@@ -81,7 +81,7 @@ const AuthenticatedRoutes: React.FC = () => {
     const {apiClient, canManagePallets, isMaintenanceOnly, canAccessMaintenance, canAccessLab, defaultPath} = useAuth();
     const {language, t} = useTranslation();
     const pathname = useLocation().pathname;
-    const needsPallets = (pathname === '/admin' && canManagePallets) || (pathname === '/maintenance/service' && canAccessMaintenance);
+    const needsPallets = pathname === '/maintenance/service' && canAccessMaintenance;
     const needsCatalog = pathname === '/admin' && canManagePallets;
     const palletsKey = useMemo(() => ['pallets', language] as const, [language]);
     const projectsKey = useMemo(() => ['projects', language] as const, [language]);
@@ -143,7 +143,7 @@ const AuthenticatedRoutes: React.FC = () => {
                             path="/catalog" element={<CatalogView/>}/>
                         <Route
                             path="/admin"
-                            element={<AdminPanel pallets={pallets} projects={projects} models={models}/>}
+                            element={<AdminPanel projects={projects} models={models}/>}
                         />
                         <Route
                             path="/admin/pallets/:palletId/history"

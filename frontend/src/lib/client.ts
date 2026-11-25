@@ -278,6 +278,12 @@ export namespace pallet {
     export interface GetAllPalletsResponse {
         pallets: shared.Pallet[]
         "next_cursor"?: number
+        "total_count"?: number
+        summary?: {
+            total: number
+            active: number
+            "blocked_or_maintenance": number
+        }
     }
 
     export interface StrainPallet {
@@ -329,6 +335,15 @@ export namespace pallet {
     export interface PalletPageParams {
         limit?: number
         "after_id"?: number
+        offset?: number
+        query?: string
+        project?: string
+        model?: string
+        status?: string
+        machine?: string
+        fis?: number
+        "sort_by"?: string
+        "sort_dir"?: string
         acceptLanguage?: string
     }
 
@@ -434,9 +449,9 @@ export namespace pallet {
             const {acceptLanguage, ...body} = params;
             const resp = await this.baseClient.callTypedAPI('PUT', `/operator-reports/${encodeURIComponent(id)}`, JSON.stringify(body), {headers: makeRecord({'accept-language': acceptLanguage})}); return await resp.json();
         }
-        public async GetReports(params: {mode: 'history' | 'current'; from?: string; to?: string; statuses?: string; previous_status?: string; changes_only?: boolean; limit?: number; offset?: number; before_timestamp?: string; before_id?: number; acceptLanguage?: string}): Promise<{rows: import('@backend/shared/types').ReportRow[]; next_offset?: number; next_before_timestamp?: string; next_before_id?: number}> {
+        public async GetReports(params: {mode: 'history' | 'current'; from?: string; to?: string; statuses?: string; previous_status?: string; changes_only?: boolean; washed_only?: boolean; limit?: number; offset?: number; before_timestamp?: string; before_id?: number; acceptLanguage?: string}): Promise<{rows: import('@backend/shared/types').ReportRow[]; total_count?: number; next_offset?: number; next_before_timestamp?: string; next_before_id?: number}> {
             const {acceptLanguage, ...query} = params;
-            const resp = await this.baseClient.callTypedAPI('GET', '/pallets/reports', undefined, {query: makeRecord({mode: query.mode, from: query.from, to: query.to, statuses: query.statuses, previous_status: query.previous_status, changes_only: query.changes_only?.toString(), limit: query.limit?.toString(), offset: query.offset?.toString(), before_timestamp: query.before_timestamp, before_id: query.before_id?.toString()}), headers: makeRecord({'accept-language': acceptLanguage})}); return await resp.json();
+            const resp = await this.baseClient.callTypedAPI('GET', '/pallets/reports', undefined, {query: makeRecord({mode: query.mode, from: query.from, to: query.to, statuses: query.statuses, previous_status: query.previous_status, changes_only: query.changes_only?.toString(), washed_only: query.washed_only?.toString(), limit: query.limit?.toString(), offset: query.offset?.toString(), before_timestamp: query.before_timestamp, before_id: query.before_id?.toString()}), headers: makeRecord({'accept-language': acceptLanguage})}); return await resp.json();
         }
         public async UpdateProject(id: number, params: UpdateProjectParams): Promise<void> {
             const headers = makeRecord<string, string>({
@@ -642,6 +657,15 @@ export namespace pallet {
             const query = makeRecord<string, string | string[]>({
                 "after_id": params["after_id"] === undefined ? undefined : String(params["after_id"]),
                 limit:      params.limit === undefined ? undefined : String(params.limit),
+                offset:     params.offset === undefined ? undefined : String(params.offset),
+                query:      params.query,
+                project:    params.project,
+                model:      params.model,
+                status:     params.status,
+                machine:    params.machine,
+                fis:        params.fis === undefined ? undefined : String(params.fis),
+                "sort_by":  params["sort_by"],
+                "sort_dir": params["sort_dir"],
             })
 
             // Now make the actual call to the API

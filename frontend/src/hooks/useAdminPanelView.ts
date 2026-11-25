@@ -8,10 +8,10 @@ import { useAdminPanel } from '../hooks/useAdminPanel.ts';
 
 import { useNavigate, useSearchParams } from "react-router";
 
-export function useAdminPanelView(props: Parameters<typeof useAdminPanel>[0], panel: ReturnType<typeof useAdminPanel>) {
+export function useAdminPanelView(_props: Parameters<typeof useAdminPanel>[0], panel: ReturnType<typeof useAdminPanel>) {
     const {data, actions} = panel;
     const {t, language} = useTranslation();
-    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [selectedById, setSelectedById] = useState<Record<string, Pallet>>({});
     const [hiddenColumns, setHiddenColumns] = useState(readHiddenColumns);
     useEffect(() => {
         return subscribeBroadcast((message) => {
@@ -20,11 +20,44 @@ export function useAdminPanelView(props: Parameters<typeof useAdminPanel>[0], pa
             }
         });
     }, []);
-    const selectedPallets = props.pallets.filter(p => selectedIds.includes(p.pallet_id));
-    const toggleSelected = (id: string) => setSelectedIds(ids => ids.includes(id) ? ids.filter(value => value !== id) : [...ids, id]);
+    const selectedIds = Object.keys(selectedById);
+    const setSelectedIds = (updater: string[] | ((current: string[]) => string[])) => {
+        setSelectedById(current => {
+            const nextIds = typeof updater === 'function' ? updater(Object.keys(current)) : updater;
+            const next: Record<string, Pallet> = {};
+            for (const id of nextIds) {
+                const match = data.paginatedPallets.find(p => p.pallet_id === id) ?? current[id];
+                if (match) next[id] = match;
+            }
+            return next;
+        });
+    };
+    const selectedPallets = Object.values(selectedById);
+    const toggleSelected = (id: string) => {
+        setSelectedById(current => {
+            if (current[id]) {
+                const rest = {...current};
+                delete rest[id];
+                return rest;
+            }
+            const match = data.paginatedPallets.find(p => p.pallet_id === id);
+            return match ? {...current, [id]: match} : current;
+        });
+    };
     const pageIds = data.paginatedPallets.map(p => p.pallet_id);
-    const allPageSelected = pageIds.length > 0 && pageIds.every(id => selectedIds.includes(id));
-    const togglePage = () => setSelectedIds(ids => allPageSelected ? ids.filter(id => !pageIds.includes(id)) : [...new Set([...ids, ...pageIds])]);
+    const allPageSelected = pageIds.length > 0 && pageIds.every(id => Boolean(selectedById[id]));
+    const togglePage = () => {
+        setSelectedById(current => {
+            if (allPageSelected) {
+                const next = {...current};
+                for (const id of pageIds) delete next[id];
+                return next;
+            }
+            const next = {...current};
+            for (const pallet of data.paginatedPallets) next[pallet.pallet_id] = pallet;
+            return next;
+        });
+    };
     const toggleColumn = (key: OptionalColumn) => {
         const next = hiddenColumns.includes(key) ? hiddenColumns.filter(value => value !== key) : [...hiddenColumns, key];
         setHiddenColumns(next);

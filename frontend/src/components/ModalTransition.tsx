@@ -6,6 +6,8 @@ const focusable = 'button, [href], input, select, textarea, summary, [tabindex]'
 const openDialogs: HTMLElement[] = [];
 const dialogReturnFocus = new WeakMap<HTMLElement, Element | null>();
 let rootWasInert = false;
+let scrollLockCount = 0;
+let savedRootPaddingRight: string | null = null;
 
 function focusableChildren(panel: HTMLElement) {
     return [...panel.querySelectorAll<HTMLElement>(focusable)].filter(control =>
@@ -70,6 +72,32 @@ export function ModalTransition({
             ? dialogReturnFocus.get(closingOverlay) ?? null
             : active;
     });
+
+    useLayoutEffect(() => {
+        if (scrollLockCount === 0) {
+            const html = document.documentElement;
+            const root = document.getElementById('root');
+            const gutter = window.innerWidth - html.clientWidth;
+            savedRootPaddingRight = root?.style.paddingRight ?? '';
+            html.dataset.modalOpen = '';
+            if (root && gutter > 0) {
+                root.style.paddingRight = `${gutter}px`;
+            }
+        }
+        scrollLockCount++;
+        return () => {
+            scrollLockCount--;
+            if (scrollLockCount === 0) {
+                const html = document.documentElement;
+                const root = document.getElementById('root');
+                delete html.dataset.modalOpen;
+                if (root && savedRootPaddingRight !== null) {
+                    root.style.paddingRight = savedRootPaddingRight;
+                }
+                savedRootPaddingRight = null;
+            }
+        };
+    }, []);
 
     useLayoutEffect(() => {
         const panel = content.current;

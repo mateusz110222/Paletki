@@ -115,7 +115,7 @@ export const LiveMonitorView: React.FC = () => {
     return (
         <div className={`dashboard-screen ${stationRowMode ? 'flex min-h-screen flex-col lg:h-dvh lg:overflow-auto' : 'min-h-screen'} bg-brand-bg text-brand-text`}>
             <DisplayModeControl/>
-            <header className="shrink-0 border-b border-brand-border bg-brand-surface/95 backdrop-blur">
+            <header className="relative z-30 shrink-0 border-b border-brand-border bg-brand-surface/95 backdrop-blur">
                 <div className={`mx-auto flex w-full flex-wrap items-center justify-between gap-4 px-5 sm:px-8 ${stationRowMode ? 'py-[clamp(0.55rem,1.35vh,1rem)]' : 'py-4'}`}>
                     <div className="flex items-center gap-3">
                         <div className="grid size-10 place-items-center rounded-xl border border-brand-accent/30 bg-brand-accent/10 text-brand-accent"><Tv size="1.25rem"/></div>

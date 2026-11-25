@@ -13,6 +13,7 @@ export const OperatorPanelView: React.FC = () => {
     const { data, actions } = useOperatorPanel();
     const { t } = useTranslation();
     const reportingWashing = data.pendingFault?.status === 'Washing_Required';
+    const alreadyWashing = data.activePallet?.status === 'Washing_Required';
 
     const currentCycles = data.activePallet?.current_cycles ?? 0;
     const maxCycles = data.activePallet?.max_cycles || 1;
@@ -387,15 +388,24 @@ export const OperatorPanelView: React.FC = () => {
 
                             <div className="space-y-2.5 xl:space-y-3">
                                 {[
-                                    {name: t('op_mechanical_damage'), key: '1', icon: Edit3, status: 'Damaged' as const, defect: undefined},
-                                    {name: t('op_washing_required'), key: '2', icon: WashingMachine, status: 'Washing_Required' as const, defect: undefined},
-                                ].map(({name, key, icon: Icon, status, defect}) => <button key={key} type="button" disabled={data.isSubmitting} onClick={() => actions.openFaultModal(name, status, defect)} className="group flex w-full items-center justify-between gap-3 rounded-xl border border-brand-border/80 bg-brand-bg/70 p-3 xl:p-4 text-left transition-colors hover:border-red-400/40 hover:bg-red-400/5 disabled:opacity-50">
-                                    <span className="flex min-w-0 items-center gap-3"><span className="rounded-lg border border-brand-border/60 bg-brand-surface p-2 text-brand-text-muted group-hover:text-red-300"><Icon size={18}/></span><span className="text-xs font-bold text-brand-text">{name}</span></span>
-                                    <span className="flex shrink-0 items-center gap-2"><kbd className="rounded border border-brand-border bg-brand-surface px-1.5 py-0.5 font-mono text-xs font-bold text-brand-text-muted">[{key}]</kbd><ChevronRight size={16} className="text-brand-text-muted"/></span>
+                                    {name: t('op_mechanical_damage'), key: '1', icon: Edit3, status: 'Damaged' as const, defect: undefined, alreadyActive: false},
+                                    {name: t('op_washing_required'), key: '2', icon: WashingMachine, status: 'Washing_Required' as const, defect: undefined, alreadyActive: alreadyWashing},
+                                ].map(({name, key, icon: Icon, status, defect, alreadyActive}) => <button key={key} type="button" disabled={data.isSubmitting || !data.isOnline || alreadyActive} onClick={() => actions.openFaultModal(name, status, defect)} className={`group flex w-full items-center justify-between gap-3 rounded-xl border p-3 xl:p-4 text-left transition-colors disabled:cursor-not-allowed ${alreadyActive ? 'border-amber-400/35 bg-amber-400/5 opacity-75' : 'border-brand-border/80 bg-brand-bg/70 hover:border-red-400/40 hover:bg-red-400/5 disabled:opacity-50'}`}>
+                                    <span className="flex min-w-0 items-center gap-3"><span className={`rounded-lg border p-2 ${alreadyActive ? 'border-amber-400/30 bg-amber-400/10 text-amber-300' : 'border-brand-border/60 bg-brand-surface text-brand-text-muted group-hover:text-red-300'}`}><Icon size={18}/></span><span className="text-xs font-bold text-brand-text">{name}</span></span>
+                                    <span className="flex shrink-0 items-center gap-2">
+                                        {alreadyActive
+                                            ? <span className="rounded-md border border-amber-400/40 bg-amber-400/15 px-2 py-0.5 text-[11px] font-extrabold uppercase tracking-wider text-amber-300">{t('op_already_washing_badge')}</span>
+                                            : <><kbd className="rounded border border-brand-border bg-brand-surface px-1.5 py-0.5 font-mono text-xs font-bold text-brand-text-muted">[{key}]</kbd><ChevronRight size={16} className="text-brand-text-muted"/></>}
+                                    </span>
                                 </button>)}
                             </div>
+                            {alreadyWashing && (
+                                <p className="mt-2.5 text-xs leading-relaxed text-amber-200/90">
+                                    {t('op_already_washing_hint')}
+                                </p>
+                            )}
                         </div>
-                        <button type="button" disabled={data.isSubmitting} onClick={() => actions.openFaultModal(t('op_other_fault_type'), 'Damaged', 'other')} className="min-h-11 xl:min-h-12 w-full rounded-xl border-2 border-dashed border-brand-border bg-brand-bg/30 px-4 py-2.5 xl:py-3 text-xs font-black uppercase tracking-wider text-brand-text-muted transition-colors hover:border-brand-accent/60 hover:text-brand-accent disabled:opacity-50">+ {t('op_other_fault_type')} [3]</button>
+                        <button type="button" disabled={data.isSubmitting || !data.isOnline} onClick={() => actions.openFaultModal(t('op_other_fault_type'), 'Damaged', 'other')} className="min-h-11 xl:min-h-12 w-full rounded-xl border-2 border-dashed border-brand-border bg-brand-bg/30 px-4 py-2.5 xl:py-3 text-xs font-black uppercase tracking-wider text-brand-text-muted transition-colors hover:border-brand-accent/60 hover:text-brand-accent disabled:cursor-not-allowed disabled:opacity-50">+ {t('op_other_fault_type')} [3]</button>
                     </div>
                 </div>
             )}
@@ -559,6 +569,7 @@ export const OperatorPanelView: React.FC = () => {
                                 <ModalFormActions submitFirst submitType="button" variant={reportingWashing ? 'warning' : 'danger'}
                                     onSubmit={actions.handleReportFault} submitLabel={t('op_confirm_fault_submit')}
                                     submitIcon={<CheckCircle2 size={17}/>} isSubmitting={data.isSubmitting}
+                                    submitDisabled={!data.isOnline}
                                     onCancel={actions.cancelFaultConfirmation}
                                     cancelLabel={<><ArrowLeft size={16}/>{t('op_confirm_fault_back')}</>}/>
                             </div>

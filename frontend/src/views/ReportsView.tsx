@@ -8,13 +8,14 @@ import {useAuth} from '../auth/AuthContext';
 import {useTranslation, type TranslationKey} from '../i18n/LanguageContext';
 import {PalletStatusSpan} from '../components/PalletStatusSpan';
 import {InputField, SelectField} from '../components/FormFields';
+import {Pagination} from '../components/Pagination';
 import {getErrorMessage} from '../lib/errors';
 import {SavedReportFilters} from '../components/SavedReportFilters';
 
-const presets: {label: TranslationKey; previous?: PalletStatus; status?: PalletStatus; changesOnly?: boolean}[] = [
+const presets: {label: TranslationKey; previous?: PalletStatus; status?: PalletStatus; changesOnly?: boolean; washedOnly?: boolean}[] = [
     {label: 'reports_preset_all'},
     {label: 'reports_preset_changes', changesOnly: true},
-    {label: 'reports_preset_washed', previous: 'Washing_Required', status: 'Active'},
+    {label: 'reports_preset_washed', washedOnly: true},
     {label: 'reports_preset_repaired', previous: 'Damaged', status: 'Active'},
     {label: 'reports_preset_unblocked', previous: 'Blocked', status: 'Active'},
     {label: 'reports_preset_washing', status: 'Washing_Required'},
@@ -22,9 +23,10 @@ const presets: {label: TranslationKey; previous?: PalletStatus; status?: PalletS
     {label: 'reports_preset_blocked', status: 'Blocked'},
 ];
 
-const pageSize = 50;
+const defaultPageSize = 50;
+const allowedPageSizes = [25, 50, 100, 200] as const;
 const palletStatus = (value: string | null) => PALLET_STATUSES.find(status => status === value);
-const clearedFilters = {from: '', to: '', previous: '', status: '', changes: ''};
+const clearedFilters = {from: '', to: '', previous: '', status: '', changes: '', washed: ''};
 const statusFieldClass = 'flex min-w-0 flex-col gap-1.5 min-[360px]:max-[419px]:col-span-2';
 
 function readScope(params: URLSearchParams) {
@@ -33,7 +35,8 @@ function readScope(params: URLSearchParams) {
     const previous = palletStatus(params.get('previous'));
     const status = palletStatus(params.get('status'));
     const changesOnly = params.get('changes') === '1';
-    return {from, to, previous, status, changesOnly, hasFilters: Boolean(from || to || previous || status || changesOnly), invalidDates: Boolean(from && to && from > to)};
+    const washedOnly = params.get('washed') === '1';
+    return {from, to, previous, status, changesOnly, washedOnly, hasFilters: Boolean(from || to || previous || status || changesOnly || washedOnly), invalidDates: Boolean(from && to && from > to)};
 }
 
 function updateScope(params: URLSearchParams, values: Record<string, string | undefined>) {
@@ -53,16 +56,23 @@ export function ReportsView() {
     const [params, setParams] = useSearchParams();
     const dialog = useRef<HTMLDialogElement>(null);
     const [draftParams, setDraftParams] = useState(() => new URLSearchParams());
-    const {from, to, previous, status, changesOnly, hasFilters, invalidDates} = readScope(params);
+    const requestedLimit = Number(params.get('limit'));
+    const pageSize = (allowedPageSizes as readonly number[]).includes(requestedLimit) ? requestedLimit : defaultPageSize;
+    const {from, to, previous, status, changesOnly, washedOnly, hasFilters, invalidDates} = readScope(params);
     const draft = readScope(draftParams);
     const requestedOffset = Number(params.get('offset'));
     const offset = Number.isSafeInteger(requestedOffset) && requestedOffset > 0 && requestedOffset % pageSize === 0 ? requestedOffset : 0;
+    const currentPage = Math.floor(offset / pageSize) + 1;
     const [exporting, setExporting] = useState(false);
     const [exportError, setExportError] = useState('');
     const filters = {mode: 'history' as const, from: from || undefined, to: to || undefined,
-        previous_status: previous, statuses: status, changes_only: changesOnly || undefined, acceptLanguage: language};
-    const query = useQuery({queryKey: ['reports', filters, offset], enabled: !invalidDates,
+        previous_status: previous, statuses: status, changes_only: changesOnly || undefined, washed_only: washedOnly || undefined, acceptLanguage: language};
+    const query = useQuery({queryKey: ['reports', filters, offset, pageSize], enabled: !invalidDates,
         queryFn: () => apiClient.pallet.GetReports({...filters, offset, limit: pageSize})});
+    const totalItems = query.data?.total_count;
+    const totalPages = totalItems !== undefined
+        ? Math.max(1, Math.ceil(totalItems / pageSize))
+        : (query.data?.next_offset !== undefined ? currentPage + 1 : currentPage);
     const statusLabel = (value: string) => {
         if (value === 'NEW') return t('reports_status_new');
         if (value === 'DELETED') return t('reports_status_deleted');
@@ -125,6 +135,7 @@ export function ReportsView() {
     if (draft.previous) savedQuery.set('previous', draft.previous);
     if (draft.status) savedQuery.set('status', draft.status);
     if (draft.changesOnly) savedQuery.set('changes', '1');
+    if (draft.washedOnly) savedQuery.set('washed', '1');
     const renderStatus = (value: string, row: ReportRow, before = false) => {
         const knownStatus = palletStatus(value);
         const blockReason = before && row.previous_block_reason !== undefined ? row.previous_block_reason : row.block_reason;
@@ -141,7 +152,7 @@ export function ReportsView() {
             <button type="button" disabled={exporting || invalidDates || query.isPending || query.isError || !query.data?.rows.length} onClick={() => void exportReport()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand-accent px-5 text-xs font-black text-brand-on-accent transition-colors hover:bg-brand-accent/90 disabled:opacity-40"><Download size={17}/>{t(exporting ? 'reports_exporting' : 'reports_export')}</button>
         </div>
         <dialog ref={dialog} aria-labelledby="report-scope-title"
-            className="fixed inset-0 m-auto max-h-[calc(100dvh-1.5rem)] w-[calc(100%-1.5rem)] max-w-2xl overflow-hidden rounded-2xl border border-brand-border bg-brand-surface p-0 text-brand-text shadow-2xl open:flex open:flex-col backdrop:bg-black/65">
+            className="ui-dialog fixed inset-0 m-auto max-h-[calc(100dvh-1.5rem)] w-[calc(100%-1.5rem)] max-w-2xl overflow-hidden rounded-2xl border border-brand-border bg-brand-surface p-0 text-brand-text shadow-2xl open:flex open:flex-col">
             <header className="flex shrink-0 items-center justify-between gap-3 border-b border-brand-border bg-brand-surface-high/25 px-4 py-2.5 sm:px-5">
                 <h2 id="report-scope-title" className="flex items-center gap-2 text-base font-bold"><SlidersHorizontal size={17} aria-hidden="true"/>{t('reports_filters')}</h2>
                 <button type="button" aria-label={t('btn_close')} onClick={() => dialog.current?.close()}
@@ -155,9 +166,10 @@ export function ReportsView() {
                     <div className="flex flex-wrap gap-2">
                         {presets.map(preset => {
                             const selected = preset.previous === draft.previous && preset.status === draft.status
-                                && Boolean(preset.changesOnly) === draft.changesOnly;
+                                && Boolean(preset.changesOnly) === draft.changesOnly
+                                && Boolean(preset.washedOnly) === draft.washedOnly;
                             return <button key={preset.label} type="button" aria-pressed={selected}
-                                onClick={() => editScope({previous: preset.previous, status: preset.status, changes: preset.changesOnly ? '1' : undefined})}
+                                onClick={() => editScope({previous: preset.previous, status: preset.status, changes: preset.changesOnly ? '1' : undefined, washed: preset.washedOnly ? '1' : undefined})}
                                 className={`min-h-10 rounded-lg border px-3 text-xs font-bold transition-colors disabled:opacity-50 ${selected ? 'border-brand-accent bg-brand-accent/10 text-brand-accent' : 'border-brand-border bg-brand-bg text-brand-text-muted hover:border-brand-accent/50 hover:text-brand-text'}`}>
                                 {t(preset.label)}
                             </button>;
@@ -167,11 +179,11 @@ export function ReportsView() {
                 <div className="grid gap-4 min-[360px]:grid-cols-2">
                     <InputField label={t('reports_from')} type="date" value={draft.from} onChange={e => editScope({from: e.target.value})}/>
                     <InputField label={t('reports_to')} type="date" value={draft.to} onChange={e => editScope({to: e.target.value})}/>
-                    <SelectField label={t('reports_previous')} fieldClassName={statusFieldClass} value={draft.previous ?? ''} onChange={e => editScope({previous: e.target.value, changes: undefined})}>
+                    <SelectField label={t('reports_previous')} fieldClassName={statusFieldClass} value={draft.previous ?? ''} onChange={e => editScope({previous: e.target.value, changes: undefined, washed: undefined})}>
                         <option value="">{t('reports_any_status')}</option>
                         {PALLET_STATUSES.map(value => <option key={value} value={value}>{statusLabel(value)}</option>)}
                     </SelectField>
-                    <SelectField label={t('reports_next_status')} fieldClassName={statusFieldClass} value={draft.status ?? ''} onChange={e => editScope({status: e.target.value, changes: undefined})}>
+                    <SelectField label={t('reports_next_status')} fieldClassName={statusFieldClass} value={draft.status ?? ''} onChange={e => editScope({status: e.target.value, changes: undefined, washed: undefined})}>
                         <option value="">{t('reports_any_status')}</option>
                         {PALLET_STATUSES.map(value => <option key={value} value={value}>{statusLabel(value)}</option>)}
                     </SelectField>
@@ -213,10 +225,15 @@ export function ReportsView() {
                     <td className="min-w-44 max-w-sm px-3 py-3.5">{row.defect && <p className="mb-1.5 text-sm font-bold text-brand-text">{row.defect === 'Other' ? t('op_other_fault_type') : row.defect}</p>}<p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-brand-text-muted">{row.description || '—'}</p></td>
                     <td className="px-3 py-3.5 text-xs font-semibold text-brand-text-muted">{row.operator}</td>
                 </tr>)}</tbody></table></div>}
-            <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-brand-border bg-brand-bg/20 px-5 py-3.5 text-xs text-brand-text-muted"><span>{t('reports_page')} <strong className="font-mono text-brand-text">{offset / pageSize + 1}</strong> · {t('reports_rows_page')}: {query.data?.rows.length ?? 0}</span><div className="flex gap-2">
-                <button type="button" disabled={offset === 0 || query.isFetching || exporting} className="min-h-9 rounded-lg border border-brand-border px-3 text-xs font-bold text-brand-text-muted hover:text-brand-text disabled:opacity-30" onClick={() => updateParams({offset: offset > pageSize ? String(offset - pageSize) : undefined})}>{t('reports_prev')}</button>
-                <button type="button" disabled={query.data?.next_offset === undefined || query.isFetching || exporting || invalidDates} className="min-h-9 rounded-lg border border-brand-border px-3 text-xs font-bold text-brand-text-muted hover:text-brand-text disabled:opacity-30" onClick={() => updateParams({offset: query.data?.next_offset?.toString()})}>{t('reports_next')}</button>
-            </div></footer>
+            <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                pageSize={pageSize}
+                pageSizes={allowedPageSizes}
+                onPageSizeChange={size => updateParams({limit: size === defaultPageSize ? undefined : String(size), offset: undefined})}
+                onPageChange={page => updateParams({offset: page > 1 ? String((page - 1) * pageSize) : undefined})}
+            />
         </section>
     </div>;
 }

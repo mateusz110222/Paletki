@@ -1,7 +1,14 @@
-import React, {useLayoutEffect, useRef} from 'react';
+import React, {useCallback, useLayoutEffect, useRef, useState} from 'react';
 import {NavLink} from 'react-router';
 import {BookOpen, FlaskConical, FolderTree, BarChart3, LayoutDashboard, LucideIcon, Scan, Tv, Wrench, X, Code2} from 'lucide-react';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
+
+function supportsTopLayerExit(el: HTMLDialogElement) {
+    return typeof CSS !== 'undefined'
+        && CSS.supports('overlay', 'auto')
+        && CSS.supports('transition-behavior', 'allow-discrete')
+        && getComputedStyle(el).transitionProperty.split(/,\s*/).includes('overlay');
+}
 
 interface NavItem {
     path: string;
@@ -28,30 +35,89 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
     const {t} = useTranslation();
     const mobileDialog = useRef<HTMLDialogElement>(null);
-    const closeMobileDialog = () => {
-        mobileDialog.current?.close();
+    const closeTimer = useRef<number | null>(null);
+    const closeSeq = useRef(0);
+    const [closing, setClosing] = useState(false);
+    const showDrawerContent = mobileOpen || closing;
+
+    const finishClosing = useCallback((seq?: number) => {
+        if (seq !== undefined && seq !== closeSeq.current) return;
+        if (closeTimer.current !== null) {
+            window.clearTimeout(closeTimer.current);
+            closeTimer.current = null;
+        }
+        const dialog = mobileDialog.current;
+        if (dialog) {
+            delete dialog.dataset.closing;
+            if (dialog.open) dialog.close();
+        }
+        setClosing(false);
+    }, []);
+
+    const closeMobileDialog = useCallback(() => {
+        const dialog = mobileDialog.current;
+        if (!dialog || !dialog.open) {
+            onMobileClose();
+            return;
+        }
+        const seq = ++closeSeq.current;
+        setClosing(true);
         onMobileClose();
-    };
+        if (closeTimer.current !== null) window.clearTimeout(closeTimer.current);
+        if (supportsTopLayerExit(dialog)) {
+            dialog.close();
+            const running = dialog.getAnimations?.({subtree: true}) ?? [];
+            if (running.length === 0) {
+                finishClosing(seq);
+                return;
+            }
+            void Promise.allSettled(running.map(anim => anim.finished)).then(() => finishClosing(seq));
+        } else {
+            dialog.dataset.closing = '';
+            const running = dialog.getAnimations?.({subtree: true}) ?? [];
+            if (running.length === 0) {
+                finishClosing(seq);
+                return;
+            }
+            void Promise.allSettled(running.map(anim => anim.finished)).then(() => finishClosing(seq));
+        }
+        closeTimer.current = window.setTimeout(() => finishClosing(seq), 350);
+    }, [finishClosing, onMobileClose]);
+
     useLayoutEffect(() => {
         const dialog = mobileDialog.current;
         if (!mobileOpen || !dialog) return;
         const desktop = window.matchMedia('(min-width: 64rem)');
         const closeOnDesktop = () => {
             if (!desktop.matches) return;
-            dialog.close();
+            closeSeq.current++;
+            finishClosing();
             onMobileClose();
         };
         if (desktop.matches) {
+            closeSeq.current++;
+            finishClosing();
             onMobileClose();
             return;
         }
-        dialog.showModal();
+        // Invalidate any in-flight close animation completion from a previous close.
+        closeSeq.current++;
+        if (closeTimer.current !== null) {
+            window.clearTimeout(closeTimer.current);
+            closeTimer.current = null;
+        }
+        delete dialog.dataset.closing;
+        if (!dialog.open) dialog.showModal();
         desktop.addEventListener('change', closeOnDesktop);
         return () => {
             desktop.removeEventListener('change', closeOnDesktop);
-            dialog.close();
         };
-    }, [mobileOpen, onMobileClose]);
+    }, [mobileOpen, finishClosing, onMobileClose]);
+
+    useLayoutEffect(() => () => {
+        closeSeq.current++;
+        if (closeTimer.current !== null) window.clearTimeout(closeTimer.current);
+    }, []);
 
     const navItems: NavItem[] = [
         ...(canManagePallets ? [{path: '/catalog', label: t('nav_catalog'), icon: FolderTree}] : []),
@@ -116,16 +182,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {authorFooter}
         </aside>
 
-        {mobileOpen && (
-            <dialog
-                ref={mobileDialog}
-                id="mobile-navigation"
-                aria-label={t('nav_open')}
-                className="fixed inset-0 m-0 h-dvh max-h-none w-full max-w-none overflow-hidden bg-transparent backdrop:bg-black/65 backdrop:backdrop-blur-sm"
-                onCancel={event => { event.preventDefault(); closeMobileDialog(); }}
-                onClick={event => { if (event.target === event.currentTarget) closeMobileDialog(); }}
-            >
-                <div className="flex h-full w-[min(20rem,88vw)] flex-col border-r border-brand-border bg-brand-surface shadow-2xl animate-in slide-in-from-left duration-200">
+        <dialog
+            ref={mobileDialog}
+            id="mobile-navigation"
+            aria-label={t('nav_open')}
+            className="mobile-drawer fixed inset-y-0 left-0 right-auto m-0 h-dvh max-h-none w-[min(20rem,88vw)] max-w-none overflow-hidden border-r border-brand-border bg-brand-surface p-0 text-brand-text shadow-2xl"
+            onCancel={event => { event.preventDefault(); closeMobileDialog(); }}
+            onClick={event => { if (event.target === event.currentTarget) closeMobileDialog(); }}
+        >
+            {showDrawerContent && (
+                <div className="flex h-full w-full flex-col">
                     <div className="flex items-center justify-between border-b border-brand-border p-5">
                         <span className="text-lg font-black tracking-wider text-brand-accent">{t('app_name')}</span>
                         <button
@@ -140,7 +206,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     {navigation(closeMobileDialog)}
                     {authorFooter}
                 </div>
-            </dialog>
-        )}
+            )}
+        </dialog>
     </>;
 };

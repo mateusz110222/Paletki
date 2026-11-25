@@ -115,7 +115,7 @@ function StatusWithReason({className, label, heading, reason, children}: {
 
     const panel = <span id={id} ref={tooltip} role="tooltip" popover={fallback ? undefined : 'auto'} hidden={fallback && !open}
             onToggle={event => setOpen(event.newState === 'open')}
-            className="fixed inset-auto top-0 left-0 z-[120] m-0 max-h-[min(18rem,calc(100dvh-1rem))] w-max max-w-[min(22rem,calc(100vw-1rem))] overflow-auto rounded-xl border border-brand-border border-s-3 border-s-red-400 bg-brand-surface px-4 py-3 text-left text-sm font-normal normal-case tracking-normal text-brand-text shadow-xl">
+            className="ui-popover fixed inset-auto top-0 left-0 z-[120] m-0 max-h-[min(18rem,calc(100dvh-1rem))] w-max max-w-[min(22rem,calc(100vw-1rem))] overflow-auto rounded-xl border border-brand-border border-s-3 border-s-red-400 bg-brand-surface px-4 py-3 text-left text-sm font-normal normal-case tracking-normal text-brand-text shadow-xl">
             <span className="mb-1.5 flex items-center gap-2 text-xs font-bold text-red-300">
                 <Info size={14} aria-hidden="true"/>{heading}
             </span>

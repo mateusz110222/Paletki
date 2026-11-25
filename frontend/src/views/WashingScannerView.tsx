@@ -146,7 +146,7 @@ export function WashingScannerView() {
                     </section>}
             </div>
         </section>
-        <dialog ref={dialog} aria-labelledby="washing-confirm-title" aria-describedby="washing-confirm-description" onCancel={event => {event.preventDefault(); closeConfirmation();}} onClick={event => {if (event.target === event.currentTarget) {const bounds = event.currentTarget.getBoundingClientRect(); if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) closeConfirmation();}}} className="fixed inset-0 m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-2xl border border-brand-border bg-brand-surface p-0 text-brand-text backdrop:bg-black/70">
+        <dialog ref={dialog} aria-labelledby="washing-confirm-title" aria-describedby="washing-confirm-description" onCancel={event => {event.preventDefault(); closeConfirmation();}} onClick={event => {if (event.target === event.currentTarget) {const bounds = event.currentTarget.getBoundingClientRect(); if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) closeConfirmation();}}} className="ui-dialog fixed inset-0 m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-2xl border border-brand-border bg-brand-surface p-0 text-brand-text">
             <form onSubmit={event => {event.preventDefault(); void confirm();}} className="font-sans tracking-normal">
                 <header className="flex items-center justify-between gap-4 px-5 py-4 sm:px-6">
                     <h2 id="washing-confirm-title" className="text-xl font-semibold leading-snug">{t('washing_open_confirmation')}</h2>

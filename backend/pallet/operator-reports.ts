@@ -98,6 +98,9 @@ export const CreateOperatorReport = api({method: "POST", path: "/operator-report
         if (pallet.status === "Damaged" && kind === "washing") {
             throw APIError.failedPrecondition(t("report_washing_damaged", params.acceptLanguage));
         }
+        if (pallet.status === "Washing_Required" && kind === "washing") {
+            throw APIError.failedPrecondition(t("report_already_washing", params.acceptLanguage));
+        }
         if (pallet.status === 'Damaged' && !auth.hasITDepartmentAccess && !auth.hasMEDepartmentAccess && !auth.hasURDepartmentAccess) {
             throw APIError.permissionDenied(t('auth_operator_damaged', params.acceptLanguage));
         }

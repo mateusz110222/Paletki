@@ -80,12 +80,9 @@ function LabScanner() {
 
     return <section className="mx-auto w-full max-w-6xl overflow-hidden rounded-2xl border border-brand-border bg-brand-surface" aria-labelledby="lab-scan-title">
         <div className="h-1 bg-emerald-400/70"/>
-        <header className="flex items-start gap-3 border-b border-brand-border px-4 py-4 sm:px-5">
-            <FlaskConical size={22} aria-hidden="true" className="mt-1 shrink-0 text-brand-text-muted"/>
-            <div>
-                <h1 id="lab-scan-title" className="text-xl font-bold">{t('lab_title')}</h1>
-                <p className="mt-1 text-xs leading-relaxed text-brand-text-muted">{t('lab_validity')}</p>
-            </div>
+        <header className="flex items-center gap-3 border-b border-brand-border px-4 py-4 sm:px-5">
+            <FlaskConical size={22} aria-hidden="true" className="shrink-0 text-brand-text-muted"/>
+            <h1 id="lab-scan-title" className="text-xl font-bold">{t('lab_scan_title')}</h1>
         </header>
         <div className="space-y-4 p-4 sm:p-5">
             <PalletScannerForm id="lab-scanner-input" label={t('lab_scan_title')} inputRef={input} value={id} ready={query.isSuccess}
@@ -256,18 +253,7 @@ function LabTable() {
         sort.key === key ? (sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'
     );
 
-    return <section aria-labelledby="lab-heading" className="min-w-0 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-                <h1 id="lab-heading" className="text-2xl font-bold tracking-tight">{t('lab_title')}</h1>
-                <p className="mt-1 text-sm text-brand-text-muted">{t('lab_validity')}</p>
-            </div>
-            {query.isSuccess && <p className="flex items-center gap-2 rounded-md border border-brand-border bg-brand-surface px-3 py-2 text-xs font-bold text-brand-text-muted">
-                <span aria-hidden="true" className={`size-2 rounded-full ${query.data.blocking ? 'bg-amber-300' : 'bg-brand-text-muted'}`}/>
-                {t(query.data.blocking ? 'lab_blocking_on' : 'lab_blocking_off')}
-            </p>}
-        </div>
-
+    return <section aria-label={t('lab_title')} className="min-w-0 space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-300">
         {saved && <p role="status" className="text-sm text-emerald-300">{t('lab_saved')}</p>}
         {query.isPending && <p role="status" className="rounded-xl border border-brand-border bg-brand-surface p-5 text-sm text-brand-text-muted">{t('lab_loading')}</p>}
         {query.isError && <div role="alert" className="flex flex-wrap items-center gap-3 rounded-xl border border-brand-border bg-brand-surface p-4">
@@ -289,16 +275,10 @@ function LabTable() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
-                    {checkedRows.length > 0 && <>
-                        <button type="button" className={secondary}
-                            onClick={() => {setSaved(false); setSelected(checkedRows);}}>
-                            {t('lab_record_selected', {count: checkedRows.length})}
-                        </button>
-                        <button type="button" className="text-xs font-semibold text-brand-text-muted hover:text-brand-text px-2 py-1"
-                            onClick={() => setChecked(new Set())}>
-                            {language === 'pl' ? 'Wyczyść zaznaczenie' : 'Clear selection'}
-                        </button>
-                    </>}
+                    <p className="flex h-9 items-center gap-2 rounded-md border border-brand-border bg-brand-bg px-3 text-xs font-bold text-brand-text-muted">
+                        <span aria-hidden="true" className={`size-2 shrink-0 rounded-full ${query.data.blocking ? 'bg-amber-300' : 'bg-brand-text-muted'}`}/>
+                        {t(query.data.blocking ? 'lab_blocking_on' : 'lab_blocking_off')}
+                    </p>
                     <label className="relative block sm:w-72">
                         <Search aria-hidden="true" size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-brand-text-muted"/>
                         <span className="sr-only">{t('lab_search')}</span>
@@ -318,6 +298,29 @@ function LabTable() {
                     </button>
                 </div>
             </div>
+
+            {checkedRows.length > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-brand-border bg-brand-accent/8 px-6 py-2.5 text-xs animate-in fade-in duration-200">
+                    <span className="inline-flex items-center gap-2 font-bold text-brand-text">
+                        <span className="rounded-md bg-brand-accent px-2 py-0.5 font-mono text-xs font-black text-brand-on-accent tabular-nums">
+                            {checkedRows.length}
+                        </span>
+                        <span>{language === 'pl' ? 'zaznaczonych palet' : 'selected pallets'}</span>
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <button type="button" onClick={() => {setSaved(false); setSelected(checkedRows);}}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand-accent px-3 font-bold text-brand-on-accent transition-colors hover:bg-brand-accent/90">
+                            <Plus size={14} aria-hidden="true"/>
+                            {t('lab_action')}
+                        </button>
+                        <button type="button" onClick={() => setChecked(new Set())}
+                            className="inline-flex h-8 items-center gap-1 rounded-lg px-2.5 font-semibold text-brand-text-muted transition-colors hover:bg-brand-surface hover:text-brand-text">
+                            <X size={14} aria-hidden="true"/>
+                            {language === 'pl' ? 'Wyczyść' : 'Clear'}
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Admin-style Table */}
             <div className="admin-table-frame relative">
@@ -495,7 +498,7 @@ function StrainDialog({pallets, today, formatDate, onClose, onSaved}: {
             void invalidateAndBroadcast(queryClient, [queueKey]);
         },
     });
-    return <dialog ref={dialog} aria-labelledby="lab-dialog-title" className="m-auto max-h-[90dvh] w-[min(32rem,calc(100%-2rem))] rounded-lg border border-brand-border bg-brand-surface p-5 text-brand-text shadow-xl backdrop:bg-black/60 sm:p-6"
+    return <dialog ref={dialog} aria-labelledby="lab-dialog-title" className="ui-dialog m-auto max-h-[90dvh] w-[min(32rem,calc(100%-2rem))] rounded-lg border border-brand-border bg-brand-surface p-5 text-brand-text shadow-xl sm:p-6"
         onCancel={event => {event.preventDefault(); if (!save.isPending) onClose();}}>
         <h2 id="lab-dialog-title" className="text-xl font-bold">{t('lab_action')}</h2>
         <form className="mt-4 space-y-4" onSubmit={event => {event.preventDefault(); if (!save.isPending) save.mutate();}}>

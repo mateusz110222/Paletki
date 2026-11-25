@@ -1,17 +1,16 @@
 import {expandPalletRange} from '@backend/shared/validation';
-import {filterPallets} from '../lib/palletSearch';
-import {ADMIN_SORT_STORAGE_KEY, parseTableSort, readPreference, savePreference, sortPallets, type TableSort} from '../lib/tablePreferences';
+import {ADMIN_SORT_STORAGE_KEY, parseTableSort, readPreference, savePreference, type TableSort} from '../lib/tablePreferences';
 import {postBroadcastMessage, subscribeBroadcast} from '../lib/broadcastSync';
 import {refreshPalletData} from '../lib/queryCache';
 import {useToast} from '../components/ToastProvider';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {getErrorMessage} from '../lib/errors';
+import {asPallet} from '../lib/api';
 import {Pallet, PalletModel, PalletStatus, PalletMachine, Project} from '@backend/shared/types';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
 import {useAuth} from "../auth/AuthContext.tsx";
-import {useQueryClient} from '@tanstack/react-query';
+import {keepPreviousData, useQuery, useQueryClient} from '@tanstack/react-query';
 interface UseAdminPanelProps {
-    pallets: Pallet[];
     projects: Project[];
     models: PalletModel[];
 }
@@ -19,7 +18,6 @@ interface UseAdminPanelProps {
 type AddMode = 'single' | 'range';
 
 export const useAdminPanel = ({
-                                  pallets,
                                   projects,
                                   models,
                               }: UseAdminPanelProps) => {
@@ -126,19 +124,44 @@ export const useAdminPanel = ({
         setCurrentPage(1);
     }, []);
 
-    const filteredPallets = useMemo(() => filterPallets(pallets, {
-        search: searchTerm, project: selectedProject, model: selectedModel,
-        status: selectedStatus, machine: selectedMachine, fis: selectedFis,
-    }), [pallets, searchTerm, selectedModel, selectedProject, selectedStatus, selectedMachine, selectedFis]);
+    const pageQuery = useQuery({
+        queryKey: ['pallets', 'admin-page', language, currentPage, pageSize, searchTerm.trim(), selectedProject, selectedModel, selectedStatus, selectedMachine, selectedFis, sort.key, sort.direction],
+        queryFn: async () => {
+            const response = await apiClient.pallet.GetAllPallets({
+                limit: pageSize,
+                offset: (currentPage - 1) * pageSize,
+                query: searchTerm.trim() || undefined,
+                project: selectedProject !== 'ALL' ? selectedProject : undefined,
+                model: selectedModel !== 'ALL' ? selectedModel : undefined,
+                status: selectedStatus !== 'ALL' ? selectedStatus : undefined,
+                machine: selectedMachine !== 'ALL' ? selectedMachine : undefined,
+                fis: selectedFis === '1' || selectedFis === '2' ? Number(selectedFis) : undefined,
+                sort_by: sort.key,
+                sort_dir: sort.direction,
+                acceptLanguage: language,
+            });
+            return {
+                pallets: response.pallets.map(asPallet),
+                totalCount: response.total_count ?? response.pallets.length,
+                summary: response.summary,
+            };
+        },
+        placeholderData: keepPreviousData,
+        refetchInterval: 100_000,
+        staleTime: 30_000,
+        refetchOnWindowFocus: false,
+    });
 
-    const sortedPallets = useMemo(() => sortPallets(filteredPallets, sort, language), [filteredPallets, sort, language]);
-    const totalPages = Math.max(1, Math.ceil(filteredPallets.length / pageSize));
+    const paginatedPallets = useMemo(() => pageQuery.data?.pallets ?? [], [pageQuery.data]);
+    const totalFilteredPallets = pageQuery.data?.totalCount ?? 0;
+    const totalPages = Math.max(1, Math.ceil(totalFilteredPallets / pageSize));
     const safeCurrentPage = Math.min(currentPage, totalPages);
 
-    const paginatedPallets = useMemo(() => {
-        const start = (safeCurrentPage - 1) * pageSize;
-        return sortedPallets.slice(start, start + pageSize);
-    }, [sortedPallets, safeCurrentPage, pageSize]);
+    useEffect(() => {
+        if (pageQuery.data && currentPage > totalPages) {
+            setCurrentPage(totalPages);
+        }
+    }, [pageQuery.data, currentPage, totalPages]);
 
     const availableModels = useMemo(() => {
         const relevantModels = selectedProject === 'ALL'
@@ -170,15 +193,9 @@ export const useAdminPanel = ({
         };
     }, [addMode, cycleSteppingEnabled, cycleStepAmount, cycleStepEvery, newId, newLastId, newMaxCycles]);
 
-    const {totalPallets, availableStock, blockedOrMaint} = useMemo(() => pallets.reduce(
-        (totals, pallet) => {
-            totals.totalPallets += 1;
-            if (pallet.status === 'Active') totals.availableStock += 1;
-            else totals.blockedOrMaint += 1;
-            return totals;
-        },
-        {totalPallets: 0, availableStock: 0, blockedOrMaint: 0},
-    ), [pallets]);
+    const totalPallets = pageQuery.data?.summary?.total ?? 0;
+    const availableStock = pageQuery.data?.summary?.active ?? 0;
+    const blockedOrMaint = pageQuery.data?.summary?.blocked_or_maintenance ?? 0;
     const availablePalletsPercentage = Math.min(100, Math.round((availableStock / totalPallets) * 100)) || 0;
 
     const fetchPallets = async () => {
@@ -244,7 +261,7 @@ export const useAdminPanel = ({
             setValidationError(t('pallet_range_invalid'));
             return;
         }
-        const existingIds = new Set(pallets.map((pallet) => pallet.pallet_id.toUpperCase()));
+        const existingIds = new Set(paginatedPallets.map((pallet) => pallet.pallet_id.toUpperCase()));
         if (rangeIds.some((id) => existingIds.has(id))) {
             setValidationError(t('pallet_exists'));
             return;
@@ -519,7 +536,7 @@ export const useAdminPanel = ({
 
     return {
         data: {
-            pallets,
+            pallets: paginatedPallets,
             projects,
             models,
             isAddOpen,
@@ -551,7 +568,7 @@ export const useAdminPanel = ({
             newFis, newMachine,
             validationError,
             blockError,
-            filteredPallets,
+            totalFilteredPallets,
             sort,
             availableStock,
             blockedOrMaint,
@@ -565,8 +582,12 @@ export const useAdminPanel = ({
         },
         status: {
             isSubmitting,
-            isRefreshing,
+            isRefreshing: isRefreshing || pageQuery.isFetching,
             isExporting,
+            isInitialLoading: pageQuery.isPending && !pageQuery.data,
+            isLoadError: pageQuery.isError,
+            loadErrorMessage: pageQuery.isError ? getErrorMessage(pageQuery.error, t('error_connecting_to_encore')) : '',
+            hasSummary: Boolean(pageQuery.data?.summary),
         },
         actions: {
             setSearchTerm: updateSearchTerm,

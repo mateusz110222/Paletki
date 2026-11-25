@@ -31,6 +31,12 @@ interface LocalizedRequest {
 export interface GetAllPalletsResponse {
     pallets: Pallet[];
     next_cursor?: number;
+    total_count?: number;
+    summary?: {
+        total: number;
+        active: number;
+        blocked_or_maintenance: number;
+    };
 }
 
 interface GetPalletParams extends LocalizedRequest {
@@ -51,10 +57,15 @@ export interface GetPalletResponse {
 interface PalletPageParams extends LocalizedRequest {
     limit?: Query<number & Min<1> & Max<200>>;
     after_id?: Query<number & Min<0>>;
+    offset?: Query<number & Min<0>>;
     query?: Query<string>;
     project?: Query<string>;
     model?: Query<string>;
     status?: Query<string>;
+    machine?: Query<string>;
+    fis?: Query<number & Min<1> & Max<2>>;
+    sort_by?: Query<string>;
+    sort_dir?: Query<string>;
 }
 
 interface AuditPageParams extends LocalizedRequest {
@@ -139,11 +150,95 @@ export const GetAllPallets = api(
     async (params: PalletPageParams): Promise<GetAllPalletsResponse> => {
         const limit = params.limit ?? 200;
         const afterId = params.after_id ?? null;
+        const offset = params.offset ?? null;
         const search = params.query?.trim().toUpperCase();
         const searchPattern = search ? `%${search.replace(/[\\%_]/g, "\\$&")}%` : null;
         const project = params.project && params.project !== "ALL" ? params.project : null;
         const model = params.model && params.model !== "ALL" ? params.model : null;
         const status = params.status && params.status !== "ALL" ? params.status : null;
+        const machine = params.machine && params.machine !== "ALL" ? params.machine : null;
+        const fis = params.fis ?? null;
+
+        if (offset !== null) {
+            const allowedSort = new Set(["pallet_id", "project", "model", "fis", "nests", "current_cycles", "status", "created_by", "created_at"]);
+            const sortBy = params.sort_by && allowedSort.has(params.sort_by) ? params.sort_by : "pallet_id";
+            const sortDir = params.sort_dir === "desc" ? "desc" : "asc";
+            const [rows, countRow, summaryRow] = await Promise.all([
+                db.queryAll<PalletRecord>`
+                    SELECT * FROM pallet_details
+                    WHERE deleted_at IS NULL
+                      AND (${project}::text IS NULL OR project = ${project})
+                      AND (${model}::text IS NULL OR model = ${model})
+                      AND (${status}::text IS NULL OR (
+                          CASE WHEN ${status} = 'Unavailable' THEN status <> 'Active' ELSE status = ${status} END
+                      ))
+                      AND (${machine}::text IS NULL OR machine = ${machine})
+                      AND (${fis}::int IS NULL OR fis = ${fis})
+                      AND (${searchPattern}::text IS NULL OR (
+                          UPPER(pallet_id) LIKE ${searchPattern} OR
+                          UPPER(project) LIKE ${searchPattern} OR
+                          UPPER(model) LIKE ${searchPattern} OR
+                          UPPER(machine) LIKE ${searchPattern} OR
+                          UPPER(created_by) LIKE ${searchPattern}
+                      ))
+                    ORDER BY
+                        CASE WHEN ${sortBy} = 'pallet_id' AND ${sortDir} = 'asc' THEN pallet_id END ASC,
+                        CASE WHEN ${sortBy} = 'pallet_id' AND ${sortDir} = 'desc' THEN pallet_id END DESC,
+                        CASE WHEN ${sortBy} = 'project' AND ${sortDir} = 'asc' THEN LOWER(project) END ASC,
+                        CASE WHEN ${sortBy} = 'project' AND ${sortDir} = 'desc' THEN LOWER(project) END DESC,
+                        CASE WHEN ${sortBy} = 'model' AND ${sortDir} = 'asc' THEN LOWER(model) END ASC,
+                        CASE WHEN ${sortBy} = 'model' AND ${sortDir} = 'desc' THEN LOWER(model) END DESC,
+                        CASE WHEN ${sortBy} = 'fis' AND ${sortDir} = 'asc' THEN fis END ASC,
+                        CASE WHEN ${sortBy} = 'fis' AND ${sortDir} = 'desc' THEN fis END DESC,
+                        CASE WHEN ${sortBy} = 'nests' AND ${sortDir} = 'asc' THEN nests END ASC,
+                        CASE WHEN ${sortBy} = 'nests' AND ${sortDir} = 'desc' THEN nests END DESC,
+                        CASE WHEN ${sortBy} = 'current_cycles' AND ${sortDir} = 'asc' THEN current_cycles END ASC,
+                        CASE WHEN ${sortBy} = 'current_cycles' AND ${sortDir} = 'desc' THEN current_cycles END DESC,
+                        CASE WHEN ${sortBy} = 'status' AND ${sortDir} = 'asc' THEN status END ASC,
+                        CASE WHEN ${sortBy} = 'status' AND ${sortDir} = 'desc' THEN status END DESC,
+                        CASE WHEN ${sortBy} = 'created_by' AND ${sortDir} = 'asc' THEN LOWER(created_by) END ASC,
+                        CASE WHEN ${sortBy} = 'created_by' AND ${sortDir} = 'desc' THEN LOWER(created_by) END DESC,
+                        CASE WHEN ${sortBy} = 'created_at' AND ${sortDir} = 'asc' THEN created_at END ASC,
+                        CASE WHEN ${sortBy} = 'created_at' AND ${sortDir} = 'desc' THEN created_at END DESC,
+                        id ASC
+                    LIMIT ${limit} OFFSET ${offset}
+                `,
+                db.queryRow<{total: number}>`
+                    SELECT COUNT(*)::int AS total FROM pallet_details
+                    WHERE deleted_at IS NULL
+                      AND (${project}::text IS NULL OR project = ${project})
+                      AND (${model}::text IS NULL OR model = ${model})
+                      AND (${status}::text IS NULL OR (
+                          CASE WHEN ${status} = 'Unavailable' THEN status <> 'Active' ELSE status = ${status} END
+                      ))
+                      AND (${machine}::text IS NULL OR machine = ${machine})
+                      AND (${fis}::int IS NULL OR fis = ${fis})
+                      AND (${searchPattern}::text IS NULL OR (
+                          UPPER(pallet_id) LIKE ${searchPattern} OR
+                          UPPER(project) LIKE ${searchPattern} OR
+                          UPPER(model) LIKE ${searchPattern} OR
+                          UPPER(machine) LIKE ${searchPattern} OR
+                          UPPER(created_by) LIKE ${searchPattern}
+                      ))
+                `,
+                db.queryRow<{total: number; active: number}>`
+                    SELECT COUNT(*)::int AS total,
+                           COUNT(*) FILTER (WHERE status = 'Active')::int AS active
+                    FROM pallets WHERE deleted_at IS NULL
+                `,
+            ]);
+            const totalAll = summaryRow?.total ?? 0;
+            const activeAll = summaryRow?.active ?? 0;
+            return {
+                pallets: rows.map(row => toPalletDTO(row, params.acceptLanguage)),
+                total_count: countRow?.total ?? 0,
+                summary: {
+                    total: totalAll,
+                    active: activeAll,
+                    blocked_or_maintenance: totalAll - activeAll,
+                },
+            };
+        }
 
         const rows = await db.queryAll<PalletRecord>`
             SELECT * FROM pallet_details
@@ -151,10 +246,16 @@ export const GetAllPallets = api(
               AND (${afterId}::bigint IS NULL OR id > ${afterId})
               AND (${project}::text IS NULL OR project = ${project})
               AND (${model}::text IS NULL OR model = ${model})
-              AND (${status}::text IS NULL OR status = ${status})
+              AND (${status}::text IS NULL OR (
+                  CASE WHEN ${status} = 'Unavailable' THEN status <> 'Active' ELSE status = ${status} END
+              ))
+              AND (${machine}::text IS NULL OR machine = ${machine})
+              AND (${fis}::int IS NULL OR fis = ${fis})
               AND (${searchPattern}::text IS NULL OR (
                   UPPER(pallet_id) LIKE ${searchPattern} OR
+                  UPPER(project) LIKE ${searchPattern} OR
                   UPPER(model) LIKE ${searchPattern} OR
+                  UPPER(machine) LIKE ${searchPattern} OR
                   UPPER(created_by) LIKE ${searchPattern}
               ))
             ORDER BY id

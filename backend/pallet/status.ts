@@ -74,6 +74,9 @@ async function changePalletStatus(
         if (operatorPanelRequest && !canOpenPalletInOperatorPanel(row.status)) {
             throw APIError.permissionDenied(t(row.status === 'Damaged' ? 'auth_operator_damaged' : 'auth_operator_blocked', lang));
         }
+        if (operatorPanelRequest && row.status === newStatus) {
+            throw APIError.failedPrecondition(t(newStatus === "Washing_Required" ? "report_already_washing" : "auth_operator_damaged", lang));
+        }
 
         await tx.exec`
             UPDATE pallets

@@ -78,9 +78,9 @@ export function DisplayPreferences({account}: {account?: Account}) {
                 {account ? <span aria-hidden="true" className="grid size-7 shrink-0 place-items-center rounded-lg bg-brand-accent/15 text-xs font-bold text-indigo-200">{initials}</span>
                     : <Settings2 size={17} aria-hidden="true" className="shrink-0 text-indigo-200"/>}
                 <span className="min-w-0 truncate">{account?.name || t('display_preferences')}</span>
-                <ChevronDown size={15} aria-hidden="true" className="shrink-0 text-brand-text-muted group-open:rotate-180"/>
+                <ChevronDown size={15} aria-hidden="true" className="shrink-0 text-brand-text-muted transition-transform duration-200 group-open:rotate-180"/>
             </summary>
-            <div className="fixed inset-x-3 mt-2 max-h-[min(24rem,65dvh)] space-y-3 overflow-y-auto rounded-xl border border-brand-border bg-brand-surface p-3 text-brand-text shadow-xl md:absolute md:inset-x-auto md:end-0 md:top-full md:w-80">
+            <div className="ui-dropdown-panel fixed inset-x-3 mt-2 max-h-[min(24rem,65dvh)] space-y-3 overflow-y-auto rounded-xl border border-brand-border bg-brand-surface p-3 text-brand-text shadow-xl md:absolute md:inset-x-auto md:end-0 md:top-full md:w-80">
                 {account && <div className="flex items-center gap-3 border-b border-brand-border pb-3">
                     <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-lg bg-brand-accent text-sm font-bold text-brand-on-accent">{initials}</span>
                     <div className="min-w-0 wrap-anywhere">

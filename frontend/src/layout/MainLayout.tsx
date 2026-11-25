@@ -24,7 +24,9 @@ export const MainLayout: React.FC<{children?: ReactNode}> = ({children}) => {
             return {
                 title: t('history_page_title'),
                 sub: t('history_page_subtitle'),
-                back: pathname.startsWith('/maintenance/') ? {to: '/maintenance/history', label: t('history_back_to_lookup')} : undefined,
+                back: pathname.startsWith('/maintenance/')
+                    ? {to: '/maintenance/history', label: t('history_back_to_lookup')}
+                    : {to: '/admin' + location.search, label: t('history_back_to_admin')},
             };
         }
         const maintenanceBack = {to: '/maintenance', label: t('maintenance_back')};
@@ -53,11 +55,11 @@ export const MainLayout: React.FC<{children?: ReactNode}> = ({children}) => {
             case '/maintenance':
                 return {title: t('maintenance_hub_title'), sub: t('maintenance_hub_intro')};
             case '/lab':
-                return {title: 'LAB', sub: t('lab_subtitle')};
+                return {title: t('lab_title'), sub: t('lab_subtitle')};
             case '/lab/table':
-                return {title: 'LAB', sub: t('lab_table_title'), back: labBack};
+                return {title: t('lab_title'), sub: t('lab_table_title'), back: labBack};
             case '/lab/scan':
-                return {title: 'LAB', sub: t('lab_scan_title'), back: labBack};
+                return {title: t('lab_title'), sub: t('lab_scan_title'), back: labBack};
             case '/live':
                 return {title: t('panel_live_title'), sub: t('panel_live_subtitle')};
             default:

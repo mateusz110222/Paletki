@@ -46,13 +46,14 @@ test('report transport separates query filters from headers and sends the edit v
     const client = new Client('http://qa.test', {fetcher: async (input, init) => {
         requests.push({url: String(input), init}); return new Response(JSON.stringify({rows: [], reports: []}));
     }});
-    await client.pallet.GetReports({mode: 'history', from: '2026-10-01', to: '2026-10-12', statuses: 'Damaged,Blocked', previous_status: 'Active', changes_only: true, offset: 200, limit: 200, acceptLanguage: 'pl'});
+    await client.pallet.GetReports({mode: 'history', from: '2026-10-01', to: '2026-10-12', statuses: 'Damaged,Blocked', previous_status: 'Active', changes_only: true, washed_only: true, offset: 200, limit: 200, acceptLanguage: 'pl'});
     const url = new URL(requests[0].url);
     assert.equal(url.pathname, '/pallets/reports');
     assert.equal(url.searchParams.get('offset'), '200');
     assert.equal(url.searchParams.get('statuses'), 'Damaged,Blocked');
     assert.equal(url.searchParams.get('previous_status'), 'Active');
     assert.equal(url.searchParams.get('changes_only'), 'true');
+    assert.equal(url.searchParams.get('washed_only'), 'true');
     assert.equal(url.searchParams.get('acceptLanguage'), null);
     assert.equal(new Headers(requests[0].init?.headers).get('accept-language'), 'pl');
     await client.pallet.EditOperatorReport(123, {pallet_id: 'PAL-01', version: 4, defect_id: null, description: 'Corrected'});

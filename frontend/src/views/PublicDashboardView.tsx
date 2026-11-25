@@ -292,7 +292,7 @@ export const PublicDashboardView: React.FC = () => {
     return (
         <div className="dashboard-screen dashboard-public min-h-screen text-slate-100 selection:bg-indigo-400 selection:text-brand-on-accent">
             <DisplayModeControl/>
-            <header className="sm:sticky sm:top-0 z-30 border-b border-brand-display/[0.07] bg-brand-bg/90 backdrop-blur-xl">
+            <header className="relative sm:sticky sm:top-0 z-30 border-b border-brand-display/[0.07] bg-brand-bg/90 backdrop-blur-xl">
                 <div className="mx-auto flex w-full flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-7 sm:py-4 lg:px-10">
                     <div className="flex items-center gap-4">
                         <div className="relative grid size-11 place-items-center rounded-xl border border-indigo-400/30 bg-indigo-400/10 text-indigo-300 shadow-[0_0_30px_rgba(99,102,241,0.14)]">
