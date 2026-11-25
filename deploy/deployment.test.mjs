@@ -19,6 +19,10 @@ test('production packages assets and requires the existing database volume', () 
     assert.equal(compose.services['db-migrations'].command, undefined);
     assert.deepEqual(compose.services['db-migrations'].secrets, ['postgres_password']);
     assert.equal(compose.secrets.postgres_password.environment, 'POSTGRES_PASSWORD');
+    for (const worker of ['fis-outbox-worker', 'fis-reconciler']) {
+        assert.match(compose.services[worker].user, /^\d+:\d+$/);
+        assert.deepEqual(compose.services[worker].secrets, ['fis_outbox_worker_token']);
+    }
     assert.match(compose.services.backend.healthcheck.test.at(-1), /\/healthz/);
     assert.equal(compose.services.frontend.volumes, undefined);
     assert.equal(compose.services.backend.volumes.length, 1);

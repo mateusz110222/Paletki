@@ -11,6 +11,7 @@ x-container-defaults: &container-defaults
 x-fis-worker: &fis-worker
   <<: *container-defaults
   image: curlimages/curl:8.12.1
+  user: "101:102"
   restart: unless-stopped
   mem_limit: 64m
   depends_on:
