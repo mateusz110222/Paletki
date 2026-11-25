@@ -1,7 +1,16 @@
-import React, {createContext, use, useCallback, useEffect, useState, type ReactElement, type ReactNode} from 'react';
+import React, {createContext, use, useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactElement, type ReactNode} from 'react';
 import {createPortal} from 'react-dom';
 
 const ModalPresenceContext = createContext({isExiting: false, onExitComplete: () => {}});
+const focusable = 'button, [href], input, select, textarea, summary, [tabindex]';
+const openDialogs: HTMLElement[] = [];
+const dialogReturnFocus = new WeakMap<HTMLElement, Element | null>();
+let rootWasInert = false;
+
+function focusableChildren(panel: HTMLElement) {
+    return [...panel.querySelectorAll<HTMLElement>(focusable)].filter(control =>
+        control.tabIndex >= 0 && !control.matches(':disabled') && control.getClientRects().length > 0);
+}
 
 /** Keep the last modal content mounted until its CSS exit animation finishes. */
 export function ModalPresence({children}: {children: ReactElement | null | false}) {
@@ -50,6 +59,56 @@ export function ModalTransition({
 }: ModalTransitionProps) {
     const {isExiting, onExitComplete} = use(ModalPresenceContext);
     const alignClass = /\bitems-(start|end|baseline|stretch)\b/.test(className) ? '' : 'items-center';
+    const content = useRef<HTMLDivElement>(null);
+    const titleId = useId();
+    const [previousFocus] = useState(() => {
+        const active = document.activeElement;
+        const closingOverlay = active instanceof HTMLElement
+            ? active.closest<HTMLElement>('.modal-overlay[data-state="closing"]')
+            : null;
+        return closingOverlay && dialogReturnFocus.has(closingOverlay)
+            ? dialogReturnFocus.get(closingOverlay) ?? null
+            : active;
+    });
+
+    useLayoutEffect(() => {
+        const panel = content.current;
+        if (!panel || isExiting) return;
+        const overlay = panel.parentElement;
+        if (!overlay) return;
+        dialogReturnFocus.set(overlay, previousFocus);
+        const root = document.getElementById('root');
+        if (openDialogs.length === 0 && root) {
+            rootWasInert = root.inert;
+            root.inert = true;
+        }
+        const previousDialog = openDialogs.at(-1);
+        if (previousDialog) previousDialog.inert = true;
+        openDialogs.push(overlay);
+        if (!panel.querySelector('[role="dialog"], [role="alertdialog"]')) {
+            panel.setAttribute('role', 'dialog');
+            panel.setAttribute('aria-modal', 'true');
+            const heading = panel.querySelector('h2, h3');
+            if (heading) {
+                heading.id ||= titleId;
+                panel.setAttribute('aria-labelledby', heading.id);
+            }
+        }
+        if (!panel.contains(document.activeElement)) (focusableChildren(panel)[0] ?? panel).focus();
+        return () => {
+            const wasTop = openDialogs.at(-1) === overlay;
+            openDialogs.splice(openDialogs.indexOf(overlay), 1);
+            const top = openDialogs.at(-1);
+            if (wasTop && top) top.inert = false;
+            if (!top && root) root.inert = rootWasInert;
+            queueMicrotask(() => {
+                const topDialog = openDialogs.at(-1);
+                if ((!overlay.isConnected || overlay.dataset.state === 'closing') &&
+                    previousFocus instanceof HTMLElement && previousFocus.isConnected &&
+                    (!topDialog || topDialog.contains(previousFocus))) previousFocus.focus();
+            });
+        };
+    }, [isExiting, previousFocus, titleId]);
 
     return createPortal(
         <div
@@ -66,7 +125,19 @@ export function ModalTransition({
                 aria-hidden="true"
             />
             <div
+                ref={content}
+                tabIndex={-1}
                 className="modal-panel relative z-10 flex w-full justify-center"
+                onKeyDown={event => {
+                    if (event.key !== 'Tab' || event.defaultPrevented) return;
+                    const controls = focusableChildren(event.currentTarget);
+                    const first = controls[0], last = controls.at(-1);
+                    const active = document.activeElement;
+                    if (!first || (event.shiftKey ? active === first : active === last) || active === event.currentTarget) {
+                        event.preventDefault();
+                        (event.shiftKey ? last : first)?.focus();
+                    }
+                }}
             >
                 {children}
             </div>

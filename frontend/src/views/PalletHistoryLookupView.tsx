@@ -19,7 +19,7 @@ export function PalletHistoryLookupView() {
         if (!palletId || loading) return;
         setLoading(true); setError(null);
         try {
-            const {pallet} = await apiClient.pallet.GetPallet(palletId, {acceptLanguage: language});
+            const {pallet} = await apiClient.pallet.GetPallet(palletId, {acceptLanguage: language, include_deleted: true});
             navigate(`/maintenance/pallets/${encodeURIComponent(pallet.pallet_id)}/history`);
         } catch (cause) {
             setError(getErrorMessage(cause, t('history_load_error')));

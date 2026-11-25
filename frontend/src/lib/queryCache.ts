@@ -29,6 +29,7 @@ export const refreshPalletData = (
     ['pallets'],
     ['operator-reports'],
     ['reports'],
+    ['lab-strain'],
     ['public-dashboard'],
     ...extraKeys,
 ]);

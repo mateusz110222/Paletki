@@ -11,9 +11,9 @@ import {useCatalogView} from '../hooks/useCatalogView';
 export function CatalogView() {
     const {
         getAdminUrl, t, tab, search, setSearch, selected, name, setName, projectName, setProjectName, modelProjectId, setModelProjectId,
-        dialogRef, busy, error, success, close, projects, models, entries, save, select,
+        busy, error, success, close, projects, models, entries, save, select,
         add, modalTitle, projectModels, changeTab, showProjectModels, filteredProject,
-        clearProjectFilter, handleDialogKeyDown, refresh,
+        clearProjectFilter, refresh,
     } = useCatalogView();
     const buttonClass = 'inline-flex items-center justify-center gap-2 rounded-lg border border-brand-border px-3 py-2 text-xs font-bold hover:bg-brand-surface-high disabled:opacity-40';
     return <div className="space-y-4 animate-in fade-in duration-300">
@@ -59,9 +59,8 @@ export function CatalogView() {
         {success && <p role="status" className="flex items-center gap-2 text-sm text-emerald-300"><CheckCircle2 size={16}/>{t('catalog_saved')}</p>}
         <ModalPresence>
             {selected && <ModalTransition onBackdropClick={close}>
-                <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="catalog-modal-title"
-                    className="relative bg-brand-surface border border-brand-border w-full max-w-lg rounded-xl overflow-hidden shadow-2xl"
-                    onKeyDown={handleDialogKeyDown}>
+                <div role="dialog" aria-modal="true" aria-labelledby="catalog-modal-title"
+                    className="relative bg-brand-surface border border-brand-border w-full max-w-lg rounded-xl overflow-hidden shadow-2xl">
                     <div className="bg-brand-surface-high p-5 border-b border-brand-border flex justify-between items-center">
                         <h3 id="catalog-modal-title" className="text-base font-bold uppercase tracking-wider flex items-center gap-2">
                             {selected.remove ? <DeleteIcon size={18} aria-hidden="true" className="text-red-400"/> : selected.create ? <PlusCircle size={18} className="text-brand-accent"/> : <EditIcon size={18} aria-hidden="true" className="text-brand-accent"/>}
@@ -71,13 +70,13 @@ export function CatalogView() {
                     </div>
                     <form onSubmit={event => {event.preventDefault(); void save();}} className="p-6 space-y-4">
                         {!selected.create && <p className="font-bold break-words">{selected.entry.project ? selected.entry.project + ' / ' : ''}{selected.entry.name}</p>}
-                        {selected.create && selected.entry.kind === 'model' && <SelectField label={t('label_model_project')} value={projectName}
+                        {selected.create && selected.entry.kind === 'model' && <SelectField label={t('label_model_project')} autoFocus value={projectName}
                             onChange={event => setProjectName(event.target.value)} required disabled={busy}>
                             <option value="">{t('placeholder_select_project')}</option>
                             {(projects.data?.projects ?? []).map(project => <option key={project.id} value={project.name}>{project.name}</option>)}
                         </SelectField>}
                         {!selected.create && !selected.remove && selected.entry.kind === 'model' && <>
-                            <SelectField label={t('label_model_project')} value={modelProjectId ?? ''}
+                            <SelectField label={t('label_model_project')} autoFocus value={modelProjectId ?? ''}
                                 onChange={event => setModelProjectId(Number(event.target.value))} required disabled={busy || projects.isPending}>
                                 <option value="">{t('placeholder_select_project')}</option>
                                 {(projects.data?.projects ?? []).map(project => <option key={project.id} value={project.id}>{project.name}</option>)}
@@ -86,7 +85,7 @@ export function CatalogView() {
                         </>}
                         {selected.remove ? <p>{t('catalog_confirm')}</p> : <InputField
                             label={t(selected.entry.kind === 'project' ? 'label_project_name' : 'label_model_name')}
-                            value={name} onChange={event => setName(event.target.value)} maxLength={50} required disabled={busy}/>}
+                            value={name} autoFocus={selected.entry.kind === 'project'} onChange={event => setName(event.target.value)} maxLength={50} required disabled={busy}/>}
                         {error && <p role="alert" className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">{error}</p>}
                         <ModalFormActions onCancel={close} submitLabel={t(selected.remove ? 'catalog_delete' : 'btn_save')}
                             isSubmitting={busy} variant={selected.remove ? 'danger' : 'primary'}

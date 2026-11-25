@@ -410,7 +410,7 @@ describe('PostgreSQL pallet integration', () => {
             )
         `;
 
-        const result = await pallet.ProcessFisOutbox({limit: 1});
+        const result = await pallet.ProcessFisOutbox({limit: 1, workerToken: config.fis.outboxWorkerToken});
         expect(result).toMatchObject({claimed: 0, pruned: 1});
         expect((await db.queryRow<{count: number}>`
             SELECT COUNT(*)::int AS count FROM fis_outbox WHERE pallet_id = 'OLD-JOB'

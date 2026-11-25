@@ -1,5 +1,5 @@
-import {randomUUID} from "node:crypto";
-import {api} from "encore.dev/api";
+import {randomUUID, timingSafeEqual} from "node:crypto";
+import {api, APIError, type Header} from "encore.dev/api";
 import type {Transaction} from "encore.dev/storage/sqldb";
 import {config} from "../config";
 import type {FisUnit} from "../shared/validation";
@@ -22,7 +22,11 @@ interface FisOutboxRecord {
     lease_token: string;
 }
 
-interface WorkerRequest {
+interface WorkerCredentials {
+    workerToken?: Header<"X-FIS-Worker-Token">;
+}
+
+interface WorkerRequest extends WorkerCredentials {
     limit?: number;
 }
 
@@ -41,6 +45,14 @@ interface ReconcileResponse {
 const MAX_ATTEMPTS = 10;
 const client = new FisClient(config.fis.requestTimeoutMs);
 
+function requireWorkerToken(token?: string): void {
+    const expected = Buffer.from(config.fis.outboxWorkerToken);
+    const supplied = Buffer.from(token ?? "");
+    if (!expected.length || expected.length !== supplied.length || !timingSafeEqual(expected, supplied)) {
+        throw APIError.unauthenticated("Invalid FIS worker credentials.");
+    }
+}
+
 function routerForFis(fis: FisUnit): string {
     return fis === 1 ? config.fis.router1Url : config.fis.router2Url;
 }
@@ -50,11 +62,10 @@ async function enqueue(
     palletId: string,
     operation: FisOutboxOperation,
     payload: FisOutboxPayload,
-    idempotencyKey: string = randomUUID(),
 ): Promise<void> {
     await tx.exec`
         INSERT INTO fis_outbox (idempotency_key, pallet_id, operation, payload)
-        VALUES (${idempotencyKey}::uuid, ${palletId}, ${operation}, ${JSON.stringify(payload)}::jsonb)
+        VALUES (${randomUUID()}::uuid, ${palletId}, ${operation}, ${JSON.stringify(payload)}::jsonb)
         ON CONFLICT (idempotency_key) DO NOTHING
     `;
 }
@@ -87,19 +98,22 @@ export function enqueueFisDelete(tx: Transaction, fis: FisUnit, palletId: string
     return enqueue(tx, palletId, "DELETE", {fis, pallet_id: palletId});
 }
 
-async function claimNext(): Promise<FisOutboxRecord | null> {
-    const leaseToken = randomUUID();
+async function recoverExpiredLeases(): Promise<void> {
     // Cover one complete FIS operation, including failed-create cleanup.
     const leaseSeconds = Math.max(900, Math.ceil(config.fis.requestTimeoutMs / 1000) * 6 + 60);
-    await using tx = await db.begin();
-    await tx.exec`
+    await db.exec`
         UPDATE fis_outbox
-        SET status = 'pending', locked_at = NULL, lease_token = NULL, available_at = NOW(),
+        SET status = CASE WHEN attempts >= ${MAX_ATTEMPTS} THEN 'dead' ELSE 'pending' END,
+            locked_at = NULL, lease_token = NULL, available_at = NOW(),
             last_error = COALESCE(last_error, 'Worker lease expired before completion')
-        WHERE status = 'processing'
-          AND locked_at < NOW() - (${leaseSeconds} * INTERVAL '1 second')
+        WHERE (status = 'processing' AND locked_at < NOW() - (${leaseSeconds} * INTERVAL '1 second'))
+           OR (status = 'pending' AND attempts >= ${MAX_ATTEMPTS})
     `;
-    const row = await tx.queryRow<FisOutboxRecord>`
+}
+
+async function claimNext(): Promise<FisOutboxRecord | null> {
+    const leaseToken = randomUUID();
+    const row = await db.queryRow<FisOutboxRecord>`
         WITH candidates AS (
             SELECT candidate.id
             FROM fis_outbox AS candidate
@@ -122,7 +136,6 @@ async function claimNext(): Promise<FisOutboxRecord | null> {
         WHERE jobs.id = candidates.id
         RETURNING jobs.id, jobs.operation, jobs.payload, jobs.attempts, jobs.lease_token
     `;
-    await tx.commit();
     return row;
 }
 
@@ -196,13 +209,15 @@ async function pruneCompletedJobs(): Promise<number> {
 // This route is intentionally absent from nginx.conf. It is reachable only from
 // the Compose network, where the scheduler containers call the Encore gateway.
 export const ProcessFisOutbox = api(
-    {method: "POST", path: "/internal/fis-outbox/process", expose: true},
+    {method: "POST", path: "/internal/fis-outbox/process", expose: true, sensitive: true},
     async (params: WorkerRequest): Promise<WorkerResponse> => {
+        requireWorkerToken(params.workerToken);
         const requestedLimit = params.limit ?? 20;
         const limit = Number.isSafeInteger(requestedLimit)
             ? Math.max(1, Math.min(requestedLimit, 100))
             : 20;
         const result: WorkerResponse = {claimed: 0, completed: 0, retried: 0, dead: 0, pruned: 0};
+        await recoverExpiredLeases();
 
         for (let index = 0; index < limit; index++) {
             const job = await claimNext();
@@ -228,59 +243,39 @@ export const ProcessFisOutbox = api(
 );
 
 export const ReconcileFisOutbox = api(
-    {method: "POST", path: "/internal/fis-outbox/reconcile", expose: true},
-    async (): Promise<ReconcileResponse> => {
+    {method: "POST", path: "/internal/fis-outbox/reconcile", expose: true, sensitive: true},
+    async (params: WorkerCredentials): Promise<ReconcileResponse> => {
+        requireWorkerToken(params.workerToken);
         await using tx = await db.begin();
         const state = await tx.queryRow<{last_pallet_id: number}>`
             SELECT last_pallet_id FROM fis_reconciliation_state
             WHERE singleton = TRUE FOR UPDATE
         `;
         const afterId = state?.last_pallet_id ?? 0;
-        let rows = await tx.queryAll<{
-            id: number;
-            pallet_id: string;
-            project: string;
-            model: string;
-            fis: FisUnit;
-            deleted_at: Date | null;
-        }>`
-            SELECT id, pallet_id, project, model, fis, deleted_at
-            FROM pallet_details WHERE id > ${afterId}
-            ORDER BY id LIMIT 50 FOR UPDATE
-        `;
-        if (rows.length === 0 && afterId > 0) {
-            rows = await tx.queryAll`
-                SELECT id, pallet_id, project, model, fis, deleted_at
-                FROM pallet_details ORDER BY id LIMIT 50 FOR UPDATE
-            `;
-        }
-
         const bucket = new Date().toISOString().slice(0, 10);
-        for (const row of rows) {
-            const keySource = `${bucket}:${row.id}:${row.deleted_at ? "deleted" : "active"}`;
-            // PostgreSQL derives a stable UUID from the daily reconciliation key.
-            const idempotencyKey = await tx.queryRow<{id: string}>`
-                SELECT md5(${keySource})::uuid AS id
-            `;
-            if (row.deleted_at) {
-                await enqueue(tx, row.pallet_id, "DELETE", {fis: row.fis, pallet_id: row.pallet_id}, idempotencyKey!.id);
-            } else {
-                await enqueue(tx, row.pallet_id, "SYNC", {
-                    fis: row.fis,
-                    details: {pallet_id: row.pallet_id, project: row.project, model: row.model},
-                    operator: "SYSTEM_RECONCILIATION",
-                    only_if_missing: true,
-                }, idempotencyKey!.id);
-            }
-        }
-
-        const lastId = rows.at(-1)?.id ?? 0;
-        await tx.exec`
+        const result = await tx.queryRow<ReconcileResponse>`
+            WITH batch AS MATERIALIZED (
+                SELECT a.id, a.pallet_id, a.fis, a.deleted_at, p.name AS project, m.name AS model
+                FROM pallets a JOIN projects p ON p.id = a.project_id
+                JOIN pallet_models m ON m.id = a.model_id AND m.project_id = a.project_id
+                WHERE a.id > CASE WHEN EXISTS (SELECT 1 FROM pallets WHERE id > ${afterId}) THEN ${afterId} ELSE 0 END
+                ORDER BY a.id LIMIT 50 FOR UPDATE OF a
+            ), enqueued AS (
+                INSERT INTO fis_outbox (idempotency_key, pallet_id, operation, payload)
+                SELECT md5(concat(${bucket}::text, ':', id, ':', CASE WHEN deleted_at IS NULL THEN 'active' ELSE 'deleted' END))::uuid,
+                    pallet_id, CASE WHEN deleted_at IS NULL THEN 'SYNC' ELSE 'DELETE' END,
+                    CASE WHEN deleted_at IS NULL THEN jsonb_build_object('fis', fis,
+                        'details', jsonb_build_object('pallet_id', pallet_id, 'project', project, 'model', model),
+                        'operator', 'SYSTEM_RECONCILIATION', 'only_if_missing', true)
+                    ELSE jsonb_build_object('fis', fis, 'pallet_id', pallet_id) END
+                FROM batch ORDER BY id ON CONFLICT (idempotency_key) DO NOTHING
+            )
             UPDATE fis_reconciliation_state
-            SET last_pallet_id = ${lastId}, updated_at = NOW()
+            SET last_pallet_id = COALESCE((SELECT MAX(id) FROM batch), 0), updated_at = NOW()
             WHERE singleton = TRUE
+            RETURNING (SELECT COUNT(*)::int FROM batch) AS queued
         `;
         await tx.commit();
-        return {queued: rows.length};
+        return result ?? {queued: 0};
     },
 );

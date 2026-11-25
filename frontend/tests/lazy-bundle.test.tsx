@@ -17,6 +17,21 @@ test('all area readers share one request and read synchronously once loaded', as
     assert.equal(calls, 1);
 });
 
+test('a new visit retries a failed area while the failed visit cannot loop', async () => {
+    const firstVisit = {};
+    const secondVisit = {};
+    const failure = new Error('Unavailable chunk');
+    const resource = createBundleResource(async () => {throw failure;}, async () => 'loaded');
+    let pending: unknown;
+    try {resource.read(firstVisit);} catch (value) {pending = value;}
+    await pending;
+    assert.throws(() => resource.read(firstVisit), value => value === failure);
+    try {resource.read(secondVisit);} catch (value) {pending = value;}
+    assert.ok(pending instanceof Promise);
+    await pending;
+    assert.equal(resource.read(secondVisit), 'loaded');
+});
+
 test('first visit to another view of a loaded area does not suspend', async () => {
     let resolve!: (value: {Hub: () => React.JSX.Element; Washing: () => React.JSX.Element}) => void;
     const pending = new Promise<{Hub: () => React.JSX.Element; Washing: () => React.JSX.Element}>(done => {resolve = done;});

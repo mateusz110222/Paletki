@@ -3,10 +3,11 @@ import {test} from 'node:test';
 import React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 import {InputField, SelectField, TextareaField} from '../src/components/FormFields.tsx';
+import {LanguageProvider} from '../src/i18n/LanguageContext.tsx';
 
 test('input retains native validation, value, autofocus and explicit label association', () => {
-    const html = renderToStaticMarkup(<InputField id="cycles" label="Limit" type="number"
-        value="200" min="1" required autoFocus onChange={() => {}}/>);
+    const html = renderToStaticMarkup(<LanguageProvider><InputField id="cycles" label="Limit" type="number"
+        value="200" min="1" required autoFocus onChange={() => {}}/></LanguageProvider>);
     for (const attribute of ['for="cycles"', 'id="cycles"', 'type="number"', 'min="1"',
         'required=""', 'autofocus=""', 'value="200"']) {
         assert.ok(html.includes(attribute), attribute);
@@ -16,7 +17,7 @@ test('input retains native validation, value, autofocus and explicit label assoc
 });
 
 test('generated IDs uniquely connect each label to its control', () => {
-    const html = renderToStaticMarkup(<><InputField label="First"/><InputField label="Second"/></>);
+    const html = renderToStaticMarkup(<LanguageProvider><InputField label="First"/><InputField label="Second"/></LanguageProvider>);
     const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
     const labels = [...html.matchAll(/\bfor="([^"]+)"/g)].map((match) => match[1]);
     assert.equal(ids.length, 2);
@@ -47,8 +48,8 @@ test('textarea retains comment, placeholder, rows and required validation', () =
 });
 
 test('layout overrides preserve existing form styling', () => {
-    const html = renderToStaticMarkup(<InputField label={<>Nests</>} required fieldClassName="col-span-2"
-        labelClassName="truncate" className="custom-control"/>);
+    const html = renderToStaticMarkup(<LanguageProvider><InputField label={<>Nests</>} required fieldClassName="col-span-2"
+        labelClassName="truncate" className="custom-control"/></LanguageProvider>);
     assert.ok(html.includes('class="col-span-2"'));
     assert.ok(html.includes('class="truncate"'));
     assert.ok(html.includes('class="custom-control"'));

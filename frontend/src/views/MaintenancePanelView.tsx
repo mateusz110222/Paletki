@@ -29,19 +29,16 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
     const {data, actions} = useMaintenancePanel(props);
     const {t, language} = useTranslation();
 
-    const {searchParams, setSearchParams, searchTermFromURL} = data;
-
     const tabs = [
         ['queue', t('maintenance_queue')], ['repairs', t('for_repair')],
         ['routine', t('maintenance_wash_due')], ['soon', t('maintenance_wash_soon')],
     ] as const;
 
-    useEscapeKey(data.selectedPallet !== null, () => actions.setSelectedPallet(null));
+    useEscapeKey(data.selectedPallet !== null, actions.closeServiceLog);
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300" id="maintenance-panel-container">
-            <SearchInput searchTerm={searchTermFromURL} searchParams={searchParams}
-                         onSearchTermChange={actions.setSearchTerm} setSearchParams={setSearchParams}/>
+            <SearchInput/>
 
             <section className="rounded-xl border border-brand-border bg-brand-surface">
                 <header className="space-y-2 border-b border-brand-border p-3 sm:p-4">
@@ -82,7 +79,7 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
                     })}
                     {data.visiblePallets.length === 0 && <p role="status" className="col-span-full py-8 text-center text-sm text-brand-text-muted">
                         {t(props.inventoryState === 'loading' ? 'features_loading' : props.inventoryState === 'error' ? 'fetch_error_banner'
-                            : searchTermFromURL.trim() ? 'no_pallets_found' : data.activeTab === 'soon' ? 'maintenance_soon_empty' : 'queue_empty')}
+                            : data.searchTermFromURL.trim() ? 'no_pallets_found' : data.activeTab === 'soon' ? 'maintenance_soon_empty' : 'queue_empty')}
                     </p>}
                 </div>
             </section>
@@ -91,7 +88,7 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
             <ModalPresence>
             {data.selectedPallet && (
                 <ModalTransition
-                    onBackdropClick={() => actions.setSelectedPallet(null)}
+                    onBackdropClick={actions.closeServiceLog}
                     backdropClassName="bg-brand-bg/80 backdrop-blur-md"
                 >
                     <div
@@ -113,7 +110,8 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
                             </div>
                             <button
                                 className="w-10 h-10 rounded-full flex items-center justify-center text-brand-text-muted hover:bg-red-500/10 hover:text-red-400 transition-all"
-                                onClick={() => actions.setSelectedPallet(null)}
+                                onClick={actions.closeServiceLog}
+                                disabled={data.isSubmitting}
                                 title={t('btn_close')}
                                 aria-label={t('btn_close')}
                             >
@@ -141,13 +139,14 @@ export const MaintenancePanelView: React.FC<MaintenancePanelViewProps> = (props)
                                     placeholder={t(data.selectedPallet.status === 'Washing_Required'
                                         ? 'maint_routine_comment_placeholder'
                                         : 'maint_repair_comment_placeholder')}
-                                    id="maintenance-service-comment" required value={data.repairDescription}
+                                    id="maintenance-service-comment" required value={data.repairDescription} disabled={data.isSubmitting}
                                     onChange={(e) => actions.setRepairDescription(e.target.value)}
                                 ></textarea>
                             </div>
 
                             <ModalFormActions
-                                onCancel={() => actions.setSelectedPallet(null)}
+                                onCancel={actions.closeServiceLog}
+                                isSubmitting={data.isSubmitting}
                                 submitLabel={t('approve_service_and_return')}
                                 submitIcon={<CheckCircle2 size={18} aria-hidden="true"/>}
                                 additionalActionLabel={data.selectedPallet.status === 'Washing_Required'

@@ -528,6 +528,14 @@ export const dictionaries = {
         pagination_page: 'Strona',
         pagination_of: 'z',
         pagination_showing_range: '{{from}}–{{to}} z {{total}}',
+        pagination_empty: 'Brak wyników',
+        pagination_label: 'Paginacja',
+        stepper_increase: 'Zwiększ',
+        stepper_decrease: 'Zmniejsz',
+        history_csv_entry: 'ID wpisu',
+        history_csv_timestamp: 'Data i czas',
+        history_csv_operator: 'Operator',
+        history_csv_reason: 'Opis / powód',
 
         // Fleet summary & Live monitor
         fleet_summary_title: 'Globalny stan floty palet',
@@ -1153,6 +1161,14 @@ export const dictionaries = {
         pagination_page: 'Page',
         pagination_of: 'of',
         pagination_showing_range: '{{from}}–{{to}} of {{total}}',
+        pagination_empty: 'No results',
+        pagination_label: 'Pagination',
+        stepper_increase: 'Increase',
+        stepper_decrease: 'Decrease',
+        history_csv_entry: 'Entry ID',
+        history_csv_timestamp: 'Date and time',
+        history_csv_operator: 'Operator',
+        history_csv_reason: 'Description / reason',
 
         // Fleet summary & Live monitor
         fleet_summary_title: 'Fleet Health Overview',

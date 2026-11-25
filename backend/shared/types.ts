@@ -135,5 +135,6 @@ export interface ReportRow {
     previous_status: string | null; status: string; timestamp: string;
     defect: string | null; description: string; operator: string;
     block_reason?: string | null;
+    previous_block_reason?: string | null;
     damage_reason?: string | null;
 }

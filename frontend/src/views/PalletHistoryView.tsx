@@ -99,67 +99,71 @@ export const PalletHistoryView: React.FC<{backPath?: string}> = ({backPath = '/a
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300" id="pallet-history-container">
-            <div className="flex items-center justify-end gap-3">
-                {backPath === '/admin' && <button
-                    type="button"
-                    onClick={() => navigate(backPath)}
-                    className="mr-auto inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-brand-text-muted transition-colors hover:text-brand-accent"
-                >
-                    <ArrowLeft size={16}/> {t('history_back_to_admin')}
-                </button>}
-
-                <button
-                    type="button"
-                    onClick={handleExportCSV}
-                    disabled={filteredHistory.length === 0}
-                    className="inline-flex items-center gap-2 rounded-lg border border-brand-border bg-brand-surface px-3 py-2 text-xs font-bold uppercase text-brand-text transition-all hover:border-brand-accent hover:bg-brand-surface-high disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    <Download size={15} className="text-brand-accent"/>
-                    <span>{t('btn_export_pallet_csv')}</span>
-                </button>
-            </div>
+            {backPath === '/admin' && (
+                <div className="flex items-center gap-3">
+                    <button
+                        type="button"
+                        onClick={() => navigate(backPath)}
+                        className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-brand-text-muted transition-colors hover:text-brand-accent"
+                    >
+                        <ArrowLeft size={16}/> {t('history_back_to_admin')}
+                    </button>
+                </div>
+            )}
 
             <section className="relative overflow-hidden rounded-2xl border border-brand-border bg-brand-surface p-6">
                 <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-brand-accent/10 blur-3xl"/>
-                <div className="relative flex flex-col gap-6 2xl:flex-row xl:items-center xl:justify-between">
-                    <div className="flex items-start gap-4">
-                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-brand-accent/30 bg-brand-accent/15 text-brand-accent">
-                            <FileClock size={27}/>
-                        </div>
-                        <div>
-                            <p className="text-xs font-black uppercase tracking-[0.2em] text-brand-text-muted">{t('audit_trail_title')}</p>
-                            <div className="mt-1 flex flex-wrap items-center gap-3">
-                                {fisHistoryUrl ? (
-                                    <a
-                                        href={fisHistoryUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-2 font-mono text-3xl font-black text-brand-accent transition-colors hover:text-brand-text"
-                                        title={t('fis_unit_history_link_label', {palletId: pallet.pallet_id, fis: Number(pallet.fis)})}
-                                    >
-                                        {pallet.pallet_id}<ExternalLink size={18}/>
-                                    </a>
-                                ) : (
-                                    <h3 className="font-mono text-3xl font-black text-brand-accent">{pallet.pallet_id}</h3>
-                                )}
-
-                                <button
-                                    type="button"
-                                    onClick={handleCopyPalletId}
-                                    title={isCopied ? t('pallet_id_copied') : t('copy_pallet_id')}
-                                    aria-label={isCopied ? t('pallet_id_copied') : t('copy_pallet_id')}
-                                    className="inline-flex items-center gap-1.5 rounded-lg border border-brand-border bg-brand-bg px-2.5 py-1 text-xs font-semibold text-brand-text-muted transition-colors hover:border-brand-accent hover:text-brand-accent"
-                                >
-                                    {isCopied ? <Check size={14} className="text-green-400"/> : <Copy size={14}/>}
-                                    <span className="text-xs">{isCopied ? t('pallet_id_copied') : t('copy_pallet_id')}</span>
-                                </button>
-
-                                {pallet.status && <PalletStatusSpan status={pallet.status} block_reason={pallet.block_reason}/>}
+                <div className="relative flex flex-col gap-6">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div className="flex items-start gap-4">
+                            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-brand-accent/30 bg-brand-accent/15 text-brand-accent">
+                                <FileClock size={27}/>
                             </div>
-                            <p className="mt-2 text-sm font-semibold text-brand-text">
-                                {pallet.project} <span className="text-brand-text-muted">•</span> {pallet.model} · {t('label_machine')}: {pallet.machine}
-                            </p>
+                            <div>
+                                <p className="text-xs font-black uppercase tracking-[0.2em] text-brand-text-muted">{t('audit_trail_title')}</p>
+                                <div className="mt-1 flex flex-wrap items-center gap-3">
+                                    {fisHistoryUrl ? (
+                                        <a
+                                            href={fisHistoryUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-2 font-mono text-3xl font-black text-brand-accent transition-colors hover:text-brand-text"
+                                            title={t('fis_unit_history_link_label', {palletId: pallet.pallet_id, fis: Number(pallet.fis)})}
+                                        >
+                                            {pallet.pallet_id}<ExternalLink size={18}/>
+                                        </a>
+                                    ) : (
+                                        <h3 className="font-mono text-3xl font-black text-brand-accent">{pallet.pallet_id}</h3>
+                                    )}
+
+                                    <button
+                                        type="button"
+                                        onClick={handleCopyPalletId}
+                                        title={isCopied ? t('pallet_id_copied') : t('copy_pallet_id')}
+                                        aria-label={isCopied ? t('pallet_id_copied') : t('copy_pallet_id')}
+                                        className="inline-flex items-center gap-1.5 rounded-lg border border-brand-border bg-brand-bg px-2.5 py-1 text-xs font-semibold text-brand-text-muted transition-colors hover:border-brand-accent hover:text-brand-accent"
+                                    >
+                                        {isCopied ? <Check size={14} className="text-green-400"/> : <Copy size={14}/>}
+                                        <span className="text-xs">{isCopied ? t('pallet_id_copied') : t('copy_pallet_id')}</span>
+                                    </button>
+
+                                    {pallet.status && <PalletStatusSpan status={pallet.status} block_reason={pallet.block_reason}/>}
+                                </div>
+                                <p className="mt-2 text-sm font-semibold text-brand-text">
+                                    {pallet.project} <span className="text-brand-text-muted">•</span> {pallet.model} · {t('label_machine')}: {pallet.machine}
+                                </p>
+                            </div>
                         </div>
+
+                        <button
+                            type="button"
+                            onClick={handleExportCSV}
+                            disabled={filteredHistory.length === 0}
+                            className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-brand-border bg-brand-bg px-3 py-2 text-xs font-bold uppercase text-brand-text transition-all hover:border-brand-accent hover:bg-brand-surface-high disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <Download size={15} className="text-brand-accent"/>
+                            <span>{t('btn_export_pallet_csv')}</span>
+                        </button>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 min-w-0">

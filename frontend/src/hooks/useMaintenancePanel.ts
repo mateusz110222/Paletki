@@ -1,6 +1,6 @@
 import {useSearchParams} from 'react-router';
 import {useToast} from '../components/ToastProvider';
-import React, {useEffect, useMemo, useState} from 'react';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {getErrorMessage} from '../lib/errors.ts';
 import {refreshPalletData} from '../lib/queryCache.ts';
 import {Pallet, PalletStatus} from '@backend/shared/types';
@@ -29,14 +29,10 @@ export function useMaintenancePanel({pallets}: UseMaintenancePanelProps) {
     const [selectedPallet, setSelectedPallet] = useState<Pallet | null>(null);
     const [repairDescription, setRepairDescription] = useState('');
     const [modalError, setModalError] = useState('');
-    const [searchParams, setSearchParams] = useSearchParams();
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const submitting = useRef(false);
+    const [searchParams] = useSearchParams();
     const searchTermFromURL = searchParams.get('searchTerm') || '';
-    const setSearchTerm = (value: string) => {
-        const next = new URLSearchParams(searchParams);
-        if (value) next.set('searchTerm', value);
-        else next.delete('searchTerm');
-        setSearchParams(next);
-    };
 
     const queues = useMemo(() => getMaintenanceQueues(pallets), [pallets]);
     const visiblePallets = queues[activeTab].filter(pallet => matchesPalletSearch(pallet, searchTermFromURL));
@@ -48,15 +44,16 @@ export function useMaintenancePanel({pallets}: UseMaintenancePanelProps) {
     };
 
     const changeSelectedPalletStatus = async (newStatus: PalletStatus, resetCycles: boolean) => {
+        if (!selectedPallet || submitting.current) return;
         setModalError('');
-
-        if (!selectedPallet) return;
 
         if (!repairDescription.trim()) {
             setModalError(t('maint_modal_error_comment_required'));
             return;
         }
 
+        submitting.current = true;
+        setIsSubmitting(true);
         try {
             await apiClient.pallet.ChangePalletStatus({
                 pallet_id: selectedPallet.pallet_id,
@@ -72,6 +69,9 @@ export function useMaintenancePanel({pallets}: UseMaintenancePanelProps) {
         } catch (error: unknown) {
             console.error('Error returning pallet to production:', error);
             setModalError(getErrorMessage(error, t('error_connecting_to_encore')));
+        } finally {
+            submitting.current = false;
+            setIsSubmitting(false);
         }
     };
 
@@ -86,21 +86,21 @@ export function useMaintenancePanel({pallets}: UseMaintenancePanelProps) {
 
     return {
         data: {
-            searchParams, setSearchParams, searchTermFromURL,
+            searchTermFromURL,
             activeTab,
             selectedPallet,
             repairDescription,
             modalError,
+            isSubmitting,
             queues, visiblePallets, now,
         },
         actions: {
             setActiveTab,
-            setSelectedPallet,
+            closeServiceLog: () => {if (!submitting.current) setSelectedPallet(null);},
             setRepairDescription,
             handleOpenServiceLog,
             handleServiceLogSubmit,
             handleReportDamage,
-            setSearchTerm
         },
     };
 }

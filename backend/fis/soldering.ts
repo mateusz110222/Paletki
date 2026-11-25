@@ -144,10 +144,11 @@ export const SetSolderingStationPallet = api(
             await using tx = await db.begin();
             await tx.exec`SELECT pg_advisory_xact_lock(hashtext(${station}))`;
             const pallet = await tx.queryRow<StationPalletSource>`
-                SELECT id, project, model, status
-                FROM pallet_details
-                WHERE pallet_id = ${palletId} AND deleted_at IS NULL
-                FOR UPDATE
+                SELECT a.id, p.name AS project, m.name AS model, a.status
+                FROM pallets a JOIN projects p ON p.id = a.project_id
+                JOIN pallet_models m ON m.id = a.model_id AND m.project_id = a.project_id
+                WHERE a.pallet_id = ${palletId} AND a.deleted_at IS NULL
+                FOR UPDATE OF a
             `;
             if (!pallet) {
                 throw APIError.notFound(`Pallet ${palletId} was not found.`)
@@ -225,10 +226,10 @@ export const RegisterSolderingCycle = api(
             await using tx = await db.begin();
             await tx.exec`SELECT pg_advisory_xact_lock(hashtext(${station}))`;
             const pallet = await tx.queryRow<PalletCycleState>`
-                SELECT id, status, current_cycles, total_cycles, max_cycles, project
-                FROM pallet_details
-                WHERE pallet_id = ${palletId} AND deleted_at IS NULL
-                FOR UPDATE
+                SELECT a.id, a.status, a.current_cycles, a.total_cycles, a.max_cycles, p.name AS project
+                FROM pallets a JOIN projects p ON p.id = a.project_id
+                WHERE a.pallet_id = ${palletId} AND a.deleted_at IS NULL
+                FOR UPDATE OF a
             `;
             if (!pallet) {
                 throw APIError.notFound(`Pallet ${palletId} was not found.`)

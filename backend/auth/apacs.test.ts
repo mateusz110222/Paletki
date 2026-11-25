@@ -2,7 +2,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {EventEmitter} from 'node:events';
 
 const mocks = vi.hoisted(() => ({
-    input: vi.fn(), query: vi.fn(), connect: vi.fn(), password: vi.fn(() => 'secret'),
+    input: vi.fn(), query: vi.fn(), connect: vi.fn(), close: vi.fn(), password: vi.fn(() => 'secret'),
 }));
 vi.mock('../config', () => ({config: {apacs: {server: 'apacs', user: 'readonly'}}}));
 vi.mock('./secrets', () => ({apacsDbPassword: mocks.password}));
@@ -10,6 +10,10 @@ vi.mock('mssql', () => ({default: {
     VarChar: (size: number) => `varchar(${size})`, Int: 'int',
     ConnectionPool: class extends EventEmitter {
         connect = mocks.connect;
+        close = mocks.close;
+        connected = true;
+        healthy = true;
+        request() {return {input: mocks.input, query: mocks.query};}
     },
 }}));
 
@@ -24,7 +28,8 @@ beforeEach(() => {
     mocks.password.mockReturnValue('secret');
     mocks.input.mockReturnThis();
     mocks.query.mockResolvedValue({recordset: [assignment]});
-    mocks.connect.mockResolvedValue({request: () => ({input: mocks.input, query: mocks.query})});
+    mocks.connect.mockImplementation(async function (this: unknown) {return this;});
+    mocks.close.mockResolvedValue(undefined);
     vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 afterEach(() => vi.restoreAllMocks());
@@ -43,7 +48,8 @@ describe('APACS card verification', () => {
             expect(console.error).toHaveBeenLastCalledWith('APACS failure', {stage: 'pool', code: expectedCode});
         }
         expect(await lookup()).toEqual({externalId: '17', fullName: 'Anna Nowak'});
-        expect(mocks.connect).toHaveBeenCalledTimes(1);
+        expect(mocks.close).toHaveBeenCalledTimes(1);
+        expect(mocks.connect).toHaveBeenCalledTimes(2);
     });
 
     it('accepts a 256-character identity and rejects longer names', async () => {
@@ -103,6 +109,14 @@ describe('APACS card verification', () => {
         mocks.query.mockRejectedValue(cause);
         await expect(lookup()).rejects.toMatchObject({message: 'APACS query unavailable', cause});
         expect(console.error).toHaveBeenCalledExactlyOnceWith('APACS failure', {stage: 'query', code: 'EREQUEST'});
+    });
+    it('reconnects after a transport error while querying a previously connected pool', async () => {
+        await lookup();
+        mocks.query.mockRejectedValueOnce(Object.assign(new Error('Connection lost'), {code: 'ECONNCLOSED'}));
+        await expect(lookup()).rejects.toThrow('APACS query unavailable');
+        expect(await lookup()).toEqual({externalId: '17', fullName: 'Anna Nowak'});
+        expect(mocks.close).toHaveBeenCalledTimes(1);
+        expect(mocks.connect).toHaveBeenCalledTimes(2);
     });
     it('does not log arbitrary values supplied as error codes', async () => {
         mocks.query.mockRejectedValue(Object.assign(new Error('private details'), {code: '7992 password'}));

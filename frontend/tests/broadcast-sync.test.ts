@@ -240,6 +240,7 @@ test('refreshPalletData broadcasts query:invalidate across windows', async () =>
                 ['pallets'],
                 ['operator-reports'],
                 ['reports'],
+                ['lab-strain'],
                 ['public-dashboard'],
             ]);
         }

@@ -1,5 +1,6 @@
 import React, {useId, useRef, type ComponentProps, type ReactNode} from 'react';
 import {ChevronUp, ChevronDown} from 'lucide-react';
+import {useTranslation} from '../i18n/LanguageContext';
 
 interface FieldProps {
     label: ReactNode;
@@ -26,6 +27,7 @@ function Field({label, fieldClassName = 'flex flex-col gap-1.5',
 
 export function InputField({label, fieldClassName, labelClassName, id, className, type,
     ...props}: FieldProps & ComponentProps<'input'>) {
+    const {t} = useTranslation();
     const generatedId = useId();
     const inputId = id ?? generatedId;
     const inputRef = useRef<HTMLInputElement>(null);
@@ -62,7 +64,7 @@ export function InputField({label, fieldClassName, labelClassName, id, className
                         <button
                             type="button"
                             tabIndex={-1}
-                            aria-label="Zwiększ"
+                            aria-label={t('stepper_increase')}
                             disabled={Boolean(props.disabled || props.readOnly)}
                             onClick={() => changeValue(1)}
                             className="flex h-3.5 w-5 items-center justify-center rounded text-brand-text-muted hover:bg-brand-accent/20 hover:text-indigo-200 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition"
@@ -72,7 +74,7 @@ export function InputField({label, fieldClassName, labelClassName, id, className
                         <button
                             type="button"
                             tabIndex={-1}
-                            aria-label="Zmniejsz"
+                            aria-label={t('stepper_decrease')}
                             disabled={Boolean(props.disabled || props.readOnly)}
                             onClick={() => changeValue(-1)}
                             className="flex h-3.5 w-5 items-center justify-center rounded text-brand-text-muted hover:bg-brand-accent/20 hover:text-indigo-200 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition"

@@ -1,5 +1,5 @@
 import {DeleteIcon, EditIcon, deleteActionClass} from './RecordActions';
-import {useEffect, useRef, useState, type KeyboardEvent} from 'react';
+import {useRef, useState} from 'react';
 import {useQuery, useQueryClient} from '@tanstack/react-query';
 import {Plus, X, ClipboardList, Search} from 'lucide-react';
 import {useAuth} from '../auth/AuthContext';
@@ -19,27 +19,12 @@ export function DefectCatalog() {
     const [search, setSearch] = useState('');
     const [name, setName] = useState('');
     const [selected, setSelected] = useState<{mode: 'add' | 'edit' | 'delete'; id?: number; name: string} | null>(null);
-    const dialogRef = useRef<HTMLDivElement>(null);
     const runningRef = useRef(false);
     const modalOpen = selected !== null;
     const close = () => {if (!runningRef.current) setSelected(null);};
     useEscapeKey(modalOpen, close);
-    useEffect(() => {
-        if (!modalOpen) return;
-        const previous = document.activeElement as HTMLElement | null;
-        (dialogRef.current?.querySelector<HTMLElement>('input') ?? dialogRef.current?.querySelector<HTMLElement>('button'))?.focus();
-        return () => previous?.focus();
-    }, [modalOpen]);
     function open(mode: 'add' | 'edit' | 'delete', defect?: {id: number; name: string}) {
         setError(''); setName(defect?.name ?? ''); setSelected({mode, id: defect?.id, name: defect?.name ?? ''});
-    }
-    function handleDialogKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-        if (event.key !== 'Tab') return;
-        const controls = dialogRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled)');
-        if (!controls?.length) return;
-        const first = controls[0], last = controls[controls.length - 1];
-        if (event.shiftKey && document.activeElement === first) {event.preventDefault(); last.focus();}
-        else if (!event.shiftKey && document.activeElement === last) {event.preventDefault(); first.focus();}
     }
     const [error, setError] = useState('');
     const [busy, setBusy] = useState(false);
@@ -76,7 +61,7 @@ export function DefectCatalog() {
             </ul>
         </section>
         <ModalPresence>{selected && <ModalTransition onBackdropClick={close}>
-            <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="defect-modal-title" onKeyDown={handleDialogKeyDown} className="relative w-full max-w-lg overflow-hidden rounded-xl border border-brand-border bg-brand-surface shadow-2xl">
+            <div role="dialog" aria-modal="true" aria-labelledby="defect-modal-title" className="relative w-full max-w-lg overflow-hidden rounded-xl border border-brand-border bg-brand-surface shadow-2xl">
                 <div className="flex items-center justify-between gap-3 border-b border-brand-border bg-brand-surface-high p-5">
                     <h3 id="defect-modal-title" className="flex items-center gap-2 text-base font-bold uppercase tracking-wider">
                         {selected.mode === 'delete' ? <DeleteIcon size={18} aria-hidden="true" className="text-red-400"/> : selected.mode === 'add' ? <Plus size={18} className="text-brand-accent"/> : <EditIcon size={18} aria-hidden="true" className="text-brand-accent"/>}
@@ -85,7 +70,7 @@ export function DefectCatalog() {
                     <button type="button" disabled={busy} aria-label={t('btn_cancel')} onClick={close} className="rounded-lg p-1 text-brand-text-muted hover:text-red-400"><X size={18}/></button>
                 </div>
                 <form onSubmit={event => {event.preventDefault(); void save();}} className="space-y-5 p-6">
-                    {selected.mode === 'delete' ? <><p className="break-words font-bold text-brand-text">{selected.name}</p><p className="text-sm leading-relaxed text-brand-text-muted">{t('defect_delete_confirm')}</p></> : <><p className="text-xs leading-relaxed text-brand-text-muted">{t('defects_add_intro')}</p><InputField label={t('defect_name')} value={name} maxLength={100} required disabled={busy} onChange={event => setName(event.target.value)}/></>}
+                    {selected.mode === 'delete' ? <><p className="break-words font-bold text-brand-text">{selected.name}</p><p className="text-sm leading-relaxed text-brand-text-muted">{t('defect_delete_confirm')}</p></> : <><p className="text-xs leading-relaxed text-brand-text-muted">{t('defects_add_intro')}</p><InputField label={t('defect_name')} autoFocus value={name} maxLength={100} required disabled={busy} onChange={event => setName(event.target.value)}/></>}
                     {error && <p role="alert" className="rounded-lg border border-red-400/20 bg-red-400/5 p-3 text-xs text-red-300">{error}</p>}
                     <ModalFormActions onCancel={close} submitLabel={t(selected.mode === 'delete' ? 'defect_delete' : selected.mode === 'add' ? 'defect_add' : 'btn_save')} isSubmitting={busy} variant={selected.mode === 'delete' ? 'danger' : 'primary'} submitDisabled={selected.mode !== 'delete' && !name.trim()}/>
                 </form>

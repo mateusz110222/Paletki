@@ -139,7 +139,8 @@ export const GetAllPallets = api(
     async (params: PalletPageParams): Promise<GetAllPalletsResponse> => {
         const limit = params.limit ?? 200;
         const afterId = params.after_id ?? null;
-        const searchPattern = params.query ? `%${params.query.trim().toUpperCase()}%` : null;
+        const search = params.query?.trim().toUpperCase();
+        const searchPattern = search ? `%${search.replace(/[\\%_]/g, "\\$&")}%` : null;
         const project = params.project && params.project !== "ALL" ? params.project : null;
         const model = params.model && params.model !== "ALL" ? params.model : null;
         const status = params.status && params.status !== "ALL" ? params.status : null;
@@ -277,8 +278,8 @@ export const AddPallet = api(
             `;
             if (!catalogEntry) throw APIError.invalidArgument(t("model_not_registered", lang));
             const {project, model, project_id, model_id} = catalogEntry;
-            const existing = await tx.queryRow<PalletRecord>`
-                SELECT * FROM pallet_details WHERE pallet_id = ${palletId} FOR UPDATE
+            const existing = await tx.queryRow<Pick<PalletRecord, "deleted_at">>`
+                SELECT deleted_at FROM pallets WHERE pallet_id = ${palletId} FOR UPDATE
             `;
 
             if (existing) {
@@ -389,8 +390,8 @@ export const AddPalletRange = api(
             const {project, model, project_id, model_id} = catalogEntry;
             for (const [index, palletId] of palletIds.entries()) {
                 const maxCycles = palletMaxCycles[index]!;
-                const existing = await tx.queryRow<PalletRecord>`
-                    SELECT * FROM pallet_details WHERE pallet_id = ${palletId} FOR UPDATE
+                const existing = await tx.queryRow<Pick<PalletRecord, "deleted_at">>`
+                    SELECT deleted_at FROM pallets WHERE pallet_id = ${palletId} FOR UPDATE
                 `;
                 if (existing?.deleted_at === null) {
                     throw APIError.alreadyExists(t("pallet_exists", lang));
@@ -446,9 +447,11 @@ export const UpdatePallet = api(
         try {
             await using tx = await db.begin();
             const existing = await tx.queryRow<PalletRecord>`
-                SELECT * FROM pallet_details
-                WHERE pallet_id = ${palletId} AND deleted_at IS NULL
-                FOR UPDATE
+                SELECT a.*, p.name AS project, m.name AS model
+                FROM pallets a JOIN projects p ON p.id = a.project_id
+                JOIN pallet_models m ON m.id = a.model_id AND m.project_id = a.project_id
+                WHERE a.pallet_id = ${palletId} AND a.deleted_at IS NULL
+                FOR UPDATE OF a
             `;
             if (!existing) throw APIError.notFound(t("pallet_not_found", lang));
             const newFis = params.fis ?? existing.fis;
@@ -470,6 +473,9 @@ export const UpdatePallet = api(
             if (newStatus === "Blocked" && !newBlockReason?.trim()) {
                 throw APIError.invalidArgument(t("block_reason_required", lang));
             }
+            if (existing.status === "Damaged" && newStatus === "Washing_Required") {
+                throw APIError.failedPrecondition(t("report_washing_damaged", lang));
+            }
 
             if (existing.status === "Blocked" && newStatus !== "Blocked" && !params.block_reason?.trim()) throw APIError.invalidArgument(t("unblock_comment_required", lang));
 
@@ -479,9 +485,12 @@ export const UpdatePallet = api(
             if (existing.nests !== newNests) changes.push({key: "audit_change_nests", variables: {from: existing.nests, to: newNests}});
             if (existing.max_cycles !== newMaxCycles) changes.push({key: "audit_change_max_cycles", variables: {from: existing.max_cycles, to: newMaxCycles}});
 
+            const changedBlockReason = newStatus === "Blocked"
+                && (existing.status !== "Blocked" || newBlockReason?.trim() !== existing.block_reason?.trim())
+                ? newBlockReason : undefined;
             const description = changes.length > 0
-                ? encodeAuditChanges(changes)
-                : encodeAuditDescription("audit_edited");
+                ? encodeAuditChanges(changes, changedBlockReason)
+                : encodeAuditDescription("audit_edited", {}, changedBlockReason);
             const finalDescription = existing.status === "Blocked" && newStatus !== "Blocked"
                 ? encodeAuditDescription("audit_unblocked", {}, params.block_reason) : description;
 
@@ -521,8 +530,8 @@ export const DeletePallet = api(
 
         try {
             await using tx = await db.begin();
-            const pallet = await tx.queryRow<PalletRecord>`
-                SELECT * FROM pallet_details
+            const pallet = await tx.queryRow<Pick<PalletRecord, "fis">>`
+                SELECT fis FROM pallets
                 WHERE pallet_id = ${palletId} AND deleted_at IS NULL
                 FOR UPDATE
             `;

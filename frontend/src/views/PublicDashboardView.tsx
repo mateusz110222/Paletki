@@ -99,15 +99,15 @@ const KpiCard: React.FC<{
     icon: React.ReactNode;
     tone: string;
 }> = ({label, value, detail, icon, tone}) => (
-    <div className="dashboard-panel group relative overflow-hidden rounded-2xl p-5">
+    <div className="dashboard-panel group relative h-full overflow-hidden rounded-2xl p-4 sm:p-5">
         <div className={`absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent ${tone} to-transparent opacity-80`}/>
-        <div className="flex items-start justify-between gap-4">
-            <div>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-text-muted">{label}</p>
+        <div className="flex items-start justify-between gap-2 sm:gap-4">
+            <div className="min-w-0">
+                <p className="text-xs font-bold uppercase tracking-[0.08em] sm:tracking-[0.16em] text-brand-text-muted wrap-break-word">{label}</p>
                 <p className="mt-3 text-3xl font-black tracking-tight text-brand-display">{value}</p>
                 <p className="mt-1 text-xs font-medium text-brand-text-muted">{detail}</p>
             </div>
-            <div className="rounded-xl border border-brand-display/8 bg-brand-display/[0.035] p-2.5 text-slate-300 transition-transform group-hover:-translate-y-0.5">
+            <div className="shrink-0 rounded-xl border border-brand-display/8 bg-brand-display/[0.035] p-2 sm:p-2.5 text-slate-300 transition-transform group-hover:-translate-y-0.5">
                 {icon}
             </div>
         </div>
@@ -292,8 +292,8 @@ export const PublicDashboardView: React.FC = () => {
     return (
         <div className="dashboard-screen dashboard-public min-h-screen text-slate-100 selection:bg-indigo-400 selection:text-brand-on-accent">
             <DisplayModeControl/>
-            <header className="sticky top-0 z-30 border-b border-brand-display/[0.07] bg-brand-bg/90 backdrop-blur-xl">
-                <div className="mx-auto flex w-full flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-7 lg:px-10">
+            <header className="sm:sticky sm:top-0 z-30 border-b border-brand-display/[0.07] bg-brand-bg/90 backdrop-blur-xl">
+                <div className="mx-auto flex w-full flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-7 sm:py-4 lg:px-10">
                     <div className="flex items-center gap-4">
                         <div className="relative grid size-11 place-items-center rounded-xl border border-indigo-400/30 bg-indigo-400/10 text-indigo-300 shadow-[0_0_30px_rgba(99,102,241,0.14)]">
                             <Package size="1.375rem"/>
@@ -320,7 +320,7 @@ export const PublicDashboardView: React.FC = () => {
                         <button type="button" onClick={() => setSearchParams({})} className="min-h-10 rounded-lg border border-brand-display/10 bg-brand-display/4 px-3 text-xs font-bold text-slate-200 hover:bg-brand-display/8">
                             {labels.changeStation}
                         </button>
-                        <div className="hidden items-center gap-2 rounded-lg border border-brand-display/[0.07] bg-brand-display/2.5 px-3 py-2 text-xs text-brand-text-muted lg:flex">
+                        <div className="hidden items-center gap-2 rounded-lg border border-brand-display/[0.07] bg-brand-display/2.5 px-3 py-2 text-xs text-brand-text-muted 2xl:flex">
                             <ShieldCheck size="0.8125rem" className="text-emerald-400"/> {labels.publicMode}
                         </div>
                         <div className="rounded-lg border border-brand-display/[0.07] bg-brand-display/2.5 px-3 py-2 text-right">
@@ -339,7 +339,7 @@ export const PublicDashboardView: React.FC = () => {
                 </div>
             </header>
 
-            <main className="mx-auto w-full space-y-5 px-5 py-6 sm:px-7 lg:px-10 lg:py-8">
+            <main className="mx-auto w-full space-y-5 px-4 pt-5 pb-20 sm:px-7 sm:pt-6 lg:px-10 lg:pt-8">
                 {!showAll && selectedStation ? (
                     <>
                         <section className="grid gap-5 lg:grid-cols-[minmax(0,1.55fr)_minmax(380px,0.75fr)]">
@@ -466,7 +466,7 @@ export const PublicDashboardView: React.FC = () => {
                     <KpiCard label={labels.availability} value={`${metrics.availability}%`} detail={`${metrics.operational} / ${metrics.total}`} icon={<Gauge size="1.25rem"/>} tone="via-emerald-400/70"/>
                     <KpiCard label={labels.operational} value={metrics.operational} detail={`${metrics.total} ${labels.allPallets}`} icon={<Activity size="1.25rem"/>} tone="via-indigo-400/70"/>
                     <KpiCard label={labels.washSoon} value={metrics.dueSoon.length} detail="≥ 80%" icon={<TimerReset size="1.25rem"/>} tone="via-amber-300/70"/>
-                    <KpiCard label={labels.inWash} value={metrics.awaitingWash.length} detail={`${statusCounts.Damaged} ${labels.damaged.toLowerCase()}`} icon={<Droplets size="1.25rem"/>} tone="via-cyan-300/70"/>
+                    <KpiCard label={labels.inWash} value={metrics.awaitingWash.length} detail={`${statusCounts.Damaged} ${language === 'pl' ? (statusCounts.Damaged === 1 ? 'uszkodzona' : statusCounts.Damaged % 10 >= 2 && statusCounts.Damaged % 10 <= 4 && (statusCounts.Damaged % 100 < 12 || statusCounts.Damaged % 100 > 14) ? 'uszkodzone' : 'uszkodzonych') : labels.damaged.toLowerCase()}`} icon={<Droplets size="1.25rem"/>} tone="via-cyan-300/70"/>
                     <div className="col-span-2 lg:col-span-1">
                         <KpiCard label={labels.avgService} value={formatDuration(service.average_minutes_30d, language)} detail={`${service.completed_30d} · ${labels.last30Days}`} icon={<Clock3 size="1.25rem"/>} tone="via-fuchsia-400/70"/>
                     </div>
@@ -549,8 +549,8 @@ export const PublicDashboardView: React.FC = () => {
                                                     </div>
                                                     <div className={`w-full max-w-4 rounded-t-sm ${point.completed > 0 ? 'bg-linear-to-t from-indigo-600 to-cyan-300' : 'bg-brand-display/5'}`} style={{height: `${height}%`}}/>
                                                 </div>
-                                                <span className="mt-2 h-5 truncate text-center text-xs font-semibold text-brand-text-muted">
-                                                    {index % 2 === 0 ? formatTimestamp(point.day, locale, {day: '2-digit', month: '2-digit'}) : ''}
+                                                <span className="mt-2 flex h-5 justify-center overflow-visible whitespace-nowrap text-[11px] font-semibold text-brand-text-muted">
+                                                    {index % 3 === 0 ? formatTimestamp(point.day, locale, {day: '2-digit', month: '2-digit'}) : ''}
                                                 </span>
                                             </div>
                                         );

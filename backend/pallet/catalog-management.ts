@@ -4,7 +4,6 @@ import {requirePalletManagementUser} from "../shared/authorization";
 import {isFisSafeText} from "../shared/validation";
 import {t} from "../shared/i18n";
 import {encodeAuditChanges} from "./audit-description";
-import {enqueueFisSync} from "./fis-outbox";
 
 export async function updateCatalogItem(
     kind: "project" | "model",
@@ -46,11 +45,6 @@ export async function updateCatalogItem(
             if (moving) await tx.exec`SELECT set_config('palletx.report_edit', 'on', true)`;
             if (kind === "project") await tx.exec`UPDATE projects SET name = ${newName} WHERE id = ${id}`;
             else await tx.exec`UPDATE pallet_models SET name = ${newName}, project_id = COALESCE(${projectId ?? null}::int, project_id) WHERE id = ${id}`;
-            const affected = await tx.queryAll<{pallet_id: string; project: string; model: string; fis: 1 | 2; deleted_at: Date | null}>`
-                SELECT pallet_id, project, model, fis, deleted_at FROM pallet_details
-                WHERE (${kind} = 'project' AND project_id = ${id})
-                   OR (${kind} = 'model' AND model_id = ${id})
-            `;
             const changes: Parameters<typeof encodeAuditChanges>[0] = [];
             if (newName !== entry.name) changes.push({key: "audit_catalog_renamed", variables: {from: entry.name, to: newName}});
             if (moving) changes.push({key: "audit_model_moved", variables: {from: entry.project!, to: targetProject!.name}});
@@ -62,9 +56,13 @@ export async function updateCatalogItem(
             await tx.exec`UPDATE pallets SET updated_at = NOW(), updated_by = ${operator}
                 WHERE (${kind} = 'project' AND project_id = ${id})
                    OR (${kind} = 'model' AND model_id = ${id})`;
-            for (const row of affected) {
-                if (!row.deleted_at) await enqueueFisSync(tx, row.fis, {pallet_id: row.pallet_id, project: row.project, model: row.model}, operator);
-            }
+            await tx.exec`INSERT INTO fis_outbox (idempotency_key, pallet_id, operation, payload)
+                SELECT gen_random_uuid(), pallet_id, 'SYNC', jsonb_build_object('fis', fis,
+                    'details', jsonb_build_object('pallet_id', pallet_id, 'project', project, 'model', model),
+                    'operator', ${operator}::text)
+                FROM pallet_details
+                WHERE deleted_at IS NULL AND ((${kind} = 'project' AND project_id = ${id})
+                   OR (${kind} = 'model' AND model_id = ${id}))`;
         }
         await tx.commit();
     } catch (error) {

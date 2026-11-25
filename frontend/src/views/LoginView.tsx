@@ -95,7 +95,7 @@ export const LoginView: React.FC = () => {
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
                                     placeholder={t('login_username_placeholder')}
-                                    className="w-full bg-brand-bg border border-brand-border rounded-xl py-2.5 sm:py-3 pl-10 pr-4 text-sm font-mono text-brand-text placeholder:text-brand-text-muted focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/30 outline-none transition-all"
+                                    className="w-full bg-brand-bg border border-brand-border rounded-xl py-2.5 sm:py-3 pl-10 pr-4 text-sm font-mono text-brand-text placeholder:text-xs sm:placeholder:text-sm placeholder:text-brand-text-muted focus:border-brand-accent/60 focus:ring-2 focus:ring-brand-accent/30 outline-none transition-all"
                                 />
                             </div>
                         </div>

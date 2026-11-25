@@ -21,7 +21,7 @@ stanowisk są częścią ich definicji. Nie ma tymczasowych kolumn nazw w paletk
 Migracje 7 i 8 uzupełniają maszynę, datę statusu i okresy serwisowe istniejących rekordów.
 
 Po pierwszym wdrożeniu tego zestawu kolejne zmiany schematu należy dodawać
-jako nowe migracje od numeru 13, bez zmieniania wykonanych plików.
+jako nowe migracje, bez zmieniania wykonanych plików.
 
 ## Migration 9 — APACS card login
 
@@ -38,3 +38,7 @@ jako nowe migracje od numeru 13, bez zmieniania wykonanych plików.
 ## Migration 12 — FIS worker leases
 
 `12_fis_outbox_lease_token.up.sql` adds a UUID ownership token to outbox jobs. Workers claim one job immediately before execution and update outcomes only while they own its lease. Expired jobs remain recoverable; the lease also covers the configured FIS request timeout and cleanup. Deploy with the updated backend before restarting scheduler workers.
+
+## Migration 14 — audit pagination and query indexes
+
+`14_audit_log_pagination_indexes.up.sql` adds indexes for per-pallet history, chronological and status-filtered report pagination, expired FIS outbox lease recovery, defect foreign-key cleanup and completed service turnaround queries, removes superseded single-column indexes and enforces non-negative pallet cycle counters.

@@ -1,29 +1,22 @@
 import {Search} from "lucide-react";
 import React, {useId} from "react";
+import {useSearchParams} from "react-router";
 import {useTranslation} from "../i18n/LanguageContext.tsx";
 
-interface SearchInputProps {
-    searchTerm: string;
-    onSearchTermChange: (term: string) => void;
-    searchParams: URLSearchParams;
-    setSearchParams: (params: URLSearchParams) => void;
-}
-
-export function SearchInput({searchTerm, onSearchTermChange, searchParams, setSearchParams}: SearchInputProps) {
+export function SearchInput() {
     const {t} = useTranslation();
     const searchInputId = useId();
+    const [searchParams, setSearchParams] = useSearchParams();
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newSearchTerm = e.target.value;
-        onSearchTermChange(newSearchTerm);
-
         const newParams = new URLSearchParams(searchParams);
         if (newSearchTerm) {
             newParams.set('searchTerm', newSearchTerm);
         } else {
             newParams.delete('searchTerm');
         }
-        setSearchParams(newParams);
+        setSearchParams(newParams, {replace: true});
     };
 
     return (
@@ -35,7 +28,7 @@ export function SearchInput({searchTerm, onSearchTermChange, searchParams, setSe
                 type="text"
                 aria-label={t('search_label')}
                 placeholder={t('btn_search_placeholder')}
-                value={searchTerm}
+                value={searchParams.get('searchTerm') ?? ''}
                 onChange={handleChange}
                 className="bg-transparent border-none focus:outline-none focus:ring-0 text-sm w-full placeholder:text-brand-text-muted"
             />

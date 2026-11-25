@@ -1,5 +1,5 @@
 import {getCatalogAdminUrl} from '../lib/catalog';
-import {useEffect, useRef, useState, type KeyboardEvent} from 'react';
+import {useRef, useState} from 'react';
 import {useQuery, useQueryClient} from '@tanstack/react-query';
 import {useAuth} from '../auth/AuthContext';
 import {useTranslation} from '../i18n/LanguageContext';
@@ -19,20 +19,12 @@ export function useCatalogView() {
     const [name, setName] = useState('');
     const [projectName, setProjectName] = useState('');
     const [modelProjectId, setModelProjectId] = useState<number | null>(null);
-    const dialogRef = useRef<HTMLDivElement>(null);
     const runningRef = useRef(false);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
     const close = () => {if (!runningRef.current) setSelected(null);};
     useEscapeKey(Boolean(selected), close);
-    const modalOpen = Boolean(selected);
-    useEffect(() => {
-        if (!modalOpen) return;
-        const previous = document.activeElement as HTMLElement | null;
-        (dialogRef.current?.querySelector<HTMLElement>('input, select') ?? dialogRef.current?.querySelector<HTMLElement>('button'))?.focus();
-        return () => previous?.focus();
-    }, [modalOpen]);
     const projects = useQuery({queryKey: ['projects', language], queryFn: () => apiClient.pallet.GetAllProjects()});
     const models = useQuery({queryKey: ['models', language], queryFn: () => apiClient.pallet.GetAllModels()});
     const entries = getCatalogEntries(
@@ -72,7 +64,7 @@ export function useCatalogView() {
             }
             setSelected(null);
             setSuccess(true);
-            await invalidateAndBroadcast(cache, [['projects'], ['models'], ['pallets'], ['reports'], ['public-projects'], ['public-dashboard']]);
+            await invalidateAndBroadcast(cache, [['projects'], ['models'], ['pallets'], ['reports'], ['lab-strain'], ['public-projects'], ['public-dashboard']]);
         } catch (err) {
             setError(getErrorMessage(err, t('catalog_error')));
         } finally {
@@ -102,21 +94,11 @@ export function useCatalogView() {
         : t(selected?.remove ? 'catalog_delete' : 'catalog_edit');
     const projectModels = (id: number) => (models.data?.models ?? []).filter(model => model.project_id === id);
 
-    function handleDialogKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-        if (event.key !== 'Tab') return;
-        const controls = dialogRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled)');
-        if (!controls?.length) {event.preventDefault(); return;}
-        const first = controls[0], last = controls[controls.length - 1];
-        if (event.shiftKey && document.activeElement === first) {event.preventDefault(); last.focus();}
-        else if (!event.shiftKey && document.activeElement === last) {event.preventDefault(); first.focus();}
-                    
-    }
-
     return {
         getAdminUrl: getCatalogAdminUrl, t, tab, search, setSearch, selected, name, setName, projectName, setProjectName, modelProjectId, setModelProjectId,
-        dialogRef, busy, error, success, close, projects, models, entries, save, select,
+        busy, error, success, close, projects, models, entries, save, select,
         add, modalTitle, projectModels, changeTab, showProjectModels, filteredProject,
-        clearProjectFilter: () => setProjectId(null), handleDialogKeyDown,
+        clearProjectFilter: () => setProjectId(null),
         refresh: () => {void projects.refetch(); void models.refetch();},
     };
 }

@@ -1,9 +1,50 @@
+
+x-container-defaults: &container-defaults
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+x-fis-worker: &fis-worker
+  <<: *container-defaults
+  image: curlimages/curl:8.12.1
+  restart: unless-stopped
+  mem_limit: 64m
+  depends_on:
+    backend:
+      condition: service_healthy
+  secrets: [fis_outbox_worker_token]
+  entrypoint: ["sh", "-ec"]
+  command:
+    - |
+      trap 'kill "$$child" 2>/dev/null || true; exit 0' TERM INT
+      child=
+      token=$$(cat /run/secrets/fis_outbox_worker_token)
+      while true; do
+        printf 'X-FIS-Worker-Token: %s\n' "$$token" |
+          curl --fail --silent --show-error --connect-timeout 5 --max-time 300 \
+          -H @- -H 'Content-Type: application/json' -d "$$WORKER_BODY" \
+          "http://backend:8080/internal/fis-outbox/$$WORKER_ROUTE" &
+        child=$$!
+        wait "$$child" || true
+        sleep "$$WORKER_INTERVAL" &
+        child=$$!
+        wait "$$child" || true
+      done
+
 services:
   postgres-db:
+    <<: *container-defaults
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    mem_limit: 2g
     image: postgres:18.6-alpine
+    secrets: [postgres_password]
     environment:
       POSTGRES_USER: encoredb_user
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
       POSTGRES_DB: pallets
     expose:
       - "5432"
@@ -16,24 +57,39 @@ services:
       retries: 5
 
   db-migrations:
-    image: migrate/migrate
+    <<: *container-defaults
+    mem_limit: 128m
+    image: migrate/migrate:v4.18.3
     volumes:
+      - type: bind
+        source: ${PALETKI_HOST_DIR:-.}/deploy/run-migrations.sh
+        target: /run-migrations.sh
+        read_only: true
+        bind:
+          create_host_path: false
       - type: bind
         source: ${PALETKI_HOST_DIR:-.}/backend/pallet/migrations
         target: /migrations
         read_only: true
         bind:
           create_host_path: false
-    command:
-      - -path=/migrations
-      - -database=postgres://encoredb_user:${POSTGRES_PASSWORD}@postgres-db:5432/pallets?sslmode=disable
-      - up
+    entrypoint: ["/bin/sh", "/run-migrations.sh"]
+    secrets: [postgres_password]
     depends_on:
       postgres-db:
         condition: service_healthy
 
   backend:
+    <<: *container-defaults
+    mem_limit: 1g
+    secrets: [fis_outbox_worker_token]
     image: ${BACKEND_IMAGE}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
     expose:
       - "8080"
     depends_on:
@@ -43,6 +99,7 @@ services:
       - ${PALETKI_HOST_DIR:-.}/backend/certs/borgwarner-enterprise-root.pem:/etc/ssl/certs/borgwarner-enterprise-root.pem:ro
     environment:
       PORT: 8080
+      FIS_OUTBOX_WORKER_TOKEN_FILE: /run/secrets/fis_outbox_worker_token
       PALLETS_DB_PASSWORD: ${POSTGRES_PASSWORD}
       LDAP_URL: ${LDAP_URL}
       LDAP_LOGIN_DOMAIN: ${LDAP_LOGIN_DOMAIN}
@@ -73,6 +130,9 @@ services:
       ENCORE_ENV: ${ENCORE_ENV}
 
   frontend:
+    <<: *container-defaults
+    cap_add: [CHOWN, NET_BIND_SERVICE, SETGID, SETUID]
+    mem_limit: 128m
     image: nginx:alpine
     ports:
       - "${FRONTEND_HTTP_PORT:-8082}:80"
@@ -81,27 +141,28 @@ services:
       - ${PALETKI_HOST_DIR:-.}/frontend/dist:/usr/share/nginx/html:ro
       - ${PALETKI_HOST_DIR:-.}/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
   fis-outbox-worker:
-    image: curlimages/curl:8.12.1
-    restart: unless-stopped
-    depends_on:
-      - backend
-    entrypoint: ["sh", "-c"]
-    command:
-      - >-
-        while true; do curl --fail --silent --show-error --retry 5 --retry-connrefused -X POST -H 'Content-Type: application/json' -d '{"limit":20}' http://backend:8080/internal/fis-outbox/process || true; sleep 5; done
+    <<: *fis-worker
+    environment:
+      WORKER_ROUTE: process
+      WORKER_BODY: '{"limit":20}'
+      WORKER_INTERVAL: 5
 
   fis-reconciler:
-    image: curlimages/curl:8.12.1
-    restart: unless-stopped
-    depends_on:
-      - backend
-    entrypoint: ["sh", "-c"]
-    command:
-      - >-
-        while true; do curl --fail --silent --show-error --retry 5 --retry-connrefused -X POST -H 'Content-Type: application/json' -d '{}' http://backend:8080/internal/fis-outbox/reconcile || true; sleep 900; done
+    <<: *fis-worker
+    environment:
+      WORKER_ROUTE: reconcile
+      WORKER_BODY: '{}'
+      WORKER_INTERVAL: 900
+
+secrets:
+  postgres_password:
+    environment: POSTGRES_PASSWORD
+  fis_outbox_worker_token:
+    environment: FIS_OUTBOX_WORKER_TOKEN
 
 volumes:
   pgdata:

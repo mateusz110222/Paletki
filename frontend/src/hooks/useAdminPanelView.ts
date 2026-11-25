@@ -125,8 +125,6 @@ export function useAdminPanelView(props: Parameters<typeof useAdminPanel>[0], pa
         selectedStatusFromUrl,
         selectedMachineFromUrl,
         selectedFisFromUrl,
-        searchTermFromURL,
-        setSearchTerm,
         setSelectedModel,
         setSelectedProject,
         setSelectedStatus,

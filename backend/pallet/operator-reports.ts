@@ -95,6 +95,9 @@ export const CreateOperatorReport = api({method: "POST", path: "/operator-report
             WHERE pallet_id = ${palletId} AND deleted_at IS NULL FOR UPDATE`;
         if (!pallet) throw APIError.notFound(t("pallet_not_found", params.acceptLanguage));
         if (pallet.status === "Blocked") throw APIError.permissionDenied(t("auth_operator_blocked", params.acceptLanguage));
+        if (pallet.status === "Damaged" && kind === "washing") {
+            throw APIError.failedPrecondition(t("report_washing_damaged", params.acceptLanguage));
+        }
         if (pallet.status === 'Damaged' && !auth.hasITDepartmentAccess && !auth.hasMEDepartmentAccess && !auth.hasURDepartmentAccess) {
             throw APIError.permissionDenied(t('auth_operator_damaged', params.acceptLanguage));
         }

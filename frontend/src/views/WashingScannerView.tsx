@@ -55,7 +55,7 @@ export function WashingScannerView() {
         queryKey: ['pallets', 'washing-history', palletId, language],
         enabled: Boolean(palletId),
         queryFn: async ({signal}) => {
-            const historyApi = apiClient.with({fetcher: (url, init) => fetch(url, {...init, signal})});
+            const historyApi = apiClient.with({requestInit: {signal}});
             const response = await historyApi.pallet.GetPalletHistory(palletId!, {history_limit: 3, acceptLanguage: language});
             return response.history;
         },
@@ -73,7 +73,7 @@ export function WashingScannerView() {
         const serial = ++request.current;
         setScanning(true); setPallet(null); setComment(''); setFeedback(null);
         try {
-            const scanApi = apiClient.with({fetcher: (url, init) => fetch(url, {...init, signal: controller.signal})});
+            const scanApi = apiClient.with({requestInit: {signal: controller.signal}});
             const response = await scanApi.pallet.GetPallet(palletId, {acceptLanguage: language});
             if (serial === request.current && mounted.current) {setPallet(asPallet(response.pallet)); setId('');}
         } catch (error) {

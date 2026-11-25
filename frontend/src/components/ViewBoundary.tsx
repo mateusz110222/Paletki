@@ -1,7 +1,8 @@
-import {Component, Suspense, type ReactNode} from 'react';
+import {Component, Suspense, useMemo, type ReactNode} from 'react';
 import {useLocation} from 'react-router';
 import {AlertTriangle, Loader2, RefreshCw} from 'lucide-react';
 import {useTranslation} from '../i18n/LanguageContext';
+import {BundleLoadScope} from '../lib/lazyBundle';
 
 export function ViewLoading() {
     const {t} = useTranslation();
@@ -27,5 +28,8 @@ class RouteErrorBoundary extends Component<{children: ReactNode}, {failed: boole
 
 export function ViewBoundary({children}: {children: ReactNode}) {
     const {pathname} = useLocation();
-    return <RouteErrorBoundary key={pathname}><Suspense fallback={<ViewLoading/>}>{children}</Suspense></RouteErrorBoundary>;
+    const scope = useMemo(() => ({}), [pathname]);
+    return <BundleLoadScope value={scope}>
+        <RouteErrorBoundary key={pathname}><Suspense fallback={<ViewLoading/>}>{children}</Suspense></RouteErrorBoundary>
+    </BundleLoadScope>;
 }

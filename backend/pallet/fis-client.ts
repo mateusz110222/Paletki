@@ -132,7 +132,7 @@ export class FisClient {
                 Unit: details.pallet_id,
                 Process: "CREATEUNIT",
                 Station: "WEB",
-                DcString: `COMMENT|CREATED PALLET|PROJECT|${details.project}|MODEL|${details.model}|OPERATOR|${operator}`,
+                DcString: `COMMENT|CREATED PALLET|PROJECT|${details.project}|MODEL|${details.model}|OPERATOR|${operator.replace(/[|\p{Cc}]/gu, " ").trim()}`,
                 UserKey3: "PALLET",
             }, lang);
             this.assertSuccess(createResult, "Unit_DataEntry", lang);

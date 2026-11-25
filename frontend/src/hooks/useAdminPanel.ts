@@ -8,15 +8,12 @@ import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {getErrorMessage} from '../lib/errors';
 import {Pallet, PalletModel, PalletStatus, PalletMachine, Project} from '@backend/shared/types';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
-import {useGlobalErrorModal} from "./useGlobalErrorModal.ts";
 import {useAuth} from "../auth/AuthContext.tsx";
 import {useQueryClient} from '@tanstack/react-query';
 interface UseAdminPanelProps {
     pallets: Pallet[];
     projects: Project[];
     models: PalletModel[];
-    setPallets: React.Dispatch<React.SetStateAction<Pallet[]>>;
-    setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
 }
 
 type AddMode = 'single' | 'range';
@@ -30,7 +27,6 @@ export const useAdminPanel = ({
     const {t, language} = useTranslation();
     const {apiClient} = useAuth();
     const queryClient = useQueryClient();
-    const {errorModalState, showGlobalError, hideGlobalError} = useGlobalErrorModal();
 
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedProject, setSelectedProject] = useState('ALL');
@@ -190,7 +186,7 @@ export const useAdminPanel = ({
             await refreshPalletData(queryClient);
         } catch (error) {
             console.error("Failed to fetch pallets:", error);
-            showGlobalError(t('error_fetching_pallets_title'), getErrorMessage(error, t('error_connecting_to_encore')));
+            notify(`${t('error_fetching_pallets_title')}: ${getErrorMessage(error, t('error_connecting_to_encore'))}`, 'error');
         }
     };
 
@@ -401,7 +397,7 @@ export const useAdminPanel = ({
             notify(language === 'pl' ? 'Operacja zakończona pomyślnie.' : 'Operation completed successfully.');
         } catch (err) {
             console.error('Error deleting pallet:', err);
-            showGlobalError(t('error_deleting_pallet_title'), getErrorMessage(err, t('error_connecting_to_encore')));
+            notify(`${t('error_deleting_pallet_title')}: ${getErrorMessage(err, t('error_connecting_to_encore'))}`, 'error');
         } finally {
             setIsSubmitting(false);
         }
@@ -514,7 +510,7 @@ export const useAdminPanel = ({
             notify(language === 'pl' ? 'Operacja zakończona pomyślnie.' : 'Operation completed successfully.');
         } catch (error) {
             console.error('Error exporting audit trail:', error);
-            showGlobalError(t('error_fetching_audit_history_title'), getErrorMessage(error, t('error_connecting_to_encore')));
+            notify(`${t('error_fetching_audit_history_title')}: ${getErrorMessage(error, t('error_connecting_to_encore'))}`, 'error');
         } finally {
             exportRunningRef.current = false;
             setIsExporting(false);
@@ -559,7 +555,6 @@ export const useAdminPanel = ({
             sort,
             availableStock,
             blockedOrMaint,
-            errorModalState,
             availablePalletsPercentage,
             paginatedPallets,
             pageSize,
@@ -632,8 +627,6 @@ export const useAdminPanel = ({
             handleUpdatePallet,
             handleExportAuditTrail,
             handleRefreshPallets,
-            showGlobalError,
-            hideGlobalError,
             setPageSize: updatePageSize,
         },
     };

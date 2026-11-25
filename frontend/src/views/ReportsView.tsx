@@ -32,8 +32,8 @@ function readScope(params: URLSearchParams) {
     const to = params.get('to') || '';
     const previous = palletStatus(params.get('previous'));
     const status = palletStatus(params.get('status'));
-    const changesOnly = Boolean(previous || status || params.get('changes') === '1');
-    return {from, to, previous, status, changesOnly, hasFilters: Boolean(from || to || changesOnly), invalidDates: Boolean(from && to && from > to)};
+    const changesOnly = params.get('changes') === '1';
+    return {from, to, previous, status, changesOnly, hasFilters: Boolean(from || to || previous || status || changesOnly), invalidDates: Boolean(from && to && from > to)};
 }
 
 function updateScope(params: URLSearchParams, values: Record<string, string | undefined>) {
@@ -124,10 +124,11 @@ export function ReportsView() {
     if (draft.to) savedQuery.set('to', draft.to);
     if (draft.previous) savedQuery.set('previous', draft.previous);
     if (draft.status) savedQuery.set('status', draft.status);
-    if (draft.changesOnly && !draft.previous && !draft.status) savedQuery.set('changes', '1');
-    const renderStatus = (value: string, row: ReportRow) => {
+    if (draft.changesOnly) savedQuery.set('changes', '1');
+    const renderStatus = (value: string, row: ReportRow, before = false) => {
         const knownStatus = palletStatus(value);
-        return knownStatus ? <PalletStatusSpan status={knownStatus} block_reason={knownStatus === 'Damaged' ? row.damage_reason : row.block_reason}/>
+        const blockReason = before && row.previous_block_reason !== undefined ? row.previous_block_reason : row.block_reason;
+        return knownStatus ? <PalletStatusSpan status={knownStatus} block_reason={knownStatus === 'Damaged' ? row.damage_reason : blockReason}/>
             : <span className="text-xs font-semibold text-brand-text-muted">{statusLabel(value)}</span>;
     };
     return <div className="space-y-5 text-brand-text">
@@ -154,7 +155,7 @@ export function ReportsView() {
                     <div className="flex flex-wrap gap-2">
                         {presets.map(preset => {
                             const selected = preset.previous === draft.previous && preset.status === draft.status
-                                && Boolean(preset.previous || preset.status || preset.changesOnly) === draft.changesOnly;
+                                && Boolean(preset.changesOnly) === draft.changesOnly;
                             return <button key={preset.label} type="button" aria-pressed={selected}
                                 onClick={() => editScope({previous: preset.previous, status: preset.status, changes: preset.changesOnly ? '1' : undefined})}
                                 className={`min-h-10 rounded-lg border px-3 text-xs font-bold transition-colors disabled:opacity-50 ${selected ? 'border-brand-accent bg-brand-accent/10 text-brand-accent' : 'border-brand-border bg-brand-bg text-brand-text-muted hover:border-brand-accent/50 hover:text-brand-text'}`}>
@@ -166,11 +167,11 @@ export function ReportsView() {
                 <div className="grid gap-4 min-[360px]:grid-cols-2">
                     <InputField label={t('reports_from')} type="date" value={draft.from} onChange={e => editScope({from: e.target.value})}/>
                     <InputField label={t('reports_to')} type="date" value={draft.to} onChange={e => editScope({to: e.target.value})}/>
-                    <SelectField label={t('reports_previous')} fieldClassName={statusFieldClass} value={draft.previous ?? ''} onChange={e => editScope({previous: e.target.value})}>
+                    <SelectField label={t('reports_previous')} fieldClassName={statusFieldClass} value={draft.previous ?? ''} onChange={e => editScope({previous: e.target.value, changes: undefined})}>
                         <option value="">{t('reports_any_status')}</option>
                         {PALLET_STATUSES.map(value => <option key={value} value={value}>{statusLabel(value)}</option>)}
                     </SelectField>
-                    <SelectField label={t('reports_next_status')} fieldClassName={statusFieldClass} value={draft.status ?? ''} onChange={e => editScope({status: e.target.value})}>
+                    <SelectField label={t('reports_next_status')} fieldClassName={statusFieldClass} value={draft.status ?? ''} onChange={e => editScope({status: e.target.value, changes: undefined})}>
                         <option value="">{t('reports_any_status')}</option>
                         {PALLET_STATUSES.map(value => <option key={value} value={value}>{statusLabel(value)}</option>)}
                     </SelectField>
@@ -195,22 +196,22 @@ export function ReportsView() {
             </header>
             {query.isPending && !invalidDates && <div role="status" className="space-y-3 p-6"><p className="text-xs text-brand-text-muted">{t('features_loading')}</p>{[1,2,3].map(row => <div key={row} className="h-12 animate-pulse rounded-lg bg-brand-surface-high/50"/>)}</div>}
             {!invalidDates && !query.isPending && !query.isError && query.data?.rows.length === 0 && <div className="px-6 py-16 text-center"><FileSpreadsheet size={30} className="mx-auto text-brand-text-muted"/><p className="mt-4 text-sm font-semibold text-brand-text-muted">{t('reports_empty')}</p>{hasFilters && <button type="button" onClick={() => updateParams(clearedFilters)} className="mt-3 text-xs font-bold text-brand-accent">{t('reports_clear')}</button>}</div>}
-            {!invalidDates && Boolean(query.data?.rows.length) && <div className="overflow-x-auto"><table className="w-full min-w-[850px] text-left text-xs"><thead className="border-b border-brand-border bg-brand-bg/40 text-xs uppercase tracking-wider text-brand-text-muted"><tr>{[t('col_pallet_id'),t('col_project')+' / '+t('col_model'),t('label_machine'),t('reports_previous'),t('reports_next_status'),t('reports_date'),t('report_description'),t('reports_operator')].map(header => <th key={header} scope="col" className="whitespace-nowrap px-4 py-3 font-bold">{header}</th>)}</tr></thead>
+            {!invalidDates && Boolean(query.data?.rows.length) && <div className="overflow-x-auto"><table className="w-full min-w-[850px] text-left text-xs"><thead className="border-b border-brand-border bg-brand-bg/40 text-xs uppercase tracking-wider text-brand-text-muted"><tr>{[t('col_pallet_id'),t('col_project')+' / '+t('col_model'),t('label_machine'),t('reports_previous'),t('reports_next_status'),t('reports_date'),t('report_description'),t('reports_operator')].map(header => <th key={header} scope="col" className="whitespace-nowrap px-3 py-3 font-bold">{header}</th>)}</tr></thead>
                 <tbody className="divide-y divide-brand-border/60">{query.data?.rows.map(row => <tr key={row.id} className="align-top transition-colors hover:bg-brand-surface-high/25">
-                    <td className="whitespace-nowrap px-4 py-4 font-mono text-sm font-black">
+                    <td className="whitespace-nowrap px-3 py-3.5 font-mono text-sm font-black">
                         <Link to={{pathname: `/reports/pallets/${encodeURIComponent(row.pallet_id)}/history`, search}}
                             aria-label={t('reports_open_history', {id: row.pallet_id})}
                             className="inline-flex items-center gap-1.5 rounded-sm text-brand-accent underline underline-offset-4 hover:text-brand-text">
                             {row.pallet_id}<ArrowRight size={13} aria-hidden="true"/>
                         </Link>
                     </td>
-                    <td className="px-5 py-4"><p className="whitespace-nowrap font-bold text-brand-text">{row.project}</p><p className="mt-1 whitespace-nowrap text-xs text-brand-text-muted">{row.model}</p></td>
-                    <td className="px-5 py-4"><span className="rounded-md border border-brand-border bg-brand-bg px-2 py-1 font-mono text-xs font-bold text-brand-text-muted">{row.machine}</span></td>
-                    <td className="px-4 py-4">{row.previous_status ? renderStatus(row.previous_status, row) : '—'}</td>
-                    <td className="px-4 py-4">{renderStatus(row.status, row)}{row.previous_status === row.status && <p className="mt-1 text-xs text-brand-text-muted">{t('reports_status_unchanged')}</p>}</td>
-                    <td className="whitespace-nowrap px-5 py-4 font-mono text-xs"><p>{new Date(row.timestamp).toLocaleDateString(language,{timeZone:'Europe/Warsaw'})}</p><p className="mt-1 text-brand-text-muted">{new Date(row.timestamp).toLocaleTimeString(language,{timeZone:'Europe/Warsaw'})}</p></td>
-                    <td className="min-w-60 max-w-md px-5 py-4">{row.defect && <p className="mb-1.5 text-sm font-bold text-brand-text">{row.defect === 'Other' ? t('op_other_fault_type') : row.defect}</p>}<p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-brand-text-muted">{row.description || '—'}</p></td>
-                    <td className="px-5 py-4 text-xs font-semibold text-brand-text-muted">{row.operator}</td>
+                    <td className="px-3 py-3.5"><p className="whitespace-nowrap font-bold text-brand-text">{row.project}</p><p className="mt-1 whitespace-nowrap text-xs text-brand-text-muted">{row.model}</p></td>
+                    <td className="px-3 py-3.5"><span className="rounded-md border border-brand-border bg-brand-bg px-2 py-1 font-mono text-xs font-bold text-brand-text-muted">{row.machine}</span></td>
+                    <td className="px-3 py-3.5">{row.previous_status ? renderStatus(row.previous_status, row, true) : '—'}</td>
+                    <td className="px-3 py-3.5">{renderStatus(row.status, row)}{row.previous_status === row.status && <p className="mt-1 text-xs text-brand-text-muted">{t('reports_status_unchanged')}</p>}</td>
+                    <td className="whitespace-nowrap px-3 py-3.5 font-mono text-xs"><p>{new Date(row.timestamp).toLocaleDateString(language,{timeZone:'Europe/Warsaw'})}</p><p className="mt-1 text-brand-text-muted">{new Date(row.timestamp).toLocaleTimeString(language,{timeZone:'Europe/Warsaw'})}</p></td>
+                    <td className="min-w-44 max-w-sm px-3 py-3.5">{row.defect && <p className="mb-1.5 text-sm font-bold text-brand-text">{row.defect === 'Other' ? t('op_other_fault_type') : row.defect}</p>}<p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-brand-text-muted">{row.description || '—'}</p></td>
+                    <td className="px-3 py-3.5 text-xs font-semibold text-brand-text-muted">{row.operator}</td>
                 </tr>)}</tbody></table></div>}
             <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-brand-border bg-brand-bg/20 px-5 py-3.5 text-xs text-brand-text-muted"><span>{t('reports_page')} <strong className="font-mono text-brand-text">{offset / pageSize + 1}</strong> · {t('reports_rows_page')}: {query.data?.rows.length ?? 0}</span><div className="flex gap-2">
                 <button type="button" disabled={offset === 0 || query.isFetching || exporting} className="min-h-9 rounded-lg border border-brand-border px-3 text-xs font-bold text-brand-text-muted hover:text-brand-text disabled:opacity-30" onClick={() => updateParams({offset: offset > pageSize ? String(offset - pageSize) : undefined})}>{t('reports_prev')}</button>

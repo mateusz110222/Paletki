@@ -67,7 +67,7 @@ function booleanEnv(name: string): boolean {
 }
 
 function optionalBooleanEnv(name: string, defaultValue: boolean): boolean {
-    const value = process.env[name]?.trim();
+    const value = process.env[name]?.trim().toLowerCase();
     if (!value) return defaultValue;
     if (value !== "true" && value !== "false") {
         throw new Error(`${name} must be either true or false`);
@@ -161,6 +161,9 @@ export const config = Object.freeze({
         router1Url: requiredEnv("FIS1_ROUTER_URL"),
         router2Url: requiredEnv("FIS2_ROUTER_URL"),
         requestTimeoutMs: optionalPositiveIntegerEnv("FIS_REQUEST_TIMEOUT_MS", 10_000),
+        outboxWorkerToken: process.env.FIS_OUTBOX_WORKER_TOKEN_FILE
+            ? readFileSync(process.env.FIS_OUTBOX_WORKER_TOKEN_FILE, "utf8").trim()
+            : process.env.FIS_OUTBOX_WORKER_TOKEN?.trim() ?? "",
         strainBlocking: optionalBooleanEnv("FIS_STRAIN_BLOCKING", false),
         outboxCompletedRetentionDays: optionalPositiveIntegerEnv("FIS_OUTBOX_COMPLETED_RETENTION_DAYS", 30),
     }),

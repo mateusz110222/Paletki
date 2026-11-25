@@ -13,6 +13,13 @@ interface CardAssignment {
 }
 
 let poolPromise: Promise<sql.ConnectionPool> | undefined;
+const connectionErrors = new Set(["ESOCKET", "ECONNCLOSED", "ENOTOPEN", "ENOCONN"]);
+
+function discardPool(expected: Promise<sql.ConnectionPool>, pool: sql.ConnectionPool): void {
+    if (poolPromise !== expected) return;
+    poolPromise = undefined;
+    void pool.close().catch((error: unknown) => logApacsFailure("pool", error));
+}
 
 function logApacsFailure(stage: "connect" | "query" | "pool", error: unknown): void {
     const code = error instanceof Error && "code" in error && typeof error.code === "string" &&
@@ -26,21 +33,29 @@ function getPool(): Promise<sql.ConnectionPool> {
     const password = apacsDbPassword();
     if (!password) throw new Error("APACS is not configured");
     const {server, port, database, user, encrypt, trustServerCertificate, connectionTimeout, requestTimeout} = config.apacs;
-    poolPromise = new sql.ConnectionPool({
+    const pool = new sql.ConnectionPool({
         server, port, database, user, password, connectionTimeout, requestTimeout,
         options: {encrypt, trustServerCertificate},
         pool: {max: 5, min: 0, idleTimeoutMillis: 30000},
-    }).on("error", (error: unknown) => logApacsFailure("pool", error)).connect().catch((error: unknown) => {
-        poolPromise = undefined;
+    });
+    let connecting: Promise<sql.ConnectionPool> | undefined;
+    pool.on("error", (error: unknown) => {
+        logApacsFailure("pool", error);
+        if (connecting) discardPool(connecting, pool);
+    });
+    connecting = pool.connect().catch((error: unknown) => {
+        if (connecting) discardPool(connecting, pool);
         logApacsFailure("connect", error);
         throw new Error("APACS connection unavailable", {cause: error});
     });
-    return poolPromise;
+    poolPromise = connecting;
+    return connecting;
 }
 
 export async function findActiveCardOperator(identifier: string) {
     const numeric = BigInt(identifier);
-    const pool = await getPool();
+    const connection = getPool();
+    const pool = await connection;
     const result = await pool.request()
         .input("identifier", sql.VarChar(30), identifier)
         .input("cardNumber", sql.Int, numeric <= 2147483647n ? Number(numeric) : null)
@@ -55,6 +70,10 @@ export async function findActiveCardOperator(identifier: string) {
                 OR ci.FCARDNUM = @cardNumber
         `).catch((error: unknown) => {
             logApacsFailure("query", error);
+            if (!pool.connected || !pool.healthy ||
+                (error instanceof Error && "code" in error && connectionErrors.has(String(error.code)))) {
+                discardPool(connection, pool);
+            }
             throw new Error("APACS query unavailable", {cause: error});
         });
     // Reject ambiguous ownership even if only one assignment is currently active.

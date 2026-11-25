@@ -1,9 +1,9 @@
 import {lazyBundle} from '../lib/lazyBundle';
 import {ViewBoundary} from '../components/ViewBoundary';
 
-import React, {lazy, useCallback, useEffect, useMemo, useRef} from 'react';
+import React, {useEffect, useMemo, useRef} from 'react';
 import {Navigate, Route, Routes, useLocation} from 'react-router';
-import {Pallet, PalletModel, Project} from '@backend/shared/types';
+import {PalletModel} from '@backend/shared/types';
 import {useAuth} from '../auth/AuthContext.tsx';
 import {useQuery, useQueryClient} from '@tanstack/react-query';
 import {asPallet, publicApi} from '../lib/api.ts';
@@ -36,8 +36,10 @@ const PalletHistoryView = maintenanceBundle.view('PalletHistoryView');
 const CatalogView = adminBundle.view('CatalogView');
 const PublicDashboardView = dashboardsBundle.view('PublicDashboardView');
 const LiveMonitorView = dashboardsBundle.view('LiveMonitorView');
-const DocumentationView = lazy(() => import('../views/DocumentationView.tsx').then(module => ({default: module.DocumentationView})));
-const LabView = lazy(() => import('../views/LabView.tsx').then(module => ({default: module.LabView})));
+const documentationBundle = lazyBundle(() => import('../views/DocumentationView.tsx'));
+const labBundle = lazyBundle(() => import('../views/LabView.tsx'));
+const DocumentationView = documentationBundle.view('DocumentationView');
+const LabView = labBundle.view('LabView');
 
 export const AppRoutes: React.FC = () => {
     const {isAuthenticated, apiClient} = useAuth();
@@ -81,7 +83,6 @@ const AuthenticatedRoutes: React.FC = () => {
     const pathname = useLocation().pathname;
     const needsPallets = (pathname === '/admin' && canManagePallets) || (pathname === '/maintenance/service' && canAccessMaintenance);
     const needsCatalog = pathname === '/admin' && canManagePallets;
-    const queryClient = useQueryClient();
     const palletsKey = useMemo(() => ['pallets', language] as const, [language]);
     const projectsKey = useMemo(() => ['projects', language] as const, [language]);
     const modelsKey = useMemo(() => ['models', language] as const, [language]);
@@ -122,18 +123,6 @@ const AuthenticatedRoutes: React.FC = () => {
     const pallets = palletsQuery.data?.pallets ?? [];
     const projects = projectsQuery.data?.projects ?? [];
     const models: PalletModel[] = modelsQuery.data?.models ?? [];
-    const setPallets = useCallback<React.Dispatch<React.SetStateAction<Pallet[]>>>((update) => {
-        queryClient.setQueryData<{pallets: Pallet[]}>(palletsKey, (current) => {
-            const currentPallets = current?.pallets ?? [];
-            return {pallets: typeof update === 'function' ? update(currentPallets) : update};
-        });
-    }, [palletsKey, queryClient]);
-    const setProjects = useCallback<React.Dispatch<React.SetStateAction<Project[]>>>((update) => {
-        queryClient.setQueryData<{projects: Project[]}>(projectsKey, (current) => {
-            const currentProjects = current?.projects ?? [];
-            return {projects: typeof update === 'function' ? update(currentProjects) : update};
-        });
-    }, [projectsKey, queryClient]);
 
     return (
         <>
@@ -154,8 +143,7 @@ const AuthenticatedRoutes: React.FC = () => {
                             path="/catalog" element={<CatalogView/>}/>
                         <Route
                             path="/admin"
-                            element={<AdminPanel pallets={pallets} projects={projects} models={models} setPallets={setPallets}
-                                                 setProjects={setProjects}/>}
+                            element={<AdminPanel pallets={pallets} projects={projects} models={models}/>}
                         />
                         <Route
                             path="/admin/pallets/:palletId/history"

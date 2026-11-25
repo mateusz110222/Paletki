@@ -4,23 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#090d16" />
-    <script>
-      try {
-        const saved = localStorage.getItem('palletx-theme');
-        const theme = saved === 'light' || saved === 'system' ? saved : 'dark';
-        document.documentElement.dataset.themePreference = theme;
-        const light = theme === 'light' || (theme === 'system' && !matchMedia('(prefers-color-scheme: dark)').matches);
-        document.documentElement.dataset.theme = light ? 'light' : 'dark';
-        if (light) {
-          document.querySelector('meta[name="theme-color"]').content = '#f3f5fa';
-        }
-      } catch {
-        // Dark is the default when browser storage is unavailable.
-      }
-    </script>
+    <script>try{const s=localStorage.getItem('palletx-theme'),t=s==='light'||s==='system'?s:'dark',l=t==='light'||(t==='system'&&!matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.themePreference=t;document.documentElement.dataset.theme=l?'light':'dark';if(l)document.querySelector('meta[name="theme-color"]').content='#f3f5fa'}catch{}</script>
     <meta name="description" content="PalletX — soldering pallet management system." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="stylesheet" href="/select-picker-scrollbar.css" />
     <title>PalletX</title>
   </head>
   <body>
@@ -28,4 +14,3 @@
     <script type="module" src="./src/main.tsx"></script>
   </body>
 </html>
-

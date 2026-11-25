@@ -1,4 +1,5 @@
 import React, {useEffect, useId, useRef, useState, type ReactNode, type SyntheticEvent} from "react";
+import {createPortal} from 'react-dom';
 import {AlertTriangle, CircleCheck, Info, LockKeyhole, WashingMachine} from 'lucide-react';
 import { PalletStatus } from "@backend/shared/types.ts";
 import { useTranslation, TranslationKey } from "../i18n/LanguageContext.tsx";
@@ -35,21 +36,31 @@ const STATUS_CONFIG: Record<string, { className: string; labelKey: TranslationKe
     },
 };
 
-const BASE_STYLES = "px-2 py-1 text-xs font-bold rounded-full border uppercase inline-flex items-center gap-1 text-center align-middle";
+const BASE_STYLES = "px-2 py-1 text-xs font-bold rounded-full border uppercase inline-flex items-center gap-1 text-center align-middle whitespace-nowrap";
 const FALLBACK_STYLES = "bg-brand-surface-high text-brand-text-muted border-brand-border";
 
 function StatusWithReason({className, label, heading, reason, children}: {
     className: string; label: string; heading: string; reason: string; children: ReactNode;
 }) {
     const tooltip = useRef<HTMLSpanElement>(null);
+    const trigger = useRef<HTMLButtonElement>(null);
     const id = useId();
     const [open, setOpen] = useState(false);
+    const fallback = typeof document !== 'undefined' && (
+        typeof HTMLElement.prototype.showPopover !== 'function' || typeof HTMLElement.prototype.hidePopover !== 'function'
+    );
 
     function show(event: SyntheticEvent<HTMLButtonElement>) {
         const panel = tooltip.current;
-        if (!panel || panel.matches(':popover-open')) return;
+        if (!panel || (fallback ? !panel.hidden : panel.matches(':popover-open'))) return;
         const anchor = event.currentTarget.getBoundingClientRect();
-        panel.showPopover();
+        panel.style.visibility = 'hidden';
+        if (fallback) {
+            panel.hidden = false;
+            setOpen(true);
+        } else {
+            panel.showPopover();
+        }
         const {width, height} = panel.getBoundingClientRect();
         const {clientWidth, clientHeight} = document.documentElement;
         const padding = 8;
@@ -58,10 +69,18 @@ function StatusWithReason({className, label, heading, reason, children}: {
         const top = above >= padding || clientHeight - anchor.bottom < anchor.top ? above : anchor.bottom;
         panel.style.left = `${Math.max(padding, Math.min(left, clientWidth - width - padding))}px`;
         panel.style.top = `${Math.max(padding, Math.min(top, clientHeight - height - padding))}px`;
+        panel.style.removeProperty('visibility');
     }
 
     function hide() {
-        if (tooltip.current?.matches(':popover-open')) tooltip.current.hidePopover();
+        const panel = tooltip.current;
+        if (!panel) return;
+        if (fallback) {
+            panel.hidden = true;
+            setOpen(false);
+        } else if (panel.matches(':popover-open')) {
+            panel.hidePopover();
+        }
     }
 
     useEffect(() => {
@@ -69,26 +88,48 @@ function StatusWithReason({className, label, heading, reason, children}: {
         function onScroll(event: Event) {
             if (event.target !== tooltip.current) hide();
         }
+        function onOutsideClick(event: PointerEvent) {
+            if (event.target instanceof Node && !trigger.current?.contains(event.target) && !tooltip.current?.contains(event.target)) hide();
+        }
+        function onEscape(event: KeyboardEvent) {
+            if (event.key !== 'Escape') return;
+            event.preventDefault();
+            event.stopPropagation();
+            hide();
+        }
         window.addEventListener('scroll', onScroll, true);
         window.addEventListener('resize', hide);
+        if (fallback) {
+            window.addEventListener('pointerdown', onOutsideClick, true);
+            window.addEventListener('keydown', onEscape, true);
+        }
         return () => {
             window.removeEventListener('scroll', onScroll, true);
             window.removeEventListener('resize', hide);
+            if (fallback) {
+                window.removeEventListener('pointerdown', onOutsideClick, true);
+                window.removeEventListener('keydown', onEscape, true);
+            }
         };
-    }, [open]);
+    }, [open, fallback]);
 
-    return <button type="button" aria-label={label} aria-describedby={id} className={className}
-        onMouseEnter={show} onFocus={show} onClick={show} onBlur={hide}
-        onMouseLeave={event => {if (!event.currentTarget.matches(':focus-visible')) hide();}}>
-        {children}
-        <span id={id} ref={tooltip} role="tooltip" popover="auto"
+    const panel = <span id={id} ref={tooltip} role="tooltip" popover={fallback ? undefined : 'auto'} hidden={fallback && !open}
             onToggle={event => setOpen(event.newState === 'open')}
-            className="fixed inset-auto top-0 left-0 m-0 max-h-[min(18rem,calc(100dvh-1rem))] w-max max-w-[min(22rem,calc(100vw-1rem))] overflow-auto rounded-xl border border-brand-border border-s-3 border-s-red-400 bg-brand-surface px-4 py-3 text-left text-sm font-normal normal-case tracking-normal text-brand-text shadow-xl">
+            className="fixed inset-auto top-0 left-0 z-[120] m-0 max-h-[min(18rem,calc(100dvh-1rem))] w-max max-w-[min(22rem,calc(100vw-1rem))] overflow-auto rounded-xl border border-brand-border border-s-3 border-s-red-400 bg-brand-surface px-4 py-3 text-left text-sm font-normal normal-case tracking-normal text-brand-text shadow-xl">
             <span className="mb-1.5 flex items-center gap-2 text-xs font-bold text-red-300">
                 <Info size={14} aria-hidden="true"/>{heading}
             </span>
             <span className="block wrap-anywhere whitespace-pre-wrap leading-relaxed">{reason}</span>
-        </span>
+        </span>;
+
+    return <button ref={trigger} type="button" aria-label={label} aria-describedby={id} className={className}
+        onMouseEnter={show} onFocus={show} onClick={show} onBlur={hide}
+        onMouseLeave={event => {
+            const focused = fallback ? event.currentTarget === document.activeElement : event.currentTarget.matches(':focus-visible');
+            if (!focused) hide();
+        }}>
+        {children}
+        {fallback ? createPortal(panel, document.body) : panel}
     </button>;
 }
 

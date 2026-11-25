@@ -64,6 +64,9 @@ async function changePalletStatus(
             FOR UPDATE
         `;
         if (!row) throw APIError.notFound(t("pallet_not_found", lang));
+        if (row.status === "Damaged" && newStatus === "Washing_Required") {
+            throw APIError.failedPrecondition(t("report_washing_damaged", lang));
+        }
         if (row.status === "Blocked" && newStatus !== "Blocked" && !blockReason?.trim()) throw APIError.invalidArgument(t("unblock_comment_required", lang));
         if (maintenanceOnly && row.status !== 'Damaged' && row.status !== 'Washing_Required') {
             throw APIError.permissionDenied(t('auth_maintenance_required', lang));
@@ -169,7 +172,7 @@ export const ResetPalletCycles = api(
             palletId,
             "Active",
             operator,
-            null,
+            params.block_reason?.trim() || null,
             encodeAuditDescription("audit_reset_cycles", {}, params.block_reason),
             true,
             params.acceptLanguage,

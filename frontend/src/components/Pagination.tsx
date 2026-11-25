@@ -62,10 +62,10 @@ export const Pagination: React.FC<PaginationProps> = ({
     return (
         <nav
             className={`flex flex-wrap items-center justify-between gap-3 border-t border-brand-border bg-brand-surface px-3 py-2.5 sm:px-5 ${className}`}
-            aria-label="Pagination"
+            aria-label={t('pagination_label')}
         >
             <div className="flex items-center gap-3 text-xs font-medium tabular-nums text-brand-text-muted">
-                <span>{totalItems === 0 ? 0 : totalItems !== undefined && fromItem !== null && toItem !== null
+                <span>{totalItems === 0 ? t('pagination_empty') : totalItems !== undefined && fromItem !== null && toItem !== null
                     ? t('pagination_showing_range', {from: fromItem, to: toItem, total: totalItems})
                     : `${t('pagination_page')} ${currentPage} ${t('pagination_of')} ${totalPages}`}</span>
                 {onPageSizeChange && <select aria-label={t('rows_per_page')} title={t('rows_per_page')}

@@ -20,7 +20,7 @@ test('Pagination renders navigation buttons and pages when totalPages > 1', () =
             <Pagination currentPage={2} totalPages={5} onPageChange={() => {}} />
         </LanguageProvider>
     );
-    assert.ok(html.includes('aria-label="Pagination"'));
+    assert.ok(html.includes('aria-label="Paginacja"'));
     assert.ok(html.includes('2'));
     assert.ok(html.includes('5'));
 });

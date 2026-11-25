@@ -229,6 +229,7 @@ Key configuration variables:
 | `FIS1_ROUTER_URL`                     | URL to FIS 1 router endpoint                                     | `http://fis-router-1.local/router.php`                         |
 | `FIS2_ROUTER_URL`                     | URL to FIS 2 router endpoint                                     | `http://fis-router-2.local/router.php`                         |
 | `FIS_OUTBOX_COMPLETED_RETENTION_DAYS` | Retention period for completed FIS outbox jobs                   | `30`                                                           |
+| `FIS_OUTBOX_WORKER_TOKEN`             | Random token for the Compose FIS workers. CI/CD creates it on the deployment host. | Generated locally |
 | `FRONTEND_HTTP_PORT`                  | Port exposed by Nginx for the Web App                            | `8082`                                                         |
 | `FIS_INGRESS_PORT`                    | Dedicated port for machine soldering calls (`/fis/*`)            | `4000`                                                         |
 
@@ -319,6 +320,13 @@ editor does not load `/opt/paletki/.env` automatically. For a local
 `docker compose up -d` from the repository directory, use
 `PALETKI_HOST_DIR=./` as in `.env.example`.
 
+Set a random `FIS_OUTBOX_WORKER_TOKEN` for manual Docker Compose starts and use
+Docker Compose v2, which supports secrets sourced from environment variables.
+The automated deployment generates and keeps its worker token in
+`release.production.env` on the host. Successful deployments retain the 10
+newest complete database backups and keep the current and previous release
+images, plus up to two further SHA tags per component.
+
 If Portainer reports `no migration found for version ...` while the SQL files
 exist under `/opt/paletki/backend/pallet/migrations`, check that
 `PALETKI_HOST_DIR` is set for the stack. The migrations bind mount is configured
@@ -392,7 +400,7 @@ The UR after-washing scanner (`/maintenance/washing`) confirms completed washing
 
 The Maintenance hub uses four tiles in a 2×2 desktop layout. `/maintenance/history` accepts a scanned or typed pallet ID and opens the existing history viewer at `/maintenance/pallets/:palletId/history`. Individual history is available to UR/ME/IT; bulk audit remains ME/IT only. The operator scanner displays Damaged and Blocked pallets as read-only reason cards. The defect description field appears only for Other and is cleared when switching to a catalog defect; washing reports need no operator comment.
 
-Frontend area bundles (operator, maintenance, dashboards and admin) load on first entry through a shared Suspense resource per area. Once resolved, all views in that area read the module synchronously, avoiding a loading flash on their first visit. All screens within an area share its module; documentation is loaded separately. The authenticated shell remains visible during loading or module errors; reload is manual and keeps the current URL. Full inventory queries run only for admin and maintenance service, with router catalog queries only for admin. Production build emits a Vite manifest and verifies that area modules are absent from the shell static dependency graph and do not eagerly import each other; XLSX stays deferred until export.
+Frontend area bundles (operator, maintenance, dashboards and admin) load on first entry through a shared Suspense resource per area. Once resolved, all views in that area read the module synchronously, avoiding a loading flash on their first visit. All screens within an area share its module; documentation is loaded separately. The authenticated shell remains visible during loading or module errors. Returning to an area retries a failed load. Reload remains available when the deployed asset no longer exists. Full inventory queries run only for admin and maintenance service, with router catalog queries only for admin. Production build emits a Vite manifest and verifies that area modules are absent from the shell static dependency graph and do not eagerly import each other; XLSX stays deferred until export.
 
 ### LAB and strain measurements
 

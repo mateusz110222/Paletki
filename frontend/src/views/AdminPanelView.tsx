@@ -7,7 +7,6 @@ import { TranslationKey } from '../i18n/LanguageContext.tsx';
 import { Pallet, PalletModel, PALLET_STATUSES, PalletStatus, Project } from '@backend/shared/types';
 import { useAdminPanel } from '../hooks/useAdminPanel.ts';
 import { PalletStatusSpan } from "../components/PalletStatusSpan.tsx";
-import { GlobalErrorModal } from "../components/GlobalErrorModal.tsx";
 
 import { SearchInput } from "../components/SearchInput.tsx";
 import { useEscapeKey } from "../hooks/useEscapeKey.ts";
@@ -20,8 +19,6 @@ interface AdminPanelViewProps {
     pallets: Pallet[];
     projects: Project[];
     models: PalletModel[];
-    setPallets: React.Dispatch<React.SetStateAction<Pallet[]>>;
-    setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
 }
 
 const ErrorAlert: React.FC<{ message: string }> = ({message}) => {
@@ -37,6 +34,8 @@ const ErrorAlert: React.FC<{ message: string }> = ({message}) => {
 
 export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
     const {data, status, actions} = useAdminPanel(props);
+    const lastLimit = data.rangeCyclePreview?.lastLimit;
+    const invalidRangeLimit = lastLimit !== undefined && (lastLimit <= 0 || lastLimit > 1_000_000);
     const [showMobileFilters, setShowMobileFilters] = useState(false);
     const tableScrollRef = useRef<HTMLDivElement>(null);
     useLayoutEffect(() => {
@@ -83,7 +82,6 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
         selectedStatusFromUrl,
         selectedMachineFromUrl,
         selectedFisFromUrl,
-        searchTermFromURL,
         hasActiveFilters,
         cycleStepEvery,
         cycleStepAmount,
@@ -98,14 +96,12 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
         setSearchParams(params);
         actions.setSelectedStatus(value);
     };
-    const hasOpenModal = data.selectedPalletForUnblock !== null || data.errorModalState.isOpen || data.selectedPalletForDelete !== null ||
+    const hasOpenModal = data.selectedPalletForUnblock !== null || data.selectedPalletForDelete !== null ||
         data.isBlockOpen || data.isEditOpen || data.isAddOpen;
 
     useEscapeKey(hasOpenModal, () => {
         if (data.selectedPalletForUnblock) {
             actions.closeUnblock();
-        } else if (data.errorModalState.isOpen) {
-            actions.hideGlobalError();
         } else if (!status.isSubmitting && data.selectedPalletForDelete) {
             actions.setSelectedPalletForDelete(null);
         } else if (!status.isSubmitting && data.isBlockOpen) {
@@ -172,8 +168,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                         </button>
                     </div>
 
-                    <SearchInput searchTerm={searchTermFromURL} searchParams={searchParams}
-                                 onSearchTermChange={actions.setSearchTerm} setSearchParams={setSearchParams}/>
+                    <SearchInput/>
                 </div>
             </div>
 
@@ -342,17 +337,17 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                 <div ref={tableScrollRef} className="admin-table-scroll relative max-h-[65dvh] overflow-auto">
                     <table className="w-full border-collapse">
                         <thead>
-                        <tr className="text-left"><th className="px-4 py-3"><input type="checkbox" aria-label={language === 'pl' ? 'Zaznacz bieżącą stronę' : 'Select current page'} checked={allPageSelected} disabled={!pageIds.length} ref={node => {if(node) node.indeterminate = !allPageSelected && pageIds.some(id => selectedIds.includes(id));}} onChange={togglePage}/></th>
-                            <th aria-sort={data.sort.key === 'pallet_id' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('pallet_id')} className="flex items-center gap-2 whitespace-nowrap">{t('col_pallet_id')}<span aria-hidden="true">{data.sort.key === 'pallet_id' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
-                            <th hidden={hiddenColumns.includes('project')} aria-sort={data.sort.key === 'project' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('project')} className="flex items-center gap-2 whitespace-nowrap">{t('col_project')}<span aria-hidden="true">{data.sort.key === 'project' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
-                            <th hidden={hiddenColumns.includes('model')} aria-sort={data.sort.key === 'model' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('model')} className="flex items-center gap-2 whitespace-nowrap">{t('col_model')}<span aria-hidden="true">{data.sort.key === 'model' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
-                            <th hidden={hiddenColumns.includes('fis')} aria-sort={data.sort.key === 'fis' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('fis')} className="flex items-center gap-2 whitespace-nowrap">{t('col_fis')}<span aria-hidden="true">{data.sort.key === 'fis' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
-                            <th hidden={hiddenColumns.includes('nests')} aria-sort={data.sort.key === 'nests' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('nests')} className="flex items-center gap-2 whitespace-nowrap">{t('col_nests')}<span aria-hidden="true">{data.sort.key === 'nests' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
-                            <th hidden={hiddenColumns.includes('current_cycles')} aria-sort={data.sort.key === 'current_cycles' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('current_cycles')} className="flex items-center gap-2 whitespace-nowrap">{t('col_cycles')}<span aria-hidden="true">{data.sort.key === 'current_cycles' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
-                            <th hidden={hiddenColumns.includes('status')} aria-sort={data.sort.key === 'status' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('status')} className="flex items-center gap-2 whitespace-nowrap">{t('col_status')}<span aria-hidden="true">{data.sort.key === 'status' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
-                            <th hidden={hiddenColumns.includes('created_by')} aria-sort={data.sort.key === 'created_by' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('created_by')} className="flex items-center gap-2 whitespace-nowrap">{t('col_operator')}<span aria-hidden="true">{data.sort.key === 'created_by' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
-                            <th hidden={hiddenColumns.includes('created_at')} aria-sort={data.sort.key === 'created_at' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-6 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('created_at')} className="flex items-center gap-2 whitespace-nowrap">{t('col_created_at')}<span aria-hidden="true">{data.sort.key === 'created_at' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
-                            <th className="px-6 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted text-right">{t('col_actions')}</th>
+                        <tr className="text-left"><th className="px-3 py-3"><input type="checkbox" aria-label={language === 'pl' ? 'Zaznacz bieżącą stronę' : 'Select current page'} checked={allPageSelected} disabled={!pageIds.length} ref={node => {if(node) node.indeterminate = !allPageSelected && pageIds.some(id => selectedIds.includes(id));}} onChange={togglePage}/></th>
+                            <th aria-sort={data.sort.key === 'pallet_id' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-3 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('pallet_id')} className="flex items-center gap-1.5 whitespace-nowrap">{t('col_pallet_id')}<span aria-hidden="true">{data.sort.key === 'pallet_id' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
+                            <th hidden={hiddenColumns.includes('project')} aria-sort={data.sort.key === 'project' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-3 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('project')} className="flex items-center gap-1.5 whitespace-nowrap">{t('col_project')}<span aria-hidden="true">{data.sort.key === 'project' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
+                            <th hidden={hiddenColumns.includes('model')} aria-sort={data.sort.key === 'model' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-3 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('model')} className="flex items-center gap-1.5 whitespace-nowrap">{t('col_model')}<span aria-hidden="true">{data.sort.key === 'model' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
+                            <th hidden={hiddenColumns.includes('fis')} aria-sort={data.sort.key === 'fis' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-3 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('fis')} className="flex items-center gap-1.5 whitespace-nowrap">{t('col_fis')}<span aria-hidden="true">{data.sort.key === 'fis' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
+                            <th hidden={hiddenColumns.includes('nests')} aria-sort={data.sort.key === 'nests' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-3 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('nests')} className="flex items-center gap-1.5 whitespace-nowrap">{t('col_nests')}<span aria-hidden="true">{data.sort.key === 'nests' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
+                            <th hidden={hiddenColumns.includes('current_cycles')} aria-sort={data.sort.key === 'current_cycles' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-3 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('current_cycles')} className="flex items-center gap-1.5 whitespace-nowrap">{t('col_cycles')}<span aria-hidden="true">{data.sort.key === 'current_cycles' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
+                            <th hidden={hiddenColumns.includes('status')} aria-sort={data.sort.key === 'status' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-3 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('status')} className="flex items-center gap-1.5 whitespace-nowrap">{t('col_status')}<span aria-hidden="true">{data.sort.key === 'status' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
+                            <th hidden={hiddenColumns.includes('created_by')} aria-sort={data.sort.key === 'created_by' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-3 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('created_by')} className="flex items-center gap-1.5 whitespace-nowrap">{t('col_operator')}<span aria-hidden="true">{data.sort.key === 'created_by' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
+                            <th hidden={hiddenColumns.includes('created_at')} aria-sort={data.sort.key === 'created_at' ? (data.sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'} className="px-3 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted"><button type="button" onClick={() => sortBy('created_at')} className="flex items-center gap-1.5 whitespace-nowrap">{t('col_created_at')}<span aria-hidden="true">{data.sort.key === 'created_at' ? (data.sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span></button></th>
+                            <th scope="col" className="sticky right-0 z-10 border-l border-brand-border/50 bg-brand-surface-high px-3 py-3 text-xs uppercase font-bold tracking-wider text-brand-text-muted text-right">{t('col_actions')}</th>
                         </tr>
                         </thead>
                         <tbody className="divide-y divide-brand-border">
@@ -370,8 +365,8 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 const isLimitExceeded = currC >= maxC;
 
                                 return (
-                                    <tr key={p.pallet_id} className="hover:bg-brand-surface-high/30 transition-colors"><td className="px-4 py-4"><input type="checkbox" aria-label={`${language === 'pl' ? 'Zaznacz' : 'Select'} ${p.pallet_id}`} checked={selectedIds.includes(p.pallet_id)} onChange={() => toggleSelected(p.pallet_id)}/></td>
-                                        <td className="px-6 py-4 font-mono text-xs font-semibold">
+                                    <tr key={p.pallet_id} className="hover:bg-brand-surface-high/30 transition-colors"><td className="px-3 py-3"><input type="checkbox" aria-label={`${language === 'pl' ? 'Zaznacz' : 'Select'} ${p.pallet_id}`} checked={selectedIds.includes(p.pallet_id)} onChange={() => toggleSelected(p.pallet_id)}/></td>
+                                        <td className="px-3 py-3 font-mono text-xs font-semibold whitespace-nowrap">
                                             <button
                                                 type="button"
                                                 onClick={() => openPalletHistory(p)}
@@ -382,12 +377,12 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                                 {p.pallet_id}
                                             </button>
                                         </td>
-                                        <td hidden={hiddenColumns.includes('project')} className="px-6 py-4 text-xs font-medium text-brand-text">{p.project}</td>
-                                        <td hidden={hiddenColumns.includes('model')} className="px-6 py-4 text-xs font-medium text-brand-text">{p.model}</td>
-                                        <td hidden={hiddenColumns.includes('fis')} className="px-6 py-4 text-xs font-medium text-brand-text">{p.fis}</td>
-                                        <td hidden={hiddenColumns.includes('nests')} className="px-6 py-4 text-xs font-medium text-brand-text">{p.nests}</td>
-                                        <td hidden={hiddenColumns.includes('current_cycles')} className="px-6 py-4">
-                                            <div className="w-32 flex flex-col gap-1">
+                                        <td hidden={hiddenColumns.includes('project')} className="px-3 py-3 text-xs font-medium text-brand-text">{p.project}</td>
+                                        <td hidden={hiddenColumns.includes('model')} className="px-3 py-3 text-xs font-medium text-brand-text">{p.model}</td>
+                                        <td hidden={hiddenColumns.includes('fis')} className="px-3 py-3 text-xs font-medium text-brand-text">{p.fis}</td>
+                                        <td hidden={hiddenColumns.includes('nests')} className="px-3 py-3 text-xs font-medium text-brand-text">{p.nests}</td>
+                                        <td hidden={hiddenColumns.includes('current_cycles')} className="px-3 py-3">
+                                            <div className="w-28 flex flex-col gap-1">
                                                 <div className="flex justify-between text-xs font-mono">
                                                         <span
                                                             className={isLimitExceeded ? "text-red-400 font-bold" : "text-brand-text-muted"}>
@@ -409,23 +404,23 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td hidden={hiddenColumns.includes('status')} className="px-6 py-4">
+                                        <td hidden={hiddenColumns.includes('status')} className="px-3 py-3">
                                             <PalletStatusSpan status={p.status as PalletStatus}
                                                               block_reason={p.block_reason}/>
                                         </td>
-                                        <td hidden={hiddenColumns.includes('created_by')} className="px-6 py-4">
+                                        <td hidden={hiddenColumns.includes('created_by')} className="px-3 py-3">
                                             <div className="flex flex-col">
                                                     <span
-                                                        className="text-xs font-medium text-brand-text">{p.created_by}</span>
+                                                        className="text-xs font-medium text-brand-text whitespace-nowrap">{p.created_by}</span>
                                             </div>
                                         </td>
-                                        <td hidden={hiddenColumns.includes('created_at')} className="px-6 py-4 whitespace-nowrap text-xs text-brand-text-muted">
+                                        <td hidden={hiddenColumns.includes('created_at')} className="px-3 py-3 whitespace-nowrap text-xs text-brand-text-muted">
                                             {p.created_at && Number.isFinite(Date.parse(p.created_at))
                                                 ? new Date(p.created_at).toLocaleString(language)
                                                 : t('value_not_available')}
                                         </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex min-w-48 items-center justify-end gap-1">
+                                        <td className="sticky right-0 border-l border-brand-border/50 bg-brand-surface px-3 py-3 text-right">
+                                            <div className="flex items-center justify-end gap-1">
                                                 <button
                                                     onClick={() => openPalletHistory(p)}
                                                     title={t('audit_trail_title')}
@@ -516,7 +511,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
             <ModalPresence>
             {data.isAddOpen && (
                 <ModalTransition
-                    onBackdropClick={() => actions.setIsAddOpen(false)}
+                    onBackdropClick={() => { if (!status.isSubmitting) actions.setIsAddOpen(false); }}
                     className="p-2 sm:p-4"
                 >
                     <div
@@ -537,8 +532,9 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 {t('modal_add_pallet_title')}
                             </h3>
                             <button
-                                className="w-8 h-8 rounded-xl flex items-center justify-center text-brand-text-muted hover:text-red-400 hover:bg-red-500/10 transition-all"
-                                onClick={() => actions.setIsAddOpen(false)}
+                                className="w-8 h-8 rounded-xl flex items-center justify-center text-brand-text-muted hover:text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-40"
+                                onClick={() => { if (!status.isSubmitting) actions.setIsAddOpen(false); }}
+                                disabled={status.isSubmitting}
                                 type="button"
                                 aria-label={t('btn_cancel')}
                             >
@@ -704,11 +700,11 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                                 step="1"
                                                 required
                                             />
-                                            <div className={`cycle-step-preview col-span-2 flex min-h-[2.625rem] items-center rounded-xl border px-3 py-2 font-mono text-xs leading-relaxed ${data.rangeCyclePreview && data.rangeCyclePreview.lastLimit > 1_000_000
+                                            <div className={`cycle-step-preview col-span-2 flex min-h-[2.625rem] items-center rounded-xl border px-3 py-2 font-mono text-xs leading-relaxed ${invalidRangeLimit
                                                 ? 'border-red-500/30 bg-red-500/[0.07] text-red-300'
                                                 : 'border-brand-accent/20 bg-brand-accent/[0.06] text-brand-text-muted'
                                             }`}>
-                                                {data.rangeCyclePreview && data.rangeCyclePreview.lastLimit > 1_000_000
+                                                {invalidRangeLimit
                                                     ? t('cycle_step_invalid')
                                                     : data.rangeCyclePreview
                                                     ? t('cycle_step_preview', {
@@ -748,7 +744,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
             <ModalPresence>
             {data.isEditOpen && data.selectedPalletForEdit && (
                 <ModalTransition
-                    onBackdropClick={() => actions.setIsEditOpen(false)}
+                    onBackdropClick={() => { if (!status.isSubmitting) actions.setIsEditOpen(false); }}
                     className="overflow-y-auto"
                 >
                     <div
@@ -765,8 +761,9 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 {t('modal_edit_pallet_title')} - {data.selectedPalletForEdit.pallet_id}
                             </h3>
                             <button
-                                className="w-8 h-8 rounded-xl flex items-center justify-center text-brand-text-muted hover:text-red-400 hover:bg-red-500/10 transition-all"
-                                onClick={() => actions.setIsEditOpen(false)}
+                                className="w-8 h-8 rounded-xl flex items-center justify-center text-brand-text-muted hover:text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-40"
+                                onClick={() => { if (!status.isSubmitting) actions.setIsEditOpen(false); }}
+                                disabled={status.isSubmitting}
                                 type="button"
                                 aria-label={t('btn_cancel')}
                             >
@@ -860,7 +857,7 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                     value={data.editStatus === 'Blocked' ? data.editBlockReason : data.editUnblockComment}
                                     onChange={(e) => data.editStatus === 'Blocked' ? actions.setEditBlockReason(e.target.value) : actions.setEditUnblockComment(e.target.value)}
                                     rows={3}
-                                    placeholder={t('block_reason_required')}
+                                    placeholder={t(data.editStatus === 'Blocked' ? 'block_reason_required' : 'unblock_comment_required')}
                                     required
                                 />
                             )}
@@ -893,9 +890,10 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                                 <ShieldAlert size={20}/>
                                 {t('btn_block')} {data.selectedPalletForBlock.pallet_id}
                             </h3>
-                            <button onClick={() => actions.setIsBlockOpen(false)}
+                            <button type="button" onClick={() => { if (!status.isSubmitting) actions.setIsBlockOpen(false); }}
+                                    disabled={status.isSubmitting}
                                     aria-label={t('btn_cancel')}
-                                    className="text-brand-text-muted hover:text-brand-text">
+                                    className="text-brand-text-muted hover:text-brand-text disabled:opacity-40">
                                 <X size={20}/>
                             </button>
                         </div>
@@ -980,14 +978,6 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
             <ModalPresence>
                 {data.selectedPalletForUnblock && <ModalTransition onBackdropClick={actions.closeUnblock}>
                     <section role="dialog" aria-modal="true" aria-labelledby="unblock-title" aria-describedby="unblock-description"
-                        onKeyDown={event => {
-                            if (event.key !== 'Tab') return;
-                            const buttons = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')];
-                            const first = buttons[0], last = buttons[buttons.length - 1];
-                            if (!first) {event.preventDefault(); return;}
-                            if (event.shiftKey && document.activeElement === first) {event.preventDefault(); last.focus();}
-                            if (!event.shiftKey && document.activeElement === last) {event.preventDefault(); first.focus();}
-                        }}
                         className="w-full max-w-md space-y-4 rounded-2xl border border-emerald-400/30 bg-brand-surface p-6 shadow-2xl">
                         <h2 id="unblock-title" className="text-xl font-black text-emerald-300">{t('btn_unblock')} · {data.selectedPalletForUnblock.pallet_id}</h2>
                         <p id="unblock-description" className="text-sm text-brand-text-muted">{t('confirm_unblock_message')}</p>
@@ -1003,13 +993,6 @@ export const AdminPanelView: React.FC<AdminPanelViewProps> = (props) => {
                     </section>
                 </ModalTransition>}
             </ModalPresence>
-            {/* Global Error Modal */}
-            <GlobalErrorModal
-                isOpen={data.errorModalState.isOpen}
-                title={data.errorModalState.title}
-                message={data.errorModalState.message}
-                onClose={actions.hideGlobalError}
-            />
         </div>
     );
 };

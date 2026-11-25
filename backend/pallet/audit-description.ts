@@ -3,6 +3,9 @@ import type {AuditLogRecord} from "./models";
 import {SupportedLanguage, t, TranslationKey} from "../shared/i18n";
 
 const PREFIX = "i18n:";
+export const AUDIT_STATUS_COMMENT_KEYS: readonly TranslationKey[] = [
+    "audit_blocked", "audit_status_changed", "audit_edited", "audit_updated",
+];
 
 interface EncodedAuditDescription {
     key: TranslationKey;
@@ -16,8 +19,13 @@ interface EncodedAuditDescription {
 
 export function encodeAuditChanges(
     changes: NonNullable<EncodedAuditDescription["changes"]>,
+    comment?: string | null,
 ): string {
-    return PREFIX + JSON.stringify({key: "audit_updated", changes} satisfies EncodedAuditDescription);
+    return PREFIX + JSON.stringify({
+        key: "audit_updated",
+        changes,
+        ...(comment?.trim() ? {comment: comment.trim()} : {}),
+    } satisfies EncodedAuditDescription);
 }
 
 export function encodeAuditDescription(
@@ -41,7 +49,7 @@ export function localizeAuditDescription(description: string, lang?: SupportedLa
             ? {changes: encoded.changes.map((change) => t(change.key, lang, change.variables)).join(", ")}
             : encoded.variables;
         const translated = t(encoded.key, lang, variables);
-        return encoded.comment ? `${translated}: ${encoded.comment}` : translated;
+        return encoded.comment ? `${translated.replace(/\.$/, "")}: ${encoded.comment}` : translated;
     } catch {
         return description;
     }
@@ -51,7 +59,7 @@ export function getAuditStatusReason(description: string | null, lang?: Supporte
     if (!description?.startsWith(PREFIX)) return description?.trim() || null;
     try {
         const encoded = JSON.parse(description.slice(PREFIX.length)) as EncodedAuditDescription;
-        if (encoded.key === 'audit_blocked' || encoded.key === 'audit_status_changed') {
+        if (AUDIT_STATUS_COMMENT_KEYS.includes(encoded.key)) {
             return encoded.comment?.trim() || null;
         }
         if (encoded.key === 'audit_operator_report' || encoded.key === 'audit_operator_report_other') {

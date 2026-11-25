@@ -3,7 +3,6 @@ import {useToast} from '../components/ToastProvider';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Pallet, PalletStatus} from '@backend/shared/types';
 import {useTranslation} from '../i18n/LanguageContext.tsx';
-import {useGlobalErrorModal} from "../hooks/useGlobalErrorModal.ts";
 import {useSearchParams} from "react-router";
 import {useAuth} from "../auth/AuthContext.tsx";
 import {asPallet} from "../lib/api.ts";
@@ -31,7 +30,6 @@ export const useOperatorPanel = () => {
     const {t, language} = useTranslation();
     const {apiClient} = useAuth();
     const queryClient = useQueryClient();
-    const {errorModalState, hideGlobalError} = useGlobalErrorModal();
 
     const defectsQuery = useQuery({queryKey: ['defects'], queryFn: () => apiClient.pallet.GetDefects(), staleTime: 0});
     const [selectedDefect, setSelectedDefect] = useState('');
@@ -105,7 +103,7 @@ export const useOperatorPanel = () => {
         const handleBodyClick = (e: MouseEvent) => {
             const target = e.target as HTMLElement | null;
             if (!target) return;
-            const interactive = target.closest('button, a, input, textarea, select, [role="button"], [tabindex]');
+            const interactive = target.closest('button, a, input, textarea, select, summary, details, [role="button"], [tabindex]');
             if (!interactive && barcodeInputRef.current && !activePallet && !isOtherFaultOpen) {
                 barcodeInputRef.current.focus();
             }
@@ -203,7 +201,7 @@ export const useOperatorPanel = () => {
 
         try {
             const scanApi = apiClient.with({
-                fetcher: (input, init) => fetch(input, {...init, signal: controller.signal}),
+                requestInit: {signal: controller.signal},
             });
             const response = await scanApi.pallet.GetPallet(palletUpper, {acceptLanguage: language});
             const pallet = asPallet(response.pallet);
@@ -310,6 +308,24 @@ export const useOperatorPanel = () => {
         }
     }, [isSubmitting]);
 
+    const handleClearActivePallet = useCallback(() => {
+        scanAbortRef.current?.abort();
+        ++scanRequestRef.current;
+        setIsScanning(false);
+        setActivePallet(null);
+        setUnavailablePallet(null);
+        setScanFeedback(null);
+        setScanStatus('IDLE');
+        setScannedId('');
+        // Router navigation can commit after the local reset. Keep the old URL
+        // consumed until the effect observes its removal, avoiding a second scan.
+        processedUrlIdRef.current = searchParams.get('palletID')?.trim().toUpperCase() || null;
+        const nextParams = new URLSearchParams(searchParams);
+        nextParams.delete('palletID');
+        setSearchParams(nextParams, {replace: true});
+        requestAnimationFrame(() => barcodeInputRef.current?.focus());
+    }, [searchParams, setSearchParams]);
+
     const handleReportFault = useCallback(async () => {
         if (!pendingFault || isSubmitting || (pendingFault.status === 'Damaged' && !selectedDefect) || (selectedDefect === 'other' && !customFaultText.trim())) return;
         if (!activePallet) {
@@ -333,36 +349,17 @@ export const useOperatorPanel = () => {
 
             await refreshPalletData(queryClient);
 
-            setActivePallet(null);
+            handleClearActivePallet();
             setPendingFault(null);
             setIsFaultConfirmOpen(false);
             setCustomFaultText('');
-            setScannedId('');
         } catch (error: unknown) {
             console.error('Błąd zgłaszania usterki:', error);
             triggerToast(getErrorMessage(error, t('error_connecting_to_encore')), 'error');
         } finally {
             setIsSubmitting(false);
         }
-    }, [activePallet, apiClient, language, queryClient, t, triggerToast, pendingFault, customFaultText, selectedDefect, defectsQuery.data, isSubmitting]);
-
-    const handleClearActivePallet = useCallback(() => {
-        scanAbortRef.current?.abort();
-        ++scanRequestRef.current;
-        setIsScanning(false);
-        setActivePallet(null);
-        setUnavailablePallet(null);
-        setScanFeedback(null);
-        setScanStatus('IDLE');
-        setScannedId('');
-        // Router navigation can commit after the local reset. Keep the old URL
-        // consumed until the effect observes its removal, avoiding a second scan.
-        processedUrlIdRef.current = searchParams.get('palletID')?.trim().toUpperCase() || null;
-        const nextParams = new URLSearchParams(searchParams);
-        nextParams.delete('palletID');
-        setSearchParams(nextParams, {replace: true});
-        requestAnimationFrame(() => barcodeInputRef.current?.focus());
-    }, [searchParams, setSearchParams]);
+    }, [activePallet, apiClient, language, queryClient, t, triggerToast, pendingFault, customFaultText, selectedDefect, defectsQuery.data, isSubmitting, handleClearActivePallet]);
 
     // Operator Hotkeys: 1, 2, 3 to report quick faults when active pallet is open
     useEffect(() => {
@@ -414,7 +411,6 @@ export const useOperatorPanel = () => {
             customFaultText,
             isSubmitting,
             isScanning,
-            errorModalState,
         },
         actions: {
             toggleSound,
@@ -430,7 +426,6 @@ export const useOperatorPanel = () => {
             handleReportFault,
             handleClearActivePallet,
             barcodeInputRef,
-            hideGlobalError
         },
     };
 };

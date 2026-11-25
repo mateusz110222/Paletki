@@ -3,10 +3,14 @@ import {db} from "./db";
 import {requireMaintenanceUser} from "../shared/authorization";
 import {t} from "../shared/i18n";
 import {PALLET_STATUSES, type ReportRow} from "../shared/types";
-import {getAuditStatusReason, localizeAuditDescription} from "./audit-description";
+import {AUDIT_STATUS_COMMENT_KEYS, getAuditStatusReason, localizeAuditDescription} from "./audit-description";
 
 
-type ReportRecord = ReportRow & {current_block_reason?: string | null; current_damage_reason?: string | null};
+type ReportRecord = ReportRow & {
+    current_block_reason?: string | null;
+    current_damage_reason?: string | null;
+    block_reason_updated?: boolean;
+};
 
 interface ReportParams {
     mode: Query<"history" | "current">;
@@ -54,6 +58,8 @@ export const GetReports = api({method: "GET", path: "/pallets/reports", expose: 
                 a.previous_status, a.new_status AS status, to_char(a.timestamp AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS timestamp,
                 CASE WHEN r.kind = 'defect' THEN r.defect_name END AS defect,
                 a.description, a.operator_id AS operator, blocking.description AS block_reason,
+                blocking.previous_description AS previous_block_reason,
+                (a.previous_status = 'Blocked' AND a.new_status = 'Blocked' AND blocking.id = a.id) AS block_reason_updated,
                 damage.description AS damage_reason,
                 CASE WHEN p.status = 'Blocked' AND p.status_changed_at = blocking.timestamp
                     THEN p.block_reason END AS current_block_reason,
@@ -62,10 +68,19 @@ export const GetReports = api({method: "GET", path: "/pallets/reports", expose: 
                 FROM pallet_audit_logs a JOIN pallet_details p ON p.pallet_id = a.pallet_id
                 LEFT JOIN operator_reports r ON r.audit_log_id = a.id
                 LEFT JOIN LATERAL (
-                    SELECT b.description, b.timestamp FROM pallet_audit_logs b
-                    WHERE (a.previous_status = 'Blocked' OR a.new_status = 'Blocked')
-                      AND b.pallet_id = a.pallet_id AND b.id <= a.id
-                      AND b.new_status = 'Blocked' AND b.previous_status <> 'Blocked'
+                    SELECT b.id, b.description, b.timestamp,
+                        lead(b.description) OVER (ORDER BY b.id DESC) AS previous_description
+                    FROM (
+                        SELECT id, description, timestamp FROM pallet_audit_logs b
+                        WHERE (a.previous_status = 'Blocked' OR a.new_status = 'Blocked')
+                          AND b.pallet_id = a.pallet_id AND b.id <= a.id AND b.new_status = 'Blocked'
+                          AND (b.previous_status <> 'Blocked' OR CASE
+                              WHEN starts_with(b.description, 'i18n:') AND substring(b.description from 6) IS JSON OBJECT
+                              THEN (substring(b.description from 6)::jsonb ->> 'key') = ANY(string_to_array(${AUDIT_STATUS_COMMENT_KEYS.join(",")}, ','))
+                                  AND NULLIF(BTRIM(substring(b.description from 6)::jsonb ->> 'comment'), '') IS NOT NULL
+                              ELSE false END)
+                        ORDER BY b.id DESC LIMIT 2
+                    ) b
                     ORDER BY b.id DESC LIMIT 1
                 ) blocking ON true
                 LEFT JOIN LATERAL (
@@ -112,10 +127,11 @@ export const GetReports = api({method: "GET", path: "/pallets/reports", expose: 
             getAuditStatusReason(audit ?? null, params.acceptLanguage)
             ?? (current ? localizeAuditDescription(current, params.acceptLanguage) : null);
         return {
-            rows: pageRows.map(({current_block_reason, current_damage_reason, ...row}) => ({...row, timestamp: new Date(row.timestamp).toISOString(),
+            rows: pageRows.map(({current_block_reason, current_damage_reason, block_reason_updated, previous_block_reason, ...row}) => ({...row, timestamp: new Date(row.timestamp).toISOString(),
                 ...(params.mode === 'history' ? {
                     block_reason: statusReason(row.block_reason, current_block_reason),
                     damage_reason: statusReason(row.damage_reason, current_damage_reason),
+                    ...(block_reason_updated ? {previous_block_reason: getAuditStatusReason(previous_block_reason ?? null, params.acceptLanguage)} : {}),
                 } : {}),
                 description: localizeAuditDescription(row.description, params.acceptLanguage)})),
             next_offset: hasMore ? effectiveOffset + limit : undefined,

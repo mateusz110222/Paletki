@@ -4,7 +4,6 @@ import { AlertTriangle, ArrowLeft, ArrowRight, Box, CheckCircle2, ChevronRight, 
 import { useTranslation } from '../i18n/LanguageContext.tsx';
 import { useOperatorPanel } from '../hooks/useOperatorPanel.ts';
 import { PalletStatusSpan } from "../components/PalletStatusSpan.tsx";
-import { GlobalErrorModal } from "../components/GlobalErrorModal.tsx";
 import { useEscapeKey } from "../hooks/useEscapeKey.ts";
 import { ModalFormActions } from "../components/ModalFormActions.tsx";
 import { ModalPresence, ModalTransition } from '../components/ModalTransition.tsx';
@@ -19,10 +18,8 @@ export const OperatorPanelView: React.FC = () => {
     const maxCycles = data.activePallet?.max_cycles || 1;
     const cyclePercentage = Math.min(100, Math.round((currentCycles / maxCycles) * 100));
 
-    useEscapeKey(data.errorModalState.isOpen || data.isOtherFaultOpen || data.unavailablePallet !== null, () => {
-        if (data.errorModalState.isOpen) {
-            actions.hideGlobalError();
-        } else if (data.unavailablePallet) {
+    useEscapeKey(data.isOtherFaultOpen || data.unavailablePallet !== null, () => {
+        if (data.unavailablePallet) {
             actions.handleClearActivePallet();
         } else if (data.isFaultConfirmOpen && !data.isSubmitting) {
             actions.cancelFaultConfirmation();
@@ -570,12 +567,6 @@ export const OperatorPanelView: React.FC = () => {
                 )}
             </ModalPresence>
 
-            <GlobalErrorModal
-                isOpen={data.errorModalState.isOpen}
-                title={data.errorModalState.title}
-                message={data.errorModalState.message}
-                onClose={actions.hideGlobalError}
-            />
         </div>
     );
 };

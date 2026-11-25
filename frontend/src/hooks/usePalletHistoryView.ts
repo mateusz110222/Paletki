@@ -1,5 +1,5 @@
 import { useToast } from '../components/ToastProvider';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 
 import { useNavigate, useParams } from 'react-router';
 import { AuditLog, Pallet } from '@backend/shared/types';
@@ -41,6 +41,10 @@ export function usePalletHistoryView() {
     const notify = useToast();
     const [isCopied, setIsCopied] = useState(false);
 
+    useLayoutEffect(() => {
+        window.scrollTo({top: 0, left: 0, behavior: 'instant'});
+    }, [palletId]);
+
     useEffect(() => {
         return subscribeBroadcast((message) => {
             if (
@@ -61,7 +65,7 @@ export function usePalletHistoryView() {
             setHistory([]);
             try {
                 const requestApi = apiClient.with({
-                    fetcher: (input, init) => fetch(input, {...init, signal: controller.signal}),
+                    requestInit: {signal: controller.signal},
                 });
                 const palletResponse = await requestApi.pallet.GetPallet(palletId, {include_deleted: true, acceptLanguage: language});
                 const palletData = asPallet(palletResponse.pallet);
@@ -164,16 +168,16 @@ export function usePalletHistoryView() {
         if (!pallet || filteredHistory.length === 0) return;
 
         const headers = [
-            'ID Wpisu',
-            'Data i Czas',
-            'ID Palety',
-            'Projekt',
-            'Model',
-            'Poprzedni Status',
-            'Nowy Status',
-            'Operator',
-            'Opis / Powód',
-            'Komentarz'
+            t('history_csv_entry'),
+            t('history_csv_timestamp'),
+            t('col_pallet_id'),
+            t('col_project'),
+            t('col_model'),
+            t('reports_previous'),
+            t('reports_next_status'),
+            t('history_csv_operator'),
+            t('history_csv_reason'),
+            t('history_comment'),
         ];
 
         const rows = filteredHistory.map(entry => [

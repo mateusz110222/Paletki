@@ -2,7 +2,7 @@ import {RequiredMark} from './FormFields';
 import {ModalFormActions} from './ModalFormActions';
 import {PalletStatusSpan} from './PalletStatusSpan';
 import {SelectedPalletList} from './SelectedPalletList';
-import {useEffect, useRef, useState} from 'react';
+import {useRef, useState} from 'react';
 import type {Pallet, PalletStatus} from '@backend/shared/types';
 import {PALLET_STATUSES} from '@backend/shared/types';
 import {useAuth} from '../auth/AuthContext';
@@ -28,18 +28,6 @@ export function BulkPalletActions({pallets, onClear, onCompleted}: {pallets: Pal
     const runningRef = useRef(false);
     const [progress, setProgress] = useState(0);
     const [failures, setFailures] = useState<{id: string; message: string}[]>([]);
-    const isOpen = snapshot !== null;
-    useEffect(() => {
-        if (!isOpen) return;
-        const active = document.activeElement;
-        const background = document.querySelector<HTMLElement>('.staff-screen');
-        const wasInert = background?.inert ?? false;
-        if (background) background.inert = true;
-        return () => {
-            if (background) background.inert = wasInert;
-            if (active instanceof HTMLElement && active.isConnected) active.focus();
-        };
-    }, [isOpen]);
     const close = () => { if (!runningRef.current) setSnapshot(null); };
     useEscapeKey(Boolean(snapshot), close);
     const statusLabel = (status: PalletStatus) => ({Active: t('status_active'), Washing_Required: t('status_washing_required'), Damaged: t('status_damaged'), Blocked: t('status_blocked')})[status];
@@ -78,14 +66,7 @@ export function BulkPalletActions({pallets, onClear, onCompleted}: {pallets: Pal
             <button type="button" disabled={!pallets.length || busy} onClick={onClear} className="px-2 py-2 disabled:opacity-40">{pl ? 'Wyczyść zaznaczenie' : 'Clear selection'}</button>
         </div>
         <ModalPresence>{snapshot && <ModalTransition onBackdropClick={close} className="overflow-y-auto">
-            <section role="dialog" aria-modal="true" aria-labelledby="bulk-title" onKeyDown={event => {
-                if (event.key !== 'Tab') return;
-                const controls = [...event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]')];
-                const first = controls[0], last = controls[controls.length - 1];
-                if (!first) {event.preventDefault(); return;}
-                if (event.shiftKey && document.activeElement === first) {event.preventDefault(); last.focus();}
-                if (!event.shiftKey && document.activeElement === last) {event.preventDefault(); first.focus();}
-            }} className="max-h-[85dvh] w-full max-w-xl space-y-4 overflow-y-auto rounded-2xl border border-brand-border bg-brand-surface p-6">
+            <section role="dialog" aria-modal="true" aria-labelledby="bulk-title" className="max-h-[85dvh] w-full max-w-xl space-y-4 overflow-y-auto rounded-2xl border border-brand-border bg-brand-surface p-6">
                 <h2 id="bulk-title" className="text-xl font-bold">{pl ? 'Zmiana statusu palet' : 'Change pallet status'} · {snapshot.length}</h2>
                 <p className="text-sm text-brand-text-muted">{pl ? 'Zmiana obejmie wyłącznie poniższe ID. Liczniki cykli pozostaną bez zmian.' : 'Only the IDs below will be updated. Cycle counters will remain unchanged.'}</p>
                 <SelectedPalletList pallets={snapshot} statusLabel={t('col_status')} renderStatus={pallet => <PalletStatusSpan status={pallet.status} block_reason={pallet.block_reason}/>}/>

@@ -387,7 +387,7 @@ export const LiveMonitorView: React.FC = () => {
                                     </div>
                                         </div>
 
-                                        <div className="space-y-1.5 pt-1">
+                                        <div className="min-h-8 space-y-1.5 pt-1">
                                             <div className="h-2 w-full overflow-hidden rounded-full border border-brand-border/30 bg-brand-bg p-px">
                                                 <div
                                                     className={`h-full rounded-full transition-all duration-700 ${theme.barBg}`}

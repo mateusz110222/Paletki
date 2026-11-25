@@ -25,7 +25,7 @@ export function DisplayModeControl() {
             }
         };
         const escape = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
+            if (event.key === 'Escape' && enabled) {
                 setEnabled(false);
                 if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
             }
@@ -36,7 +36,7 @@ export function DisplayModeControl() {
             document.removeEventListener('fullscreenchange', sync);
             window.removeEventListener('keydown', escape);
         };
-    }, [setEnabled]);
+    }, [enabled, setEnabled]);
     useEffect(() => () => {
         if (ownsFullscreenRef.current && document.fullscreenElement) void document.exitFullscreen().catch(() => {});
     }, []);

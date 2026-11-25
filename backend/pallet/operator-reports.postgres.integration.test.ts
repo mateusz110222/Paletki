@@ -8,7 +8,8 @@ const state = vi.hoisted(() => ({
     pool: null as Pool | null, auth: null as AuthData | null, cardName: 'Anna Nowak',
     afterRead: null as ((sql: string) => Promise<void>) | null,
     sync: vi.fn(), ensure: vi.fn(), delete: vi.fn(),
-    fis: {strainBlocking: false, requestTimeoutMs: 1000, outboxCompletedRetentionDays: 30, router1Url: 'http://fis-1.test', router2Url: 'http://fis-2.test'},
+    fis: {strainBlocking: false, requestTimeoutMs: 1000, outboxCompletedRetentionDays: 30, outboxWorkerToken: 'fixture-worker-token',
+        router1Url: 'http://fis-1.test', router2Url: 'http://fis-2.test'},
 }));
 vi.mock('./fis-client', () => ({FisClient: class {
     synchronizeUnit = state.sync;
@@ -48,7 +49,11 @@ vi.mock('./db', () => {
                 await state.afterRead?.(parts.join(''));
                 return result.rows;
             },
-            queryRow: async (parts: TemplateStringsArray, ...values: unknown[]) => (await run(parts, values)).rows[0] ?? null,
+            queryRow: async (parts: TemplateStringsArray, ...values: unknown[]) => {
+                const result = await run(parts, values);
+                await state.afterRead?.(parts.join(''));
+                return result.rows[0] ?? null;
+            },
             exec: async (parts: TemplateStringsArray, ...values: unknown[]) => {await run(parts, values);},
         };
     }
@@ -68,8 +73,8 @@ vi.mock('./db', () => {
 // Real SQL and real business handlers; only Encore's transport/runtime boundary is replaced.
 import {AddDefect, DeleteDefect, UpdateDefect, CreateOperatorReport, EditOperatorReport, GetOperatorReports} from './operator-reports';
 import {GetReports} from './reports';
-import {ChangePalletStatus, BlockPallet, UnblockPallet} from './status';
-import {AddPallet, AddPalletRange, UpdatePallet, DeletePallet, GetPallet, GetPalletHistory, GetAllPalletHistory} from './pallet';
+import {ChangePalletStatus, BlockPallet, ResetPalletCycles, UnblockPallet} from './status';
+import {AddPallet, AddPalletRange, UpdatePallet, DeletePallet, GetPallet, GetAllPallets, GetPalletHistory, GetAllPalletHistory} from './pallet';
 import {ConfirmPalletWashing} from './washing';
 import {GetPublicDashboard} from './dashboard';
 import {UpdateModel} from './model-catalog';
@@ -84,6 +89,7 @@ import {GetSolderingPallet, RegisterSolderingCycle, SetSolderingStationPallet} f
 const operator: AuthData = {fullName: 'Operator A', hasITDepartmentAccess: false, hasURDepartmentAccess: false, hasMEDepartmentAccess: false} as AuthData;
 const ur: AuthData = {...operator, fullName: 'UR A', hasURDepartmentAccess: true};
 const itUser: AuthData = {...operator, fullName: 'IT A', hasITDepartmentAccess: true};
+const workerCredentials = {workerToken: state.fis.outboxWorkerToken};
 async function confirmWashing(params: {pallet_id: string; expected_cycles: number; comment?: string; expected_updated_at?: string}) {
     const row = (await state.pool!.query('SELECT updated_at FROM pallets WHERE pallet_id=$1', [params.pallet_id])).rows[0];
     return ConfirmPalletWashing({...params, expected_updated_at: params.expected_updated_at ?? row.updated_at.toISOString()});
@@ -189,15 +195,40 @@ suite('operator reports and reporting against isolated PostgreSQL', () => {
         expect(first.rows[0].pallet_id).toBe('PAL-01');
         expect(next.rows.map(row => row.pallet_id)).toEqual(['PAL-02']);
     });
+    it('allows cycles on different pallets sharing a project and model to run in parallel', async () => {
+        await state.pool!.query("INSERT INTO pallets(pallet_id,project_id,model_id,max_cycles,nests,created_by) VALUES('PAL-02',1,1,100,1,'IT A')");
+        let signalRead!: () => void, releaseRead!: () => void;
+        const locked = new Promise<void>(resolve => {signalRead = resolve;});
+        const release = new Promise<void>(resolve => {releaseRead = resolve;});
+        state.afterRead = async sql => {
+            if (sql.includes('SELECT a.id, a.status, a.current_cycles')) {
+                state.afterRead = null;
+                signalRead();
+                await release;
+            }
+        };
+        const first = RegisterSolderingCycle({pallet_id: 'PAL-01', station: 'SOLDER-01'});
+        await locked;
+        const second = RegisterSolderingCycle({pallet_id: 'PAL-02', station: 'SOLDER-02'});
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try {
+            const deadline = new Promise(resolve => {timer = setTimeout(() => resolve('blocked by another pallet'), 1000);});
+            expect(await Promise.race([second, deadline])).toMatchObject({status: true, current_cycles: 1});
+        } finally {
+            clearTimeout(timer);
+            releaseRead();
+            await Promise.all([first, second]);
+        }
+    });
     it('serializes reconciliation snapshots with deletion so DELETE remains the last queued job', async () => {
         state.auth = itUser;
         let signalRead!: () => void, releaseRead!: () => void;
         const read = new Promise<void>(resolve => {signalRead = resolve;});
         const release = new Promise<void>(resolve => {releaseRead = resolve;});
         state.afterRead = async sql => {
-            if (sql.includes('FROM pallet_details WHERE id >')) {signalRead(); await release;}
+            if (sql.includes('WITH batch AS MATERIALIZED')) {signalRead(); await release;}
         };
-        const reconciliation = ReconcileFisOutbox();
+        const reconciliation = ReconcileFisOutbox(workerCredentials);
         await read;
         const deletion = DeletePallet({pallet_id: 'PAL-01'});
         try {
@@ -208,7 +239,7 @@ suite('operator reports and reporting against isolated PostgreSQL', () => {
             await Promise.all([reconciliation, deletion]);
         }
         expect((await state.pool!.query('SELECT operation FROM fis_outbox ORDER BY id')).rows).toEqual([{operation: 'SYNC'}, {operation: 'DELETE'}]);
-        await ProcessFisOutbox({limit: 2});
+        await ProcessFisOutbox({...workerCredentials, limit: 2});
         expect(state.ensure).toHaveBeenCalledOnce();
         expect(state.delete).toHaveBeenCalledOnce();
         expect((await state.pool!.query("SELECT deleted_at IS NOT NULL AS deleted FROM pallets WHERE pallet_id='PAL-01'")).rows[0].deleted).toBe(true);
@@ -221,7 +252,7 @@ suite('operator reports and reporting against isolated PostgreSQL', () => {
         const ready = new Promise<void>(resolve => {started = resolve;});
         const release = new Promise<void>(resolve => {finish = resolve;});
         state.sync.mockImplementationOnce(async () => {started(); await release;});
-        const processing = ProcessFisOutbox({limit: 2});
+        const processing = ProcessFisOutbox({...workerCredentials, limit: 2});
         await ready;
         try {
             const rows = (await state.pool!.query('SELECT status,lease_token FROM fis_outbox ORDER BY id')).rows;
@@ -239,7 +270,7 @@ suite('operator reports and reporting against isolated PostgreSQL', () => {
             const ready = new Promise<void>(resolve => {started = resolve;});
             const release = new Promise<void>(resolve => {finish = resolve;});
             state.sync.mockImplementationOnce(async () => {started(); await release; if (fails) throw new Error('FIS failure');});
-            const processing = ProcessFisOutbox({limit: 1});
+            const processing = ProcessFisOutbox({...workerCredentials, limit: 1});
             await ready;
             const lease = randomUUID();
             await state.pool!.query("UPDATE fis_outbox SET lease_token=$1,attempts=attempts+1,locked_at=NOW() WHERE status='processing'", [lease]);
@@ -254,11 +285,49 @@ suite('operator reports and reporting against isolated PostgreSQL', () => {
         await tx.commit();
         await state.pool!.query("UPDATE fis_outbox SET status='processing',locked_at=NOW()-interval '16 minutes',lease_token=$1,attempts=8", [randomUUID()]);
         state.sync.mockRejectedValue(new Error('FIS failure'));
-        expect(await ProcessFisOutbox({limit: 1})).toMatchObject({claimed: 1, retried: 1, dead: 0});
+        expect(await ProcessFisOutbox({...workerCredentials, limit: 1})).toMatchObject({claimed: 1, retried: 1, dead: 0});
         expect((await state.pool!.query('SELECT status,lease_token,attempts FROM fis_outbox')).rows).toEqual([{status: 'pending', lease_token: null, attempts: 9}]);
         await state.pool!.query("UPDATE fis_outbox SET available_at=NOW()");
-        expect(await ProcessFisOutbox({limit: 1})).toMatchObject({claimed: 1, retried: 0, dead: 1});
+        expect(await ProcessFisOutbox({...workerCredentials, limit: 1})).toMatchObject({claimed: 1, retried: 0, dead: 1});
         expect((await state.pool!.query('SELECT status,lease_token,attempts FROM fis_outbox')).rows).toEqual([{status: 'dead', lease_token: null, attempts: 10}]);
+    });
+    it('rejects unauthenticated workers and releases the queue after the last lease expires', async () => {
+        await expect(ProcessFisOutbox({limit: 1})).rejects.toThrow(/worker credentials/);
+        await expect(ReconcileFisOutbox({workerToken: 'incorrect-token'})).rejects.toThrow(/worker credentials/);
+        expect((await state.pool!.query('SELECT * FROM fis_outbox')).rows).toEqual([]);
+        await ReconcileFisOutbox(workerCredentials);
+        await state.pool!.query("UPDATE fis_outbox SET status='processing', locked_at=NOW()-interval '16 minutes', lease_token=$1, attempts=10", [randomUUID()]);
+        await using tx = await db.begin();
+        await enqueueFisSync(tx, 1, {pallet_id: 'PAL-01', project: 'Project', model: 'Model'}, 'IT');
+        await tx.commit();
+        expect(await ProcessFisOutbox({...workerCredentials, limit: 1})).toMatchObject({claimed: 1, completed: 1});
+        expect((await state.pool!.query('SELECT status, attempts FROM fis_outbox ORDER BY id')).rows).toEqual([
+            {status: 'dead', attempts: 10}, {status: 'completed', attempts: 1},
+        ]);
+    });
+    it('keeps a damaged pallet and its defect open until the repair is completed', async () => {
+        const pallet_id = 'PAL-01';
+        await CreateOperatorReport({pallet_id, description: 'Broken latch'});
+        state.auth = itUser;
+        await expect(CreateOperatorReport({pallet_id, kind: 'washing', acceptLanguage: 'en'})).rejects.toThrow(/complete the repair/i);
+        await expect(ChangePalletStatus({pallet_id, new_status: 'Washing_Required', block_reason: 'Wash', acceptLanguage: 'en'})).rejects.toThrow(/complete the repair/i);
+        await expect(UpdatePallet({pallet_id, status: 'Washing_Required', acceptLanguage: 'en'})).rejects.toThrow(/complete the repair/i);
+        expect((await GetPallet({pallet_id})).pallet.status).toBe('Damaged');
+        expect((await state.pool!.query("SELECT kind, closed_at FROM operator_reports")).rows).toEqual([{kind: 'defect', closed_at: null}]);
+    });
+    it('requires a release comment when resetting a blocked pallet and records that comment', async () => {
+        const pallet_id = 'PAL-01';
+        state.auth = itUser;
+        await BlockPallet({pallet_id, block_reason: 'Inspection'});
+        await expect(ResetPalletCycles({pallet_id})).rejects.toThrow();
+        await expect(ResetPalletCycles({pallet_id, block_reason: 'Inspection complete'})).resolves.toMatchObject({new_status: 'Active'});
+        expect((await GetPalletHistory({pallet_id})).history[0].description).toContain('Inspection complete');
+    });
+    it('matches literal underscores and percent signs in searches', async () => {
+        await state.pool!.query(`INSERT INTO pallets(pallet_id,project_id,model_id,max_cycles,nests,created_by)
+            VALUES ('PAL-A_B',1,1,100,1,'QA%'), ('PAL-AXB',1,1,100,1,'QA')`);
+        expect((await GetAllPallets({query: 'A_B'})).pallets.map(pallet => pallet.pallet_id)).toEqual(['PAL-A_B']);
+        expect((await GetAllPallets({query: '%'})).pallets.map(pallet => pallet.pallet_id)).toEqual(['PAL-A_B']);
     });
     it('attributes automatic washing to System rather than a previous washing report author', async () => {
         await state.pool!.query("UPDATE pallets SET status='Washing_Required',updated_by='Old operator' WHERE pallet_id='PAL-01'; UPDATE pallet_audit_logs SET timestamp=NOW()-interval '1 day' WHERE new_status='Washing_Required'");
@@ -659,6 +728,7 @@ suite('operator reports and reporting against isolated PostgreSQL', () => {
             ('PAL-01','UR A','Washing_Required','Active','Washed again','2026-10-12T06:00:00Z'),
             ('PAL-01','UR A','Damaged','Active','Repaired','2026-10-12T07:00:00Z'),
             ('PAL-01','UR A','Active','Active','Metadata update','2026-10-12T08:00:00Z'),
+            ('PAL-01','UR A','Damaged','Damaged','Second defect','2026-10-12T09:00:00Z'),
             ('PAL-01','UR A','Washing_Required','Active','Outside date','2026-10-13T06:00:00Z');
             UPDATE pallets SET deleted_at=NOW() WHERE pallet_id='PAL-01'`);
         const filters = {mode: 'history' as const, previous_status: 'Washing_Required', statuses: 'Active',
@@ -670,6 +740,15 @@ suite('operator reports and reporting against isolated PostgreSQL', () => {
         expect(next.next_offset).toBeUndefined();
         const changes = await GetReports({mode: 'history', changes_only: true, statuses: 'Active'});
         expect(changes.rows.map(row => row.description)).toEqual(['Outside date', 'Repaired', 'Washed again', 'Washed first']);
+        const sameStatus = await GetReports({mode: 'history', previous_status: 'Damaged', statuses: 'Damaged'});
+        expect(sameStatus.rows).toMatchObject([{description: 'Second defect'}]);
+        const damaged = await GetReports({mode: 'history', statuses: 'Damaged'});
+        expect(damaged.rows).toMatchObject([{previous_status: 'Damaged', description: 'Second defect'}]);
+        const active = await GetReports({mode: 'history', statuses: 'Active'});
+        expect(active.rows).toEqual(expect.arrayContaining([
+            expect.objectContaining({previous_status: 'NEW'}),
+            expect.objectContaining({previous_status: 'Active', description: 'Metadata update'}),
+        ]));
         await expect(GetReports({...filters, previous_status: 'NEW'})).rejects.toThrow();
 
         await expect(GetPallet(pallet)).rejects.toThrow();
@@ -680,15 +759,29 @@ suite('operator reports and reporting against isolated PostgreSQL', () => {
     });
     it('links historical Blocked badges to the reason for the matching block', async () => {
         state.auth = itUser;
-        await BlockPallet({pallet_id: 'PAL-01', block_reason: 'First inspection'});
+        await UpdatePallet({pallet_id: 'PAL-01', status: 'Blocked', block_reason: 'First inspection'});
+        await UpdatePallet({pallet_id: 'PAL-01', status: 'Blocked', nests: 2, block_reason: 'Corrected reason'});
+        await UpdatePallet({pallet_id: 'PAL-01', nests: 3});
+        await state.pool!.query(`INSERT INTO pallet_audit_logs(pallet_id,operator_id,previous_status,new_status,description)
+            VALUES ('PAL-01','IT A','Blocked','Blocked','i18n:malformed')`);
         await UnblockPallet({pallet_id: 'PAL-01', comment: 'Inspection complete'});
-        await UpdatePallet({pallet_id: 'PAL-01', status: 'Blocked', block_reason: 'Second inspection'});
+        await BlockPallet({pallet_id: 'PAL-01', block_reason: 'Second inspection'});
 
         const {rows} = await GetReports({mode: 'history', changes_only: true, acceptLanguage: 'en'});
         expect(rows.map(({previous_status, status, block_reason}) => [previous_status, status, block_reason])).toEqual([
             ['Active', 'Blocked', 'Second inspection'],
-            ['Blocked', 'Active', 'First inspection'],
+            ['Blocked', 'Active', 'Corrected reason'],
             ['Active', 'Blocked', 'First inspection'],
+        ]);
+        const revisions = await GetReports({mode: 'history', previous_status: 'Blocked', statuses: 'Blocked', acceptLanguage: 'en'});
+        expect(revisions.rows).toMatchObject([
+            {description: 'i18n:malformed', block_reason: 'Corrected reason'},
+            {description: 'Pallet data changed: nests 2 → 3.', block_reason: 'Corrected reason'},
+            {block_reason: 'Corrected reason', previous_block_reason: 'First inspection'},
+        ]);
+        const {history} = await GetPalletHistory({pallet_id: 'PAL-01'});
+        expect(history.filter(entry => entry.status_reason).map(entry => entry.status_reason)).toEqual([
+            'Second inspection', 'Corrected reason', 'First inspection',
         ]);
     });
     it('defaults machines to WSM and audits machine edits', async () => {
